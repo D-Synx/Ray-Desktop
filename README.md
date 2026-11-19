@@ -1,3 +1,13 @@
+## RayXDesktop 1.4.6
+
+La version maintenue par **D.Synx** affiche une nouvelle barre flottante. **Fichiers** et **Reconnecter** sont accessibles directement.
+
+![RayXDesktop 1.4.6 — nouvelle barre avec Affichage, Résolution, Fichiers et Reconnecter](assets/RayXDesktop-1.4.6.webp)
+
+[Télécharger la version Windows 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Lire le guide RayXDesktop](https://github.com/D-Synx/Ray-Desktop/tree/ray-desktop-maintenance#readme)
+
+---
+
 <p align="center">
   <img src="assets/RayDesktop-preview.png" width="520" alt="Ray Desktop">
 </p>
