@@ -49,6 +49,8 @@ namespace ChildSessionDesktop
         private Size _fixedMatchClient = Size.Empty;   // 固定模式下最近窗口匹配会话的目标逻辑客户区；切动态时据此判断窗口是否被用户拉伸
         private FormBorderStyle prevBorder;
         private ToolbarForm toolBar;                 // 独立悬浮工具栏（可拖动，含全屏/退出全屏）
+        private bool copyingClipboardFiles;
+        private string lastTransferFolder;
         private ContextMenuStrip _displayMenu, _moreMenu, _resMenu;   // 三个下拉菜单复用单实例，避免每次点击泄漏
         private Timer reconnectTimer;             // 断开/超时后的低频自动重连探测
         private readonly ReconnectPolicy reconnectPolicy = new ReconnectPolicy();   // v1.4.0：重连决策委托纯逻辑（可测）
@@ -419,6 +421,10 @@ namespace ChildSessionDesktop
             menu.Items.Add(itemReconnect);
             menu.Items.Add(itemAbout);
             menu.Items.Add(itemLog);
+            var itemTransfer = new ToolStripMenuItem("Transférer les fichiers copiés…");
+            itemTransfer.Enabled = !copyingClipboardFiles;
+            itemTransfer.Click += delegate { TransferClipboardFiles(); };
+            menu.Items.Add(itemTransfer);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(itemUpdate);
             Point pos = new Point(anchor.Left, anchor.Bottom);
@@ -535,6 +541,76 @@ namespace ChildSessionDesktop
                 lastRequestedDisplaySize = new Size(w & ~1, h);
             }
             catch (Exception ex) { Program.Log("HoldCurrentDisplaySize failed: " + ex.GetBaseException().Message); }
+        }
+
+        private async void TransferClipboardFiles()
+        {
+            if (copyingClipboardFiles) return;
+            try
+            {
+                var copiedFiles = Clipboard.GetFileDropList();
+                if (copiedFiles.Count == 0)
+                {
+                    MessageBox.Show(this, "Copie d’abord un ou plusieurs fichiers dans l’Explorateur de la session utilisateur.",
+                        "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                string destination;
+                using (var folder = new FolderBrowserDialog
+                {
+                    Description = "Choisis un dossier local accessible depuis les deux sessions.",
+                    SelectedPath = lastTransferFolder ?? "",
+                    ShowNewFolderButton = true
+                })
+                {
+                    if (folder.ShowDialog(this) != DialogResult.OK) return;
+                    destination = folder.SelectedPath;
+                }
+
+                copyingClipboardFiles = true;
+                lastTransferFolder = destination;
+                string result = await System.Threading.Tasks.Task.Factory.StartNew(
+                    () => CopyClipboardFiles(copiedFiles, destination),
+                    System.Threading.CancellationToken.None,
+                    System.Threading.Tasks.TaskCreationOptions.None,
+                    System.Threading.Tasks.TaskScheduler.Default);
+                if (!IsDisposed && !closing)
+                    MessageBox.Show(this, result, "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && !closing)
+                    MessageBox.Show(this, ex.Message, "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                copyingClipboardFiles = false;
+            }
+        }
+
+        private static string CopyClipboardFiles(System.Collections.Specialized.StringCollection paths, string destination)
+        {
+            int copied = 0;
+            var failures = new System.Text.StringBuilder();
+            foreach (string source in paths)
+            {
+                try
+                {
+                    if (Directory.Exists(source))
+                        throw new IOException("Ce bouton accepte uniquement les fichiers.");
+                    File.Copy(source, Path.Combine(destination, Path.GetFileName(source)), false);
+                    copied++;
+                }
+                catch (Exception ex)
+                {
+                    if (!(ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)) throw;
+                    failures.AppendLine(source + " : " + ex.Message);
+                }
+            }
+
+            return copied + " fichier(s) copié(s) sur " + paths.Count + ".\r\n" + destination
+                + (failures.Length == 0 ? "" : "\r\n\r\nÉchecs de copie :\r\n" + failures);
         }
 
         private void OpenLogFolder()
