@@ -859,7 +859,7 @@ namespace ChildSessionDesktop
                 {
                     connecting = false;
                     Program.Log("Child sessions are disabled on this computer");
-                    RequestEnableChildSessions();
+                    SetStatus("Child Sessions disabled. An authorized administrator can run EnableChildSessions.exe --enable-child-sessions.");
                     return;
                 }
                 Program.Log("Child sessions enabled on this computer");
@@ -953,70 +953,6 @@ namespace ChildSessionDesktop
             catch (Exception ex)
             {
                 Program.Log("Could not enumerate or enable individual RDP drives: " + ex.GetBaseException().Message);
-            }
-        }
-
-        private void RequestEnableChildSessions()
-        {
-            string helperPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EnableChildSessions.exe");
-            if (!File.Exists(helperPath))
-            {
-                SetStatus(Strings.T("status_disabled_missing_helper"));
-                return;
-            }
-
-            // P1-9②: 签名缺失时的兜底——拒绝版本与主程序不一致的辅助程序，防可写目录中被替换的二进制提权
-            // 注：appVer 取 AssemblyVersion（GetName().Version）、helperVer 取 FileVersion，二者相等依赖 build.ps1 同时注入
-            //     AssemblyVersion 与 AssemblyFileVersion（同一 $version）。改版本号时两处同步，否则会静默误判"版本不一致"而拒绝提权。
-            try
-            {
-                string appVer = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
-                string helperVer = System.Diagnostics.FileVersionInfo.GetVersionInfo(helperPath).FileVersion;
-                if (!string.Equals(helperVer, appVer, StringComparison.Ordinal))
-                {
-                    Program.Log("Refusing to launch setup helper: version mismatch (helper=" + helperVer + " app=" + appVer + ")");
-                    SetStatus(Strings.T("status_launch_helper_fail") + " (版本不匹配 / version mismatch)");
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                // fail-closed：无法校验版本时拒绝启动（异常路径即"被替换/损坏"场景，放行=兜底失效）
-                Program.Log("Refusing to launch setup helper: version could not be verified (" + ex.GetBaseException().Message + ")");
-                SetStatus(Strings.T("status_launch_helper_fail") + " (版本无法校验 / version unverifiable)");
-                return;
-            }
-
-            try
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = helperPath,
-                    UseShellExecute = true,
-                    Verb = "runas"
-                };
-                Process helper = Process.Start(startInfo);
-                if (helper != null) helper.Dispose();
-                SetStatus(Strings.T("status_requesting"));
-                Program.Log("Launched elevated Child Sessions setup helper");
-            }
-            catch (Win32Exception ex)
-            {
-                if (ex.NativeErrorCode == 1223)
-                {
-                    SetStatus(Strings.T("status_elevation_canceled"));
-                    Program.Log("User canceled UAC elevation for Child Sessions setup");
-                }
-                else
-                {
-                    SetStatus(Strings.T("status_launch_helper_fail") + ex.Message);
-                    Program.Log("Could not launch elevated setup helper: " + ex);
-                }
-            }
-            catch (Exception ex)
-            {
-                SetStatus(Strings.T("status_launch_helper_fail") + ex.GetBaseException().Message);
-                Program.Log("Could not launch elevated setup helper: " + ex);
             }
         }
 
