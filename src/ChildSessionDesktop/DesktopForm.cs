@@ -50,7 +50,6 @@ namespace ChildSessionDesktop
         private FormBorderStyle prevBorder;
         private ToolbarForm toolBar;                 // 独立悬浮工具栏（可拖动，含全屏/退出全屏）
         private bool copyingClipboardFiles;
-        private string lastTransferFolder;
         private ContextMenuStrip _displayMenu, _moreMenu, _resMenu;   // 三个下拉菜单复用单实例，避免每次点击泄漏
         private Timer reconnectTimer;             // 断开/超时后的低频自动重连探测
         private readonly ReconnectPolicy reconnectPolicy = new ReconnectPolicy();   // v1.4.0：重连决策委托纯逻辑（可测）
@@ -556,20 +555,8 @@ namespace ChildSessionDesktop
                     return;
                 }
 
-                string destination;
-                using (var folder = new FolderBrowserDialog
-                {
-                    Description = "Choisis un dossier local accessible depuis les deux sessions.",
-                    SelectedPath = lastTransferFolder ?? "",
-                    ShowNewFolderButton = true
-                })
-                {
-                    if (folder.ShowDialog(this) != DialogResult.OK) return;
-                    destination = folder.SelectedPath;
-                }
-
+                string destination = GetChildSessionDesktop();
                 copyingClipboardFiles = true;
-                lastTransferFolder = destination;
                 string result = await System.Threading.Tasks.Task.Factory.StartNew(
                     () => CopyClipboardFiles(copiedFiles, destination),
                     System.Threading.CancellationToken.None,
@@ -587,6 +574,61 @@ namespace ChildSessionDesktop
             {
                 copyingClipboardFiles = false;
             }
+        }
+
+        private string GetChildSessionDesktop()
+        {
+            uint sessionId;
+            if (((IMsRdpClient9)rdp.GetOcxObject()).Connected != 1
+                || !Program.WTSGetChildSessionId(out sessionId) || sessionId == uint.MaxValue)
+                throw new InvalidOperationException("Connecte d’abord le bureau dans Ray Desktop.");
+
+            string user = ReadSessionAccountField(sessionId, 5);
+            string domain = ReadSessionAccountField(sessionId, 7);
+            if (string.IsNullOrWhiteSpace(user))
+                throw new InvalidOperationException("Windows n’a pas indiqué le compte de la session ouverte.");
+
+            var account = string.IsNullOrEmpty(domain)
+                ? new System.Security.Principal.NTAccount(user)
+                : new System.Security.Principal.NTAccount(domain, user);
+            var sid = (System.Security.Principal.SecurityIdentifier)account.Translate(
+                typeof(System.Security.Principal.SecurityIdentifier));
+
+            using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+            {
+                if (sid.Equals(identity.User))
+                    return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            }
+
+            const string profileList = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\";
+            const string shellFolders = @"\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders";
+            using (var profile = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(profileList + sid.Value))
+            using (var folders = Microsoft.Win32.Registry.Users.OpenSubKey(sid.Value + shellFolders))
+            {
+                string root = profile == null ? null : profile.GetValue("ProfileImagePath") as string;
+                string desktop = folders == null ? null : folders.GetValue("Desktop", null,
+                    Microsoft.Win32.RegistryValueOptions.DoNotExpandEnvironmentNames) as string;
+                if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(desktop))
+                    throw new InvalidOperationException("Impossible de lire le dossier Bureau du compte " + account.Value + ".");
+
+                const string profileVariable = @"%USERPROFILE%\";
+                if (desktop.StartsWith(profileVariable, StringComparison.OrdinalIgnoreCase))
+                    desktop = Path.Combine(root, desktop.Substring(profileVariable.Length));
+                if (desktop.IndexOf('%') >= 0 || !Path.IsPathRooted(desktop) || !Directory.Exists(desktop))
+                    throw new InvalidOperationException("Le dossier Bureau de " + account.Value + " est indisponible ou inaccessible.");
+                return desktop;
+            }
+        }
+
+        private static string ReadSessionAccountField(uint sessionId, int field)
+        {
+            IntPtr buffer;
+            uint size;
+            if (!Program.WTSQuerySessionInformation(IntPtr.Zero, sessionId, field, out buffer, out size))
+                throw new Win32Exception(Marshal.GetLastWin32Error(),
+                    "Impossible de lire le compte de la session Ray Desktop.");
+            try { return size == 0 ? "" : Marshal.PtrToStringAnsi(buffer) ?? ""; }
+            finally { Program.WTSFreeMemory(buffer); }
         }
 
         private static string CopyClipboardFiles(System.Collections.Specialized.StringCollection paths, string destination)
