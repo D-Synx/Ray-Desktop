@@ -28,6 +28,12 @@ namespace ChildSessionDesktop
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            if (args.Length > 0 && args[0].StartsWith(RayMaintenanceLocale.Prefix, StringComparison.Ordinal))
+            {
+                Environment.ExitCode = RayMaintenanceLocale.Run(args);
+                return;
+            }
+
             // 多语言：--lang=zh / --lang=en 覆盖（缺省按系统语言，见 Strings.SetLanguage）。
             // 同时支持 "--lang=en"（等号）与 "--lang en"（空格）两种写法。
             string lang = null;
