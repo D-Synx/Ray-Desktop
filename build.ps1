@@ -17,6 +17,7 @@ function Publish-BuildOutput([string]$temporary, [string]$target) {
 # ---- Ray Desktop (ChildSessionDesktop) 源文件 ----
 $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
+    (Join-Path $PSScriptRoot 'maintenance\RayMaintenanceLocale.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceProfile.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceClient.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'),
@@ -110,7 +111,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "RDP ActiveX wrapper generation failed with exit code $LASTEXITCODE" }
 
     $childReferences = $references + @(("/r:{0}" -f $interop), ("/r:{0}" -f $axInterop))
-    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) ("/win32icon:{0}" -f $icon) ("/win32manifest:{0}" -f $childManifest) @childReferences @childSources
+    & $compiler /nologo /codepage:65001 /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) ("/win32icon:{0}" -f $icon) ("/win32manifest:{0}" -f $childManifest) @childReferences @childSources
     if ($LASTEXITCODE -ne 0) { throw "Child-session GUI build failed with exit code $LASTEXITCODE" }
 
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $setupAssemblyInfo
