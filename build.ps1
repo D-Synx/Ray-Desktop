@@ -17,6 +17,8 @@ function Publish-BuildOutput([string]$temporary, [string]$target) {
 # ---- Ray Desktop (ChildSessionDesktop) 源文件 ----
 $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceProfile.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceClient.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardFileRelay.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.cs'),
