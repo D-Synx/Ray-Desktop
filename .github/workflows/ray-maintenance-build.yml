@@ -43,7 +43,7 @@ jobs:
           name: RayXDesktop-Windows
           path: release-assets
       - name: Publish GitHub release
-        shell: powershell
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
