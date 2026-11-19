@@ -164,7 +164,13 @@ namespace ChildSessionDesktop
                 if (dynamicMode) SetDynamicLayout();      // 动态模式：控件铺满客户区（会话分辨率随窗口）
                 else ApplyLetterbox();                    // 固定模式：窗体一显示就把控件摆到正确矩形，避免左上角小黑块
                 // 工具栏不在此创建：等桌面完全显示、分辨率就位后再创建（见连接就绪回调）
-                if (clipboardRelay != null) ClipboardFileRelay.RegisterChildAgent();
+                if (clipboardRelay != null)
+                    ClipboardFileRelay.RegisterChildAgent();
+                else
+                {
+                    ClipboardFileRelay.UnregisterChildAgent();
+                    ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
+                }
                 BeginInvoke((MethodInvoker)ConnectChildSession);
             };
             FormClosing += OnClosing;
@@ -1107,6 +1113,8 @@ namespace ChildSessionDesktop
                     lastLoggedState = state;
                     if (state == 1)
                     {
+                        if (connectionAccount != null)
+                            ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
                         LogRedirectionDiagnostics();
                         connectionReadyAt = DateTime.Now.AddSeconds(2);
                         resizeRetryCount = 0;
@@ -1499,6 +1507,7 @@ namespace ChildSessionDesktop
             if (clipboardRelay != null)
             {
                 clipboardRelay.Dispose();
+                ClipboardFileRelay.UnregisterChildAgent();
                 ClipboardFileRelay.ClearMailbox();
             }
             // Q1（质量报告）：COM 事件退订 + 复位 eventsAttached——手动重连重建 COM 对象后 eventsAttached 残留会阻止对新对象重新订阅
