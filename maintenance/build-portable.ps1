@@ -16,10 +16,7 @@ finally {
     if (Test-Path -LiteralPath $test) { Remove-Item -LiteralPath $test }
 }
 & (Join-Path $root 'build.ps1')
-$localLauncher = Join-Path $root 'Raydesktop\RayMaintenanceLocale.exe'
-& $compiler /nologo /target:winexe /platform:anycpu /codepage:65001 /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "/out:$localLauncher" (Join-Path $PSScriptRoot 'RayMaintenanceLocale.cs')
-if ($LASTEXITCODE -ne 0) { throw 'Local maintenance launcher compilation failed.' }
-$files = @('RayMaintenanceLocale.exe', 'Raydesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
+$files = @('Raydesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
     ForEach-Object { Join-Path $root "Raydesktop\$_" }
 $files += Join-Path $root 'LICENSE'
 $files += Join-Path $PSScriptRoot 'README.fr.md'
