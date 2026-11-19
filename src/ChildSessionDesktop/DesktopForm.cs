@@ -96,9 +96,14 @@ namespace ChildSessionDesktop
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        internal DesktopForm(bool dynamicMode)
+        private readonly string connectionAccount;
+        private readonly string connectionPassword;
+
+        internal DesktopForm(bool dynamicMode, string account = null, string password = null)
         {
             this.dynamicMode = dynamicMode;
+            connectionAccount = account;
+            connectionPassword = password;
             Text = "Ray Desktop";
             BackColor = Color.Black;
             StartPosition = FormStartPosition.CenterScreen;
@@ -891,6 +896,16 @@ namespace ChildSessionDesktop
                 SetStatus(Strings.T("status_connecting_win"));
                 Program.Log("Begin child-session setup");
                 client.Server = "localhost";
+                if (connectionAccount != null)
+                {
+                    int separator = connectionAccount.IndexOf('\\');
+                    string domain = connectionAccount.Substring(0, separator);
+                    client.Domain = domain == "." ? Environment.MachineName : domain;
+                    client.UserName = connectionAccount.Substring(separator + 1);
+                    ((IMsTscNonScriptable)ocx).ClearTextPassword = connectionPassword;
+                    ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = false;
+                    Program.Log("Explicit credentials supplied to the RDP control");
+                }
                 Program.Log("Server set");
                 if (!dynamicMode)
                 {
@@ -1163,7 +1178,7 @@ namespace ChildSessionDesktop
 
         private void EnterReconnectState()
         {
-            if (closing || IsDisposed || reconnectTimer == null) return;
+            if (closing || IsDisposed || reconnectTimer == null || connectionAccount != null) return;
             connecting = false;
             if (!reconnectTimer.Enabled)
             {
