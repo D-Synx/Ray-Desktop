@@ -22,10 +22,35 @@ namespace ChildSessionSetup
         }
 
         [STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
             try
             {
+                bool enabled;
+                if (!WTSIsChildSessionsEnabled(out enabled))
+                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+
+                if (args.Length != 1 || args[0] != "--enable-child-sessions")
+                {
+                    MessageBox.Show(
+                        "Child Sessions: " + (enabled ? "enabled" : "disabled") +
+                        "\r\nUse --enable-child-sessions only with authorization.",
+                        "Ray Desktop Maintenance");
+                    return args.Length == 0 ? 0 : 2;
+                }
+
+                if (enabled)
+                {
+                    MessageBox.Show("Child Sessions are already enabled.", "Ray Desktop Maintenance");
+                    return 0;
+                }
+
+                if (MessageBox.Show(
+                    "Enable Child Sessions for this computer? Confirm only if authorized.",
+                    "Ray Desktop Maintenance", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                    return 3;
+
                 if (!WTSEnableChildSessions(true))
                 {
                     int error = Marshal.GetLastWin32Error();
@@ -34,7 +59,6 @@ namespace ChildSessionSetup
                         "WTSEnableChildSessions failed, Windows error code " + error + "."));
                 }
 
-                bool enabled;
                 if (!WTSIsChildSessionsEnabled(out enabled) || !enabled)
                 {
                     int error = Marshal.GetLastWin32Error();
