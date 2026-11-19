@@ -420,10 +420,6 @@ namespace ChildSessionDesktop
             menu.Items.Add(itemReconnect);
             menu.Items.Add(itemAbout);
             menu.Items.Add(itemLog);
-            var itemTransfer = new ToolStripMenuItem("Transférer les fichiers copiés…");
-            itemTransfer.Enabled = !copyingClipboardFiles;
-            itemTransfer.Click += delegate { TransferClipboardFiles(); };
-            menu.Items.Add(itemTransfer);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(itemUpdate);
             Point pos = new Point(anchor.Left, anchor.Bottom);
@@ -502,11 +498,11 @@ namespace ChildSessionDesktop
                 MatchWindowToSession(fw, fh);
                 ApplyLetterbox();
                 // 900ms 后读回真实分辨率校正，并放行 750ms readback（与分辨率菜单一致）
-                if (lateResizeTimer != null) { lateResizeTimer.Stop(); lateResizeTimer.Dispose(); }   // P1-1：先释放旧实例，防覆盖后旧 timer 的 Stop() 误停新实例
+                DisposeTimer(ref lateResizeTimer);
                 lateResizeTimer = new Timer { Interval = 900 };
                 lateResizeTimer.Tick += delegate
                 {
-                    lateResizeTimer.Stop(); lateResizeTimer.Dispose();
+                    DisposeTimer(ref lateResizeTimer);
                     try
                     {
                         var c2 = (IMsRdpClient9)rdp.GetOcxObject();
@@ -715,9 +711,10 @@ namespace ChildSessionDesktop
             toolBar.ShowResMenu = ShowResMenuAt;
             toolBar.ShowDisplayModeMenu = ShowDisplayModeMenuAt;
             toolBar.ShowMoreMenu = ShowMoreMenuAt;
+            toolBar.TransferFiles = TransferClipboardFiles;
             toolBar.IsDynamicMode = dynamicMode;
             toolBar.FollowHost(this);
-            toolBar.Show();
+            toolBar.Show(this);
         }
 
         // 下拉菜单统一样式：深色底 + 白字 + 白勾 + 深色分隔/边框，匹配工具栏黑条风格
@@ -735,7 +732,12 @@ namespace ChildSessionDesktop
         private ContextMenuStrip MenuInstance(ref ContextMenuStrip field)
         {
             if (field == null || field.IsDisposed) field = MakeToolbarMenu();
-            field.Items.Clear();
+            while (field.Items.Count > 0)
+            {
+                ToolStripItem item = field.Items[0];
+                field.Items.RemoveAt(0);
+                item.Dispose();
+            }
             return field;
         }
 
@@ -895,11 +897,11 @@ namespace ChildSessionDesktop
                 // 使 WM_EXITSIZEMOVE 触发的 ApplyDisplaySize 因尺寸未变而跳过，不覆盖刚选定的分辨率（否则要选两次才生效）。
                 if (dynamicMode) HoldCurrentDisplaySize();
                 // ActiveX 显示面异步重建：等 900ms 后读回真实分辨率，再校正一次（对齐 workbuddy）
-                if (lateResizeTimer != null) { lateResizeTimer.Stop(); lateResizeTimer.Dispose(); }   // P1-1：先释放旧实例，防覆盖后旧 timer 的 Stop() 误停新实例
+                DisposeTimer(ref lateResizeTimer);
                 lateResizeTimer = new Timer { Interval = 900 };
                 lateResizeTimer.Tick += delegate
                 {
-                    lateResizeTimer.Stop(); lateResizeTimer.Dispose();
+                    DisposeTimer(ref lateResizeTimer);
                     try
                     {
                         var c2 = (IMsRdpClient9)rdp.GetOcxObject();
@@ -1111,13 +1113,12 @@ namespace ChildSessionDesktop
                         lastFailedDisplaySize = Size.Empty;
                         nextResizeAttempt = DateTime.MinValue;
                         // 桌面完全显示、分辨率稳定后才创建工具栏，避免启动早期工具栏/气泡位置错误
-                        if (readyTimer != null) { readyTimer.Stop(); readyTimer.Dispose(); }   // P1-1b：先释放旧实例，防覆盖泄漏与重复触发
+                        DisposeTimer(ref readyTimer);
                         readyTimer = new System.Windows.Forms.Timer();
                         readyTimer.Interval = 4000;
                         readyTimer.Tick += delegate
                         {
-                            readyTimer.Stop();
-                            readyTimer.Dispose();
+                            DisposeTimer(ref readyTimer);
                             CreateToolbar();
                         };
                         readyTimer.Start();
@@ -1456,6 +1457,13 @@ namespace ChildSessionDesktop
             }
         }
 
+        private static void DisposeTimer(ref Timer timer)
+        {
+            if (timer == null) return;
+            timer.Dispose();
+            timer = null;
+        }
+
         private void OnClosing(object sender, FormClosingEventArgs e)
         {
             // 用户点关闭且子会话已连接时先确认——避免静默注销丢未保存工作。
@@ -1474,10 +1482,10 @@ namespace ChildSessionDesktop
             }
             closing = true;
             _resChangePending = false;   // 兜底复位：改分辨率后的 900ms 校正若在窗口关闭前未触发，防止标志永久卡 true
-            if (toolBar != null) { toolBar.Close(); toolBar.Dispose(); toolBar = null; }
-            statusTimer.Stop();
-            displayResizeTimer.Stop();
-            if (reconnectTimer != null) reconnectTimer.Stop();
+            if (toolBar != null) { toolBar.Dispose(); toolBar = null; }
+            statusTimer.Dispose();
+            displayResizeTimer.Dispose();
+            reconnectTimer.Dispose();
             if (_displayMenu != null) { _displayMenu.Dispose(); _displayMenu = null; }
             if (_moreMenu != null) { _moreMenu.Dispose(); _moreMenu = null; }
             if (_resMenu != null) { _resMenu.Dispose(); _resMenu = null; }
@@ -1486,8 +1494,8 @@ namespace ChildSessionDesktop
                 clipboardRelayTimer.Stop();
                 clipboardRelayTimer.Dispose();
             }
-            if (readyTimer != null) readyTimer.Stop();        // P3-5：停止连接就绪后的 4s 建工具栏定时器，避免关闭流程中创建孤儿工具栏
-            if (lateResizeTimer != null) lateResizeTimer.Stop();   // P3-5：停止分辨率校正的 900ms 延迟
+            DisposeTimer(ref readyTimer);
+            DisposeTimer(ref lateResizeTimer);
             if (clipboardRelay != null)
             {
                 clipboardRelay.Dispose();
