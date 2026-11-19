@@ -4,87 +4,28 @@ using System.Globalization;
 
 namespace ChildSessionDesktop
 {
-    // 多语言：所有用户可见文案集中在此，按系统语言自动选择（中文系统→中文，其它→英文），
-    // 也可用启动参数 --lang=zh / --lang=en 覆盖（见 Program.Main 解析）。
     internal static class Strings
     {
-        private static bool _en;
+        internal static bool IsFrench { get; private set; }
 
         public static void SetLanguage(string lang)
         {
-            if (string.Equals(lang, "zh", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(lang, "zh-cn", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(lang, "zh-hans", StringComparison.OrdinalIgnoreCase))
-                _en = false;
-            else if (string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase))
-                _en = true;
-            else
-                _en = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "zh";
+            IsFrench = string.IsNullOrEmpty(lang)
+                ? CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr"
+                : string.Equals(lang, "fr", StringComparison.OrdinalIgnoreCase);
         }
-
-        private static readonly Dictionary<string, string> zh = new Dictionary<string, string>
-        {
-            // 入口 / 通用
-            { "err_title", "子会话桌面错误" },
-            { "startup_fail_title", "子会话桌面启动失败" },
-            { "msg_already_running", "Ray Desktop 已在运行。" },
-            // 显示模式菜单
-            { "menu_fixed", "固定分辨率" },
-            { "menu_dynamic", "动态分辨率" },
-            // 更多菜单 / 关于
-            { "menu_about", "关于 Ray Desktop" },
-            { "menu_open_log", "打开日志文件夹" },
-            { "menu_check_update", "检查更新…" },
-            { "about_body", "在现有 Windows 中开启一个独立子会话虚拟桌面，不影响主桌面。\n注意：子会话与主桌面共享全部本地磁盘（可完整读写）；剪贴板（含文件路径）经 Ray Desktop 桥接在两会话间中继。\n开源：github.com/raydoomed/Ray-Desktop\n作者：raydoomed" },
-            // 分辨率
-            { "res_your_screen", "{0} × {1}（你的屏幕，推荐）" },
-            { "res_confirm_title", "改分辨率" },
-            { "res_confirm_body", "立即把虚拟桌面改成 {0} × {1} 吗？\n\n• 虚拟桌面里已打开的程序会保留，不会关闭\n• 但正在运行的全屏游戏可能会退出" },
-            { "close_confirm_title", "关闭虚拟桌面" },
-            { "close_confirm_body", "虚拟桌面仍已连接，正在运行的程序可能还有未保存的内容。确定关闭吗？" },
-            { "res_not_connected", "尚未连接，无法改分辨率。" },
-            { "res_fail", "改分辨率失败：" },
-            // 连接状态（SetStatus 标题栏文案）
-            { "status_connected", "已连接" },
-            { "status_connecting", "正在连接本机子会话…" },
-            { "status_connecting_win", "正在连接本机 Windows 子会话…" },
-            { "status_waiting", "等待 Windows 建立子会话…" },
-            { "status_not_connected", "尚未连接" },
-            { "status_timeout", "连接超时。请确认此电脑已启用子会话，并在启用后重新登录 Windows。" },
-            { "status_disabled_missing_helper", "此电脑未启用 Windows 子会话；缺少管理员启用程序 EnableChildSessions.exe。" },
-            { "status_requesting", "正在请求管理员启用子会话。启用后请注销并重新登录；若出现凭据提示，请取消，不要输入空密码。" },
-            { "status_elevation_canceled", "已取消管理员授权；Child Sessions 尚未启用。" },
-            { "status_launch_helper_fail", "无法启动管理员启用程序：" },
-            { "status_disconnected_local", "本地断开了 RDP 连接（0x00000001）；这是状态码，不是错误码。" },
-            { "menu_reconnect", "重新连接" },
-            { "status_reconnect_failed", "自动重连多次失败，可在「更多」菜单点击「重新连接」重试。" },
-            { "status_disconnected", "子会话已断开，错误码 0x{0:X8}" },
-            { "status_disconnected_acct", "（账户受限）。请检查 Windows 账户状态和登录策略；若刚启用 Child Sessions，请注销并重新登录后再试。" },
-            { "status_fatal", "RDP 致命错误 0x{0:X8}" },
-            { "status_logon_error", "子会话登录错误 0x{0:X8}" },
-            { "status_continuing", "Windows 正在继续建立子会话…" },
-            { "status_state", "RDP 控件状态：" },
-            { "status_read_fail", "读取连接状态失败：" },
-            { "msg_connect_fail", "连接失败：" },
-            { "msg_check_fail", "无法检查 Windows 子会话状态，系统错误码 {0}。请确认此 Windows 版本支持远程桌面子会话。" },
-            // 工具栏按钮 / 提示
-            { "btn_fullscreen", "全屏" }, { "btn_display", "显示" }, { "btn_resolution", "分辨率" },
-            { "btn_exit", "结束" }, { "btn_more", "更多" }, { "btn_collapse", "收起" }, { "btn_drag", "拖动" },
-            { "tip_display_dynamic", "显示 · 动态" }, { "tip_display_fixed", "显示 · 固定" },
-            { "tip_expand", "展开" }, { "tip_collapse", "收起" },
-        };
 
         private static readonly Dictionary<string, string> en = new Dictionary<string, string>
         {
-            { "err_title", "Ray Desktop error" },
-            { "startup_fail_title", "Ray Desktop failed to start" },
-            { "msg_already_running", "Ray Desktop is already running." },
+            { "err_title", "RayXDesktop error" },
+            { "startup_fail_title", "RayXDesktop failed to start" },
+            { "msg_already_running", "RayXDesktop is already running." },
             { "menu_fixed", "Fixed resolution" },
             { "menu_dynamic", "Dynamic resolution" },
-            { "menu_about", "About Ray Desktop" },
+            { "menu_about", "About RayXDesktop" },
             { "menu_open_log", "Open log folder" },
-            { "menu_check_update", "Check for updates…" },
-            { "about_body", "Opens a separate Child Session virtual desktop on top of the current Windows session, without affecting the main desktop.\nNote: the child session shares all local disks with the main desktop (read-write); the clipboard (including file paths) is relayed between the two sessions by the Ray Desktop bridge.\nOpen source: github.com/raydoomed/Ray-Desktop\nAuthor: raydoomed" },
+            { "menu_check_update", "View Windows builds…" },
+            { "about_body", "RayXDesktop\nMaintained by D.Synx\n\nA local Windows Child Session desktop and maintenance tools.\nOriginal RayXDesktop project by raydoomed (MIT)." },
             { "res_your_screen", "{0} × {1} (your screen, recommended)" },
             { "res_confirm_title", "Change resolution" },
             { "res_confirm_body", "Change the virtual desktop to {0} × {1} now?\n\n• Programs already open in the virtual desktop are kept, not closed\n• But any running fullscreen game may exit" },
@@ -104,7 +45,7 @@ namespace ChildSessionDesktop
             { "status_launch_helper_fail", "Could not launch the elevation helper: " },
             { "status_disconnected_local", "The RDP connection was disconnected locally (0x00000001); this is a status code, not an error code." },
             { "menu_reconnect", "Reconnect" },
-            { "status_reconnect_failed", "Auto-reconnect failed several times; use \"Reconnect\" in the More menu to retry." },
+            { "status_reconnect_failed", "Auto-reconnect failed several times; use the Reconnect button to retry." },
             { "status_disconnected", "Child Session disconnected, error code 0x{0:X8}" },
             { "status_disconnected_acct", " (account restricted). Check the Windows account status and sign-in policy; if you just enabled Child Sessions, sign out and back in and try again." },
             { "status_fatal", "Fatal RDP error 0x{0:X8}" },
@@ -120,11 +61,60 @@ namespace ChildSessionDesktop
             { "tip_expand", "Expand" }, { "tip_collapse", "Collapse" },
         };
 
+        private static readonly Dictionary<string, string> fr = new Dictionary<string, string>
+        {
+            { "err_title", "Erreur RayXDesktop" },
+            { "startup_fail_title", "Échec du démarrage de RayXDesktop" },
+            { "msg_already_running", "RayXDesktop est déjà ouvert." },
+            { "menu_fixed", "Résolution fixe" },
+            { "menu_dynamic", "Résolution dynamique" },
+            { "menu_about", "À propos de RayXDesktop" },
+            { "menu_open_log", "Ouvrir le dossier des journaux" },
+            { "menu_check_update", "Voir les builds Windows…" },
+            { "menu_reconnect", "Reconnecter" },
+            { "about_body", "RayXDesktop\nMaintenu par D.Synx\n\nBureau de session enfant Windows et outils de maintenance.\nProjet RayXDesktop d’origine par raydoomed (MIT)." },
+            { "res_your_screen", "{0} × {1} (ton écran)" },
+            { "res_confirm_title", "Changer la résolution" },
+            { "res_confirm_body", "Appliquer la résolution {0} × {1} au bureau ?" },
+            { "close_confirm_title", "Fermer le bureau" },
+            { "close_confirm_body", "Le bureau est encore connecté et des documents peuvent être ouverts. Fermer cette session ?" },
+            { "res_not_connected", "Connecte le bureau avant de changer la résolution." },
+            { "res_fail", "Impossible de changer la résolution : " },
+            { "status_connected", "Connecté" },
+            { "status_connecting", "Connexion au bureau local…" },
+            { "status_connecting_win", "Connexion à la session enfant Windows…" },
+            { "status_waiting", "En attente de la session Windows…" },
+            { "status_not_connected", "Déconnecté" },
+            { "status_timeout", "Le délai de connexion a expiré. Vérifie que les sessions enfants sont activées." },
+            { "status_disconnected_local", "Connexion RDP fermée localement." },
+            { "status_reconnect_failed", "La reconnexion a échoué. Utilise le bouton Reconnecter." },
+            { "status_disconnected", "Session déconnectée (0x{0:X8})" },
+            { "status_disconnected_acct", " Vérifie les autorisations du compte Windows." },
+            { "status_fatal", "Erreur RDP (0x{0:X8})" },
+            { "status_logon_error", "Erreur de connexion Windows (0x{0:X8})" },
+            { "status_continuing", "Windows termine l’ouverture de la session…" },
+            { "status_state", "État RDP : " },
+            { "status_read_fail", "Impossible de lire l’état de connexion : " },
+            { "msg_connect_fail", "Échec de la connexion : " },
+            { "msg_check_fail", "Impossible de vérifier les sessions enfants Windows (erreur {0})." },
+            { "btn_fullscreen", "Plein écran" },
+            { "btn_display", "Affichage" },
+            { "btn_resolution", "Résolution" },
+            { "btn_exit", "Fermer la session" },
+            { "btn_more", "Plus d’options" },
+            { "btn_collapse", "Réduire" },
+            { "btn_drag", "Déplacer la barre" },
+            { "tip_display_dynamic", "Affichage dynamique" },
+            { "tip_display_fixed", "Affichage fixe" },
+            { "tip_expand", "Afficher la barre" },
+            { "tip_collapse", "Réduire la barre" },
+        };
+
         public static string T(string key)
         {
-            var table = _en ? en : zh;
             string s;
-            return table.TryGetValue(key, out s) ? s : key;
+            if (IsFrench && fr.TryGetValue(key, out s)) return s;
+            return en.TryGetValue(key, out s) ? s : key;
         }
 
         public static string T(string key, params object[] args)

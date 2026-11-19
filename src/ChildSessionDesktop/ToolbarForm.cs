@@ -1,18 +1,17 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Globalization;
 using System.Windows.Forms;
 
 namespace ChildSessionDesktop
 {
     internal sealed class ToolbarForm : Form
     {
-        private enum Tool { Move, Display, Resolution, Fullscreen, Files, More, Collapse, Close }
+        private enum Tool { Move, Display, Resolution, Fullscreen, Files, Reconnect, More, Collapse, Close }
 
         private static readonly Tool[] Tools = {
             Tool.Move, Tool.Display, Tool.Resolution, Tool.Fullscreen,
-            Tool.Files, Tool.More, Tool.Collapse, Tool.Close
+            Tool.Files, Tool.Reconnect, Tool.More, Tool.Collapse, Tool.Close
         };
 
         private static readonly Color Surface = Color.FromArgb(20, 30, 43);
@@ -24,7 +23,7 @@ namespace ChildSessionDesktop
         private readonly Rectangle[] buttons = new Rectangle[Tools.Length];
         private readonly TooltipForm tooltip;
         private readonly Font labelFont;
-        private readonly bool french = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr";
+        private readonly bool french = Strings.IsFrench;
 
         private Form host;
         private Point? hostOffset;
@@ -39,6 +38,7 @@ namespace ChildSessionDesktop
         internal Func<Rectangle, bool> ShowDisplayModeMenu;
         internal Func<Rectangle, bool> ShowMoreMenu;
         internal Action TransferFiles;
+        internal Action ReconnectSession;
         internal bool IsDynamicMode;
         internal bool Fullscreen;
 
@@ -97,6 +97,7 @@ namespace ChildSessionDesktop
                     if (french) return Fullscreen ? "Quitter le plein écran" : "Plein écran";
                     return Fullscreen ? "Exit full screen" : Strings.T("btn_fullscreen");
                 case Tool.Files: return french ? "Transférer les fichiers copiés" : "Transfer copied files";
+                case Tool.Reconnect: return Strings.T("menu_reconnect");
                 case Tool.More: return french ? "Plus d’options" : Strings.T("btn_more");
                 case Tool.Collapse: return french ? "Réduire la barre" : Strings.T("tip_collapse");
                 case Tool.Close: return french ? "Fermer la session" : Strings.T("btn_exit");
@@ -280,6 +281,10 @@ namespace ChildSessionDesktop
                         g.DrawPolygon(pen, new[] { new Point(-8, -6), new Point(-2, -6), new Point(0, -3),
                             new Point(8, -3), new Point(8, 6), new Point(-8, 6) });
                         break;
+                    case Tool.Reconnect:
+                        g.DrawArc(pen, -7, -7, 14, 14, 5, 300);
+                        g.DrawLines(pen, new[] { new Point(7, -7), new Point(7, -2), new Point(2, -2) });
+                        break;
                     case Tool.More:
                         for (int i = -1; i <= 1; i++) g.FillEllipse(brush, i * 5 - 1.4f, -1.4f, 2.8f, 2.8f);
                         break;
@@ -416,6 +421,7 @@ namespace ChildSessionDesktop
                 case Tool.Resolution: if (ShowResMenu != null) ShowResMenu(anchor); break;
                 case Tool.Fullscreen: if (ToggleFullscreen != null) ToggleFullscreen(); break;
                 case Tool.Files: if (TransferFiles != null) TransferFiles(); break;
+                case Tool.Reconnect: if (ReconnectSession != null) ReconnectSession(); break;
                 case Tool.More: if (ShowMoreMenu != null) ShowMoreMenu(anchor); break;
                 case Tool.Collapse: SetCollapsed(true); break;
                 case Tool.Close: if (host != null) host.Close(); break;
@@ -468,7 +474,7 @@ namespace ChildSessionDesktop
             private readonly ToolbarForm toolbar;
             public ToolbarAccessibility(ToolbarForm owner) : base(owner) { toolbar = owner; }
             public override AccessibleRole Role { get { return AccessibleRole.ToolBar; } }
-            public override string Name { get { return "Ray Desktop"; } }
+            public override string Name { get { return "RayXDesktop"; } }
             public override int GetChildCount() { return toolbar.collapsed ? 1 : Tools.Length - 1; }
             public override AccessibleObject GetChild(int index)
             {

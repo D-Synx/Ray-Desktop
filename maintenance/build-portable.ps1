@@ -16,10 +16,10 @@ finally {
     if (Test-Path -LiteralPath $test) { Remove-Item -LiteralPath $test }
 }
 & (Join-Path $root 'build.ps1')
-$files = @('Raydesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
+$files = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
     ForEach-Object { Join-Path $root "Raydesktop\$_" }
 $files += Join-Path $root 'LICENSE'
 $files += Join-Path $PSScriptRoot 'README.fr.md'
-$archive = Join-Path $root 'RayDesktopMaintenance-Windows.zip'
+$archive = Join-Path $root 'RayXDesktop-Windows.zip'
 Compress-Archive -LiteralPath $files -DestinationPath $archive -Force
 Write-Host "Portable archive: $archive"

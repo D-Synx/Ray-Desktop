@@ -1,4 +1,3 @@
-# P2-10 回归基线测试：编译并运行纯函数单测（无 dotnet SDK/NuGet，用 .NET Framework csc）。
 $ErrorActionPreference = 'Stop'
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) {

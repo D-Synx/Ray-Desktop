@@ -1,4 +1,4 @@
-name: Ray Desktop Maintenance Windows
+name: RayXDesktop Windows
 on:
   workflow_dispatch:
   pull_request:
@@ -12,11 +12,14 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - name: Run core regression tests
+        shell: powershell
+        run: .\tests\run-tests.ps1
       - name: Test and package
         shell: powershell
         run: .\maintenance\build-portable.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: RayDesktopMaintenance-Windows
-          path: RayDesktopMaintenance-Windows.zip
+          name: RayXDesktop-Windows
+          path: RayXDesktop-Windows.zip
           if-no-files-found: error

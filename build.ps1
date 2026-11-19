@@ -14,7 +14,6 @@ function Publish-BuildOutput([string]$temporary, [string]$target) {
     [IO.File]::Delete($temporary)
 }
 
-# ---- Ray Desktop (ChildSessionDesktop) 源文件 ----
 $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceProfile.cs'),
@@ -31,20 +30,19 @@ $childSources = @(
 )
 $childManifest = Join-Path $PSScriptRoot 'src\ChildSessionDesktop\app.manifest'
 $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
-$childTarget = Join-Path $output 'Raydesktop.exe'
-$childTemporary = Join-Path $output 'Raydesktop.build.exe'
+$childTarget = Join-Path $output 'RayXDesktop.exe'
+$childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-# ---- 版本号与 AssemblyInfo（P2-14）：发布时更新 $version，脚本据此生成程序集版本 ----
-$version = '1.4.2.0'
+$version = '1.4.3.0'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"Ray Desktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
     [Text.Encoding]::UTF8)
 $childSources = @($childSources) + @($childAssemblyInfo)
 # setup binary gets the same injected version (P1-9-2 version check as unsigned-helper fallback)
 $setupAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopSetupAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($setupAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"Ray Desktop Setup`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop Setup`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
     [Text.Encoding]::UTF8)
 
 # ---- AxImp.exe detection: registry-installed SDK roots + RAYDESKTOP_SDK_ROOT override + standard dirs ----
@@ -120,7 +118,7 @@ try {
     Publish-BuildOutput $setupTemporary $setupTarget
     Copy-Item -LiteralPath $interop -Destination (Join-Path $output 'MSTSCLib.dll') -Force
     Copy-Item -LiteralPath $axInterop -Destination (Join-Path $output 'AxInterop.MSTSCLib.dll') -Force
-    Write-Host 'Built Raydesktop.exe, EnableChildSessions.exe, and the two RDP interop dependencies.'
+    Write-Host 'Built RayXDesktop.exe, EnableChildSessions.exe, and the two RDP interop dependencies.'
 }
 finally {
     foreach ($temporary in @($childTemporary, $setupTemporary, $childAssemblyInfo, $setupAssemblyInfo)) {

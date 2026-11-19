@@ -21,13 +21,13 @@ namespace ChildSessionDesktop
         private readonly string outgoingPath;
         private Guid lastIncomingId;
         private uint suppressSequence;
-        private DateTime suppressSetAt;   // P3-11：抑制仅限设置后的 500ms 窗口，防序列号回绕复用误判回声
+        private DateTime suppressSetAt;  // Ignore notifications from our own clipboard writes briefly.
         private string lastSentFingerprint;
         private string lastAppliedFingerprint;
         private DateTime lastSentAt;
         private DateTime lastAppliedAt;
         private bool disposed;
-        private DateTime lastClipboardErrorLoggedAt = DateTime.MinValue;   // 30s 窗口内同一读取错误只记一次，之后可再记（P2-5）
+        private DateTime lastClipboardErrorLoggedAt = DateTime.MinValue;
         private bool retryClipboardRead;
 
         internal ClipboardFileRelay(bool child)
@@ -98,6 +98,7 @@ namespace ChildSessionDesktop
             }
         }
 
+        // Remove only the startup entry previously written by the clipboard bridge.
         private static void RemoveAgentRunValue(RegistryKey root, string path)
         {
             using (var runKey = root.OpenSubKey(path))
@@ -116,7 +117,7 @@ namespace ChildSessionDesktop
                     StringComparison.OrdinalIgnoreCase) < 0)
                     return;
                 runKey.DeleteValue(RunValueName, false);
-                Program.Log("Removed the legacy Ray Desktop clipboard startup entry");
+                Program.Log("Removed the legacy RayXDesktop clipboard startup entry");
             }
         }
 
@@ -352,8 +353,6 @@ namespace ChildSessionDesktop
             }
         }
 
-        // 消费成功后删除信箱文件，防止进程重启后重放上一次会话的陈旧内容。
-        // 删除前校验写时间戳：若读消息期间写入方已原子替换成新消息，则跳过删除，留给下轮 poll 读取。
         private void DeleteIncomingFile(DateTime writeStamp)
         {
             try
@@ -426,7 +425,7 @@ namespace ChildSessionDesktop
             relay = fileRelay;
             var parameters = new CreateParams
             {
-                Caption = "Ray Desktop Clipboard Bridge",
+                Caption = "RayXDesktop Clipboard Bridge",
                 Parent = new IntPtr(-3) // HWND_MESSAGE: no visible window or taskbar entry.
             };
             CreateHandle(parameters);
