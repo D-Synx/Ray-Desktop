@@ -20,6 +20,7 @@ $files = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInte
     ForEach-Object { Join-Path $root "Raydesktop\$_" }
 $files += Join-Path $root 'LICENSE'
 $files += Join-Path $PSScriptRoot 'README.fr.md'
+$files += Join-Path $PSScriptRoot 'RayXDesktop.bat'
 $archive = Join-Path $root 'RayXDesktop-Windows.zip'
 Compress-Archive -LiteralPath $files -DestinationPath $archive -Force
 Write-Host "Portable archive: $archive"

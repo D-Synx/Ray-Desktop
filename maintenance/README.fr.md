@@ -4,7 +4,12 @@
 
 ## Démarrer
 
-Télécharge l’artefact **RayXDesktop-Windows** depuis un build réussi, puis extrais le ZIP portable. Garde les deux EXE et les deux DLL dans le même dossier. L’exécutable principal s’appelle **RayXDesktop.exe**. Si ton raccourci ou ton BAT utilise encore **Raydesktop.exe**, remplace uniquement ce nom par **RayXDesktop.exe**.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) et extrais son contenu dans un dossier.
+2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
+3. Dans ta copie locale du BAT, remplace **PASSW_WORD!** par le mot de passe et **.\Admin** par le compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour des arguments. Si le mot de passe contient **%**, écris-le **%%** dans le BAT.
+4. Double-clique sur **RayXDesktop.bat**. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
+
+Le BAT trouve l’EXE à côté de lui, même si la lettre de la clé USB change. Le mot de passe est écrit en clair dans le BAT personnalisé. Garde cette copie hors du dépôt et ne la partage pas.
 
 Windows doit prendre en charge les sessions enfants. Si la fonctionnalité est désactivée, un administrateur autorisé peut lancer **EnableChildSessions.exe --enable-child-sessions**. Une déconnexion de Windows suivie d’une reconnexion peut être nécessaire après la première activation.
 
