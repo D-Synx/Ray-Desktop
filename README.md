@@ -6,6 +6,12 @@ RayXDesktop displays a local Windows Child Session in a separate window. The flo
 
 [Guide en français](maintenance/README.fr.md) · [Windows release](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6)
 
+## Aperçu de la barre · 1.4.6
+
+**Fichiers** et **Reconnecter** sont accessibles directement dans la nouvelle barre.
+
+![RayXDesktop 1.4.6 — nouvelle barre avec Affichage, Résolution, Fichiers et Reconnecter](assets/RayXDesktop-1.4.6.webp)
+
 ## Run
 
 1. Download **RayXDesktop-Windows.zip** from the release Assets and extract it.
