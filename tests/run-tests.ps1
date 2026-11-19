@@ -11,6 +11,7 @@ $root = $PSScriptRoot
 $testOut = Join-Path $root 'RayDesktopTests.exe'
 $sources = @(
     (Join-Path $root 'RayDesktopTests\Program.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ConnectionArguments.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')

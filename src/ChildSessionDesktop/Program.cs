@@ -60,9 +60,10 @@ namespace ChildSessionDesktop
                 }
                 string account = null;
                 string password = null;
-                if (Array.Exists(args, IsLaunchCredential) && !TryParseConnectionCredentials(args, out account, out password))
+                if (Array.Exists(args, ConnectionArguments.IsCredentialOption)
+                    && !ConnectionArguments.TryParse(args, out account, out password))
                 {
-                    MessageBox.Show(@"Usage : RayXDesktop.exe --account=DOMAINE\Utilisateur --password:MOT_DE_PASSE",
+                    MessageBox.Show(Strings.T("msg_account_usage"),
                         "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     Environment.ExitCode = 2;
                     return;
@@ -83,33 +84,6 @@ namespace ChildSessionDesktop
                 Log(ex.ToString());
                 MessageBox.Show(ex.ToString(), Strings.T("startup_fail_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private static bool IsLaunchCredential(string argument)
-        {
-            return argument.StartsWith("--account=", StringComparison.OrdinalIgnoreCase)
-                || argument.StartsWith("--password:", StringComparison.OrdinalIgnoreCase)
-                || argument.StartsWith("--password=", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool TryParseConnectionCredentials(string[] args, out string account, out string password)
-        {
-            account = null;
-            password = null;
-            foreach (string argument in args)
-            {
-                if (argument.StartsWith("--account=", StringComparison.OrdinalIgnoreCase) && account == null)
-                    account = argument.Substring("--account=".Length);
-                else if ((argument.StartsWith("--password:", StringComparison.OrdinalIgnoreCase)
-                    || argument.StartsWith("--password=", StringComparison.OrdinalIgnoreCase)) && password == null)
-                    password = argument.Substring("--password:".Length);
-                else if (!argument.StartsWith("--lang=", StringComparison.OrdinalIgnoreCase) && argument != "--dynamic")
-                    return false;
-            }
-
-            int separator = account == null ? -1 : account.IndexOf('\\');
-            return separator > 0 && separator == account.LastIndexOf('\\')
-                && separator < account.Length - 1 && !string.IsNullOrEmpty(password);
         }
 
         internal static string LogDirectory

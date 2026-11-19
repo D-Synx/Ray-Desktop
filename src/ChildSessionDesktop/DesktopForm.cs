@@ -95,6 +95,7 @@ namespace ChildSessionDesktop
 
         private readonly string connectionAccount;
         private readonly string connectionPassword;
+        private bool promptingForPassword;
 
         internal DesktopForm(bool dynamicMode, string account = null, string password = null)
         {
@@ -612,7 +613,7 @@ namespace ChildSessionDesktop
 
         private void AboutBox()
         {
-            MessageBox.Show(this, Strings.T("about_body"), Strings.T("menu_about"),
+            MessageBox.Show(this, Strings.T("about_body", Application.ProductVersion), Strings.T("menu_about"),
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -895,7 +896,7 @@ namespace ChildSessionDesktop
 
         private void ConnectChildSession()
         {
-            if (connecting || closing || rdp.IsDisposed) return;
+            if (connecting || promptingForPassword || closing || rdp.IsDisposed) return;
             try
             {
                 bool childSessionsEnabled;
@@ -936,6 +937,27 @@ namespace ChildSessionDesktop
                     return;
                 }
 
+                string password = connectionPassword;
+                if (connectionAccount != null && password == null)
+                {
+                    promptingForPassword = true;
+                    try
+                    {
+                        password = PasswordDialog.Prompt(this, connectionAccount);
+                    }
+                    finally
+                    {
+                        promptingForPassword = false;
+                    }
+                    if (closing || rdp.IsDisposed) return;
+                    if (password == null)
+                    {
+                        statusTimer.Stop();
+                        SetStatus(Strings.T("status_credentials_cancelled"));
+                        return;
+                    }
+                }
+
                 connecting = true;
                 connectionStarted = DateTime.Now;
                 SetStatus(Strings.T("status_connecting_win"));
@@ -947,7 +969,7 @@ namespace ChildSessionDesktop
                     string domain = connectionAccount.Substring(0, separator);
                     client.Domain = domain == "." ? Environment.MachineName : domain;
                     client.UserName = connectionAccount.Substring(separator + 1);
-                    ((IMsTscNonScriptable)ocx).ClearTextPassword = connectionPassword;
+                    ((IMsTscNonScriptable)ocx).ClearTextPassword = password;
                     ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = false;
                     Program.Log("Explicit credentials supplied to the RDP control");
                 }

@@ -5,4 +5,4 @@ if not exist "%~dp0RayXDesktop.exe" (
     pause
     exit /b 1
 )
-start "" /d "%~dp0." "%~dp0RayXDesktop.exe" "--account=.\Admin" "--password:PASSW_WORD!"
+start "" /d "%~dp0." "%~dp0RayXDesktop.exe" "--account=.\Admin"

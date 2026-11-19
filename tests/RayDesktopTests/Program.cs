@@ -212,6 +212,24 @@ namespace RayDesktopTests
             Check(!p.InProgress && p.Attempts == 0 && !p.GaveUp, "manual reconnect resets");
         }
 
+        private static void TestConnectionArguments()
+        {
+            const string localAccount = @"--account=.\Administrateur";
+            string account, password;
+            Check(!Array.Exists(new string[0], ConnectionArguments.IsCredentialOption), "no arguments use current account");
+            Check(ConnectionArguments.IsCredentialOption(localAccount), "account-only shortcut selects explicit sign-in");
+            Check(ConnectionArguments.TryParse(new[] { localAccount, "--lang=fr", "--dynamic" }, out account, out password)
+                && account == @".\Administrateur" && password == null, "account only asks for password");
+            Check(ConnectionArguments.TryParse(new[] { @"--account=LYCEE\Agent", "--password:Ex%ample!" }, out account, out password)
+                && account == @"LYCEE\Agent" && password == "Ex%ample!", "legacy arguments preserve password characters");
+            Check(!ConnectionArguments.TryParse(new[] { "--password=example" }, out account, out password), "password needs an account");
+            Check(!ConnectionArguments.TryParse(new[] { localAccount, "--password:" }, out account, out password), "empty explicit password is invalid");
+            Check(!ConnectionArguments.TryParse(new[] { localAccount, @"--account=.\Autre" }, out account, out password), "duplicate account is invalid");
+            Check(!ConnectionArguments.TryParse(new[] { localAccount, "--password:one", "--password=two" }, out account, out password), "duplicate password is invalid");
+            Check(!ConnectionArguments.TryParse(new[] { "--account=Administrateur" }, out account, out password), "unqualified account is invalid");
+            Check(!ConnectionArguments.TryParse(new[] { localAccount, "--maintenance-host=example.org" }, out account, out password), "mixed connection modes are invalid");
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -219,6 +237,7 @@ namespace RayDesktopTests
             TestLockAspectRect();
             TestClipboardParse();
             TestReconnectPolicy();
+            TestConnectionArguments();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

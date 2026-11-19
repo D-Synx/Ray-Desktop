@@ -16,6 +16,8 @@ function Publish-BuildOutput([string]$temporary, [string]$target) {
 
 $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ConnectionArguments.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\PasswordDialog.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceProfile.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceClient.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'),
@@ -33,16 +35,17 @@ $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.4.6.0'
+$version = '1.4.7.0'
+$productVersion = '1.4.7-beta'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
     [Text.Encoding]::UTF8)
 $childSources = @($childSources) + @($childAssemblyInfo)
 # setup binary gets the same injected version (P1-9-2 version check as unsigned-helper fallback)
 $setupAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopSetupAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($setupAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop Setup`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop Setup`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
     [Text.Encoding]::UTF8)
 
 # ---- AxImp.exe detection: registry-installed SDK roots + RAYDESKTOP_SDK_ROOT override + standard dirs ----

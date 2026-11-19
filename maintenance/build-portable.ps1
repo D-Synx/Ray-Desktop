@@ -1,4 +1,18 @@
+param(
+    [ValidatePattern('^[a-fA-F0-9]{40}$')]
+    [string]$CodeSigningThumbprint,
+    [string]$SignToolPath,
+    [string]$TimestampUrl
+)
+
 $ErrorActionPreference = 'Stop'
+$sign = $CodeSigningThumbprint -or $SignToolPath -or $TimestampUrl
+if ($sign -and (-not $CodeSigningThumbprint -or -not $SignToolPath -or -not $TimestampUrl)) {
+    throw 'Provide CodeSigningThumbprint, SignToolPath and TimestampUrl together to sign the portable build.'
+}
+if ($sign) {
+    $SignToolPath = (Get-Item -LiteralPath $SignToolPath).FullName
+}
 $root = Split-Path -Parent $PSScriptRoot
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) {
@@ -18,9 +32,19 @@ finally {
 & (Join-Path $root 'build.ps1')
 $files = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
     ForEach-Object { Join-Path $root "Raydesktop\$_" }
+if ($sign) {
+    foreach ($file in $files) {
+        & $SignToolPath sign /sha1 $CodeSigningThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $file
+        if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $file." }
+        & $SignToolPath verify /pa /v $file
+        if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed for $file." }
+    }
+}
 $files += Join-Path $root 'LICENSE'
 $files += Join-Path $PSScriptRoot 'README.fr.md'
 $files += Join-Path $PSScriptRoot 'RayXDesktop.bat'
 $archive = Join-Path $root 'RayXDesktop-Windows.zip'
 Compress-Archive -LiteralPath $files -DestinationPath $archive -Force
+$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+Set-Content -LiteralPath "$archive.sha256" -Value "$hash  $(Split-Path -Leaf $archive)" -Encoding Ascii
 Write-Host "Portable archive: $archive"
