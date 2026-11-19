@@ -55,6 +55,12 @@ namespace ChildSessionDesktop
                     }
                     return;
                 }
+                var maintenance = MaintenanceProfile.Parse(args);
+                if (maintenance != null)
+                {
+                    Environment.ExitCode = MaintenanceClient.Run(maintenance);
+                    return;
+                }
                 bool dynamicMode = args != null && Array.IndexOf(args, "--dynamic") >= 0;
                 bool createdNew;
                 singleInstance = new Mutex(true, @"Local\RayDesktop_SingleInstance", out createdNew);
