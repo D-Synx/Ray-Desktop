@@ -28,6 +28,12 @@ namespace ChildSessionDesktop
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            if (Array.Exists(args, IsLaunchCredential))
+            {
+                Environment.ExitCode = LaunchWithCredentials(args);
+                return;
+            }
+
             // 多语言：--lang=zh / --lang=en 覆盖（缺省按系统语言，见 Strings.SetLanguage）。
             // 同时支持 "--lang=en"（等号）与 "--lang en"（空格）两种写法。
             string lang = null;
@@ -76,6 +82,77 @@ namespace ChildSessionDesktop
             {
                 Log(ex.ToString());
                 MessageBox.Show(ex.ToString(), Strings.T("startup_fail_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static bool IsLaunchCredential(string argument)
+        {
+            return argument.StartsWith("--account=", StringComparison.OrdinalIgnoreCase)
+                || argument.StartsWith("--password:", StringComparison.OrdinalIgnoreCase)
+                || argument.StartsWith("--password=", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int LaunchWithCredentials(string[] args)
+        {
+            const string title = "Ray Desktop";
+            string account = null;
+            string password = null;
+            foreach (string argument in args)
+            {
+                if (argument.StartsWith("--account=", StringComparison.OrdinalIgnoreCase) && account == null)
+                    account = argument.Substring("--account=".Length);
+                else if (IsLaunchCredential(argument) && argument.StartsWith("--password", StringComparison.OrdinalIgnoreCase) && password == null)
+                    password = argument.Substring("--password:".Length);
+            }
+
+            int separator = account == null ? -1 : account.IndexOf('\\');
+            if (args.Length != 2 || separator <= 0 || separator != account.LastIndexOf('\\')
+                || separator == account.Length - 1 || string.IsNullOrEmpty(password))
+            {
+                MessageBox.Show(@"Usage : Raydesktop.exe --account=DOMAINE\Utilisateur --password:MOT_DE_PASSE",
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return 2;
+            }
+
+            string domain = account.Substring(0, separator);
+            string user = account.Substring(separator + 1);
+            try
+            {
+                using (var secret = new System.Security.SecureString())
+                {
+                    foreach (char character in password)
+                        secret.AppendChar(character);
+                    secret.MakeReadOnly();
+
+                    var startup = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = Application.ExecutablePath,
+                        WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
+                        UseShellExecute = false,
+                        Domain = domain,
+                        UserName = user,
+                        Password = secret,
+                        LoadUserProfile = true
+                    };
+                    using (var process = System.Diagnostics.Process.Start(startup))
+                    {
+                        if (process == null)
+                            throw new InvalidOperationException();
+                    }
+                }
+                return 0;
+            }
+            catch (System.ComponentModel.Win32Exception error)
+            {
+                MessageBox.Show("Windows : " + error.Message + " (" + error.NativeErrorCode + ")",
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return 1;
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Impossible de lancer Ray Desktop avec ce compte.",
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return 1;
             }
         }
 
