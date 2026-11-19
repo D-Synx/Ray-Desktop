@@ -9,17 +9,16 @@ using System.Windows.Forms;
 
 internal static class RayMaintenanceLocale
 {
-    private const string Prefix = "--admin-account=";
+    internal const string Prefix = "--account=";
     private const string Title = "Ray Maintenance Locale";
 
-    [STAThread]
-    private static int Main(string[] args)
+    internal static int Run(string[] args)
     {
         Application.EnableVisualStyles();
         try
         {
             if (args.Length != 1 || !args[0].StartsWith(Prefix, StringComparison.Ordinal))
-                throw new ArgumentException(@"Utilisation : RayMaintenanceLocale.exe --admin-account=DOMAINE\utilisateur");
+                throw new ArgumentException(@"Utilisation : Raydesktop.exe --account=DOMAINE\utilisateur");
             string account = args[0].Substring(Prefix.Length);
             if (account.Length > 254 || !Regex.IsMatch(account,
                 @"\A(?:[A-Za-z0-9._-]+\\[A-Za-z0-9._-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+)\z"))
