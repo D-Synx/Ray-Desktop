@@ -15,6 +15,7 @@ namespace ChildSessionDesktop
     {
         internal const int WmClipboardUpdate = 0x031D;
         private const string RunValueName = "RayDesktopClipboardAgent";
+        private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private readonly bool isChild;
         private readonly string incomingPath;
         private readonly string outgoingPath;
@@ -61,8 +62,7 @@ namespace ChildSessionDesktop
             {
                 string executable = Application.ExecutablePath;
                 string command = "\"" + executable + "\" --clipboard-agent --parent-session " + sessionId;
-                using (RegistryKey runKey = Registry.CurrentUser.CreateSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Run"))
+                using (RegistryKey runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath))
                 {
                     if (runKey == null) throw new InvalidOperationException("Could not open the current-user startup key.");
                     runKey.SetValue(RunValueName, command, RegistryValueKind.String);
@@ -72,6 +72,51 @@ namespace ChildSessionDesktop
             catch (Exception ex)
             {
                 Program.Log("Could not register the child-session file clipboard bridge: " + ex.GetBaseException().Message);
+            }
+        }
+
+        internal static void UnregisterChildAgent(string account = null)
+        {
+            try
+            {
+                if (account == null)
+                {
+                    RemoveAgentRunValue(Registry.CurrentUser, RunKeyPath);
+                    return;
+                }
+
+                if (account.StartsWith(@".\", StringComparison.Ordinal))
+                    account = Environment.MachineName + account.Substring(1);
+                var identity = new System.Security.Principal.NTAccount(account);
+                var sid = (System.Security.Principal.SecurityIdentifier)identity.Translate(
+                    typeof(System.Security.Principal.SecurityIdentifier));
+                RemoveAgentRunValue(Registry.Users, sid.Value + "\\" + RunKeyPath);
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Could not clean the legacy clipboard startup entry: " + ex.GetBaseException().Message);
+            }
+        }
+
+        private static void RemoveAgentRunValue(RegistryKey root, string path)
+        {
+            using (var runKey = root.OpenSubKey(path))
+            {
+                var command = runKey == null ? null : runKey.GetValue(RunValueName) as string;
+                if (command == null || command.IndexOf(" --clipboard-agent --parent-session ",
+                    StringComparison.OrdinalIgnoreCase) < 0)
+                    return;
+            }
+
+            using (var runKey = root.OpenSubKey(path, true))
+            {
+                if (runKey == null) return;
+                var command = runKey.GetValue(RunValueName) as string;
+                if (command == null || command.IndexOf(" --clipboard-agent --parent-session ",
+                    StringComparison.OrdinalIgnoreCase) < 0)
+                    return;
+                runKey.DeleteValue(RunValueName, false);
+                Program.Log("Removed the legacy Ray Desktop clipboard startup entry");
             }
         }
 
