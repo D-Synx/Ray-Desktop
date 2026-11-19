@@ -130,14 +130,17 @@ namespace ChildSessionDesktop
             // 不在 rdp.Resize 自动跟随——否则程序为铺满/跨屏缩放/还原而改控件尺寸也会被当成"拉窗口"
             // 反向覆盖会话分辨率（跨屏"你的屏幕"被打勾破坏、还原漂移的根源）。
             if (!dynamicMode) Program.Log("Letterbox (fixed-resolution) mode enabled; session resolution is pinned to the host screen");
-            clipboardRelay = new ClipboardFileRelay(false);
-            clipboardRelayTimer = new Timer { Interval = 250 };
-            clipboardRelayTimer.Tick += delegate
+            if (connectionAccount == null)
             {
-                clipboardRelay.PollIncoming();
-                clipboardRelay.RetryPendingClipboardRead();
-            };
-            clipboardRelayTimer.Start();
+                clipboardRelay = new ClipboardFileRelay(false);
+                clipboardRelayTimer = new Timer { Interval = 250 };
+                clipboardRelayTimer.Tick += delegate
+                {
+                    clipboardRelay.PollIncoming();
+                    clipboardRelay.RetryPendingClipboardRead();
+                };
+                clipboardRelayTimer.Start();
+            }
             Controls.Add(rdp);
 
             statusTimer = new Timer { Interval = 750 };
@@ -160,7 +163,7 @@ namespace ChildSessionDesktop
                 if (dynamicMode) SetDynamicLayout();      // 动态模式：控件铺满客户区（会话分辨率随窗口）
                 else ApplyLetterbox();                    // 固定模式：窗体一显示就把控件摆到正确矩形，避免左上角小黑块
                 // 工具栏不在此创建：等桌面完全显示、分辨率就位后再创建（见连接就绪回调）
-                ClipboardFileRelay.RegisterChildAgent();
+                if (clipboardRelay != null) ClipboardFileRelay.RegisterChildAgent();
                 BeginInvoke((MethodInvoker)ConnectChildSession);
             };
             FormClosing += OnClosing;
@@ -927,13 +930,15 @@ namespace ChildSessionDesktop
                 Program.Log("ConnectToChildSession set true");
                 client.AdvancedSettings9.EnableCredSspSupport = true;
                 client.AdvancedSettings9.SmartSizing = true;
-                client.AdvancedSettings9.RedirectClipboard = false;
+                client.AdvancedSettings9.RedirectClipboard = connectionAccount != null;
                 client.AdvancedSettings9.RedirectDrives = true;
                 EnableDriveRedirection(ocx);
                 client.AdvancedSettings9.EnableWindowsKey = 1;
                 client.AdvancedSettings9.AcceleratorPassthrough = 1;
                 client.SecuredSettings3.KeyboardHookMode = 1;
-                Program.Log("RDP clipboard redirection disabled; Ray Desktop bridges clipboard text and files between the two sessions instead; all local drives are redirected read-write; Windows key combinations enabled");
+                Program.Log(connectionAccount != null
+                    ? "Using native RDP clipboard redirection"
+                    : "Using Ray Desktop clipboard bridge");
                 ((IMsTscAx)ocx).Connect();
                 Program.Log("Connect() returned");
                 statusTimer.Start();
@@ -1085,7 +1090,8 @@ namespace ChildSessionDesktop
                 var settings = client.AdvancedSettings9;
                 Program.Log("RDP redirection settings after connect: RedirectClipboard=" + settings.RedirectClipboard +
                     ", RedirectDrives=" + settings.RedirectDrives + ", DisableRdpdr=" + settings.DisableRdpdr);
-                Program.Log("Clipboard bridge active: it relays text and local file paths between the two sessions (functionally clipboard redirection is ON via the bridge); all local drives are redirected read-write");
+                if (clipboardRelay != null)
+                    Program.Log("Ray Desktop clipboard bridge is active");
             }
             catch (Exception ex)
             {
@@ -1357,11 +1363,18 @@ namespace ChildSessionDesktop
             if (_displayMenu != null) { _displayMenu.Dispose(); _displayMenu = null; }
             if (_moreMenu != null) { _moreMenu.Dispose(); _moreMenu = null; }
             if (_resMenu != null) { _resMenu.Dispose(); _resMenu = null; }
-            clipboardRelayTimer.Stop();
+            if (clipboardRelayTimer != null)
+            {
+                clipboardRelayTimer.Stop();
+                clipboardRelayTimer.Dispose();
+            }
             if (readyTimer != null) readyTimer.Stop();        // P3-5：停止连接就绪后的 4s 建工具栏定时器，避免关闭流程中创建孤儿工具栏
             if (lateResizeTimer != null) lateResizeTimer.Stop();   // P3-5：停止分辨率校正的 900ms 延迟
-            clipboardRelay.Dispose();
-            ClipboardFileRelay.ClearMailbox();
+            if (clipboardRelay != null)
+            {
+                clipboardRelay.Dispose();
+                ClipboardFileRelay.ClearMailbox();
+            }
             // Q1（质量报告）：COM 事件退订 + 复位 eventsAttached——手动重连重建 COM 对象后 eventsAttached 残留会阻止对新对象重新订阅
             if (eventsAttached && rdpEvents != null)
             {
