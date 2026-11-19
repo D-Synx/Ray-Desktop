@@ -1,10 +1,10 @@
-# RayXDesktop 1.4.7 bêta
+# RayXDesktop 1.5.0a bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.4.7 bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.7-beta) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0a bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0a) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -24,8 +24,10 @@ L’interface utilise le français sur les systèmes en français et l’anglais
 ## Utiliser la barre
 
 - **Affichage**, **Résolution** et **Plein écran** règlent le bureau.
-- **Fichiers** copie les fichiers sélectionnés avec **Ctrl+C** dans l’Explorateur de la session source vers le Bureau du compte connecté. Windows doit autoriser la lecture et l’écriture dans les deux emplacements.
-- La **flèche circulaire** permet de retenter une connexion. Le menu **Plus** donne accès aux journaux, aux builds et aux crédits.
+- **Fichiers** affiche **Envoyer vers RayXDesktop** et **Récupérer depuis RayXDesktop**. Dans l’Explorateur de la session source, sélectionne les fichiers ou dossiers et fais **Ctrl+C**. Choisis le sens, puis le dossier de destination. Le transfert local applique les droits des comptes Windows et les restrictions détectées. Les copies gérées par Windows affichent les options et la progression de l’Explorateur. La récupération nécessite que Windows transmette la sélection de la session enfant. Si le presse-papiers ne la reçoit pas, consulte **Diagnostic des transferts**.
+- La **flèche circulaire** coupe puis relance la connexion sélectionnée, sans fermer volontairement ses programmes. **Plus → Déconnecter** coupe la liaison. **Plus → Fermer la session locale** affiche le compte concerné et ferme ses applications après confirmation. Fermer la fenêtre RayXDesktop déconnecte les vues.
+- Dans **Plus → Afficher les sessions**, ajoute un poste distant autorisé par son nom DNS. Windows prend en charge l’authentification et doit pouvoir vérifier l’identité du poste. Sélectionne successivement deux connexions, puis clique sur **Côte à côte**. La vue locale est limitée à une session enfant active par machine. Pour fermer un bureau distant, utilise la commande de fermeture de session dans ce bureau.
+- **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Diagnostic graphique** affiche les stratégies GPU et d’encodage H.264 de ce PC et ouvre l’Observateur d’événements. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
 - La **flèche vers le haut** réduit la barre en un moniteur turquoise. Clique dessus pour rouvrir la barre ou fais-le glisser pour la déplacer.
 
 Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log**. La ligne **RDP connected in** indique le délai jusqu’à l’état connecté.
@@ -64,7 +66,10 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Essayer une connexion refusée, puis une connexion autorisée | La première affiche l’erreur Windows. La seconde ouvre le bureau du compte cible dans la fenêtre et laisse la session utilisateur ouverte. |
 | Mesurer l’ouverture | Relever **RDP connected in** dans le journal. Si possible, comparer avec 1.4.6 sur le même poste, avec le même compte. |
 | Copier un texte, puis transférer un fichier témoin avec **Fichiers** | Le texte se colle dans le bureau ouvert. Le fichier apparaît sur le Bureau du compte connecté. Un fichier déjà présent reste intact. |
-| Fermer, puis relancer et vérifier le journal | La fenêtre se ferme proprement et la session principale reste utilisable. Aucun avertissement lié à un ancien lancement automatique de RayXDesktop ne réapparaît dans la session ouverte. |
+| Déconnecter, reconnecter, puis fermer la session locale | La reconnexion reprend le bureau et le document témoin quand Windows a conservé la session. Fermer la session locale demande confirmation et ferme ses applications. |
+| Récupérer un fichier, un dossier et du texte depuis le bureau ouvert | Les éléments arrivent dans la session principale selon les permissions et redirections. Un blocage apparaît dans les diagnostics si la stratégie correspondante est détectable. |
+| Ajouter un poste distant autorisé et activer Côte à côte | Les deux bureaux affichés répondent. La barre indique la session sélectionnée. La reconnexion et la fermeture ciblent cette session. |
+| Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 
 Pour chaque poste, note la version de Windows, le résultat, le délai et le code d’erreur éventuel. Avant de partager un journal, retire les noms de comptes et les chemins locaux qu’il contient.

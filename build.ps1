@@ -23,6 +23,15 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardFileRelay.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.Sessions.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.Files.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionWorkspace.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteDesktop.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteConnectionDialog.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\GraphicsOptions.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\FileTransfer.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ShellClipboard.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardRestrictions.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Geometry.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ReconnectPolicy.cs'),
@@ -35,8 +44,8 @@ $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.4.7.0'
-$productVersion = '1.4.7-beta'
+$version = '1.5.0.0'
+$productVersion = '1.5.0a'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
     "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",

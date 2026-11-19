@@ -205,6 +205,8 @@ namespace ChildSessionDesktop
                 }
                 else paths = new string[0];
 
+                if (paths.Length > 0 ? !ClipboardRestrictions.AllowsFiles(!isChild, null) : !ClipboardRestrictions.AllowsText(!isChild))
+                    return;
                 string fingerprint = paths.Length > 0 ? Fingerprint(paths) : FingerprintText(text);
                 DateTime now = DateTime.UtcNow;
                 if ((fingerprint == lastAppliedFingerprint && now - lastAppliedAt < TimeSpan.FromSeconds(3)) ||
@@ -247,6 +249,13 @@ namespace ChildSessionDesktop
                 string text;
                 if (!ReadMessage(incomingPath, out messageId, out paths, out text) || messageId == lastIncomingId) return;
                 if (paths.Length == 0 && string.IsNullOrEmpty(text))
+                {
+                    lastIncomingId = messageId;
+                    DeleteIncomingFile(writeStamp);
+                    return;
+                }
+
+                if (paths.Length > 0 ? !ClipboardRestrictions.AllowsFiles(isChild, null) : !ClipboardRestrictions.AllowsText(isChild))
                 {
                     lastIncomingId = messageId;
                     DeleteIncomingFile(writeStamp);

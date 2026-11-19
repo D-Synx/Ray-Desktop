@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using ChildSessionDesktop;
 
 namespace RayDesktopTests
@@ -230,6 +231,48 @@ namespace RayDesktopTests
             Check(!ConnectionArguments.TryParse(new[] { localAccount, "--maintenance-host=example.org" }, out account, out password), "mixed connection modes are invalid");
         }
 
+        private static void TestFileTransfer()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "RayTransferTest-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string source = Path.Combine(root, "source");
+                string target = Path.Combine(root, "target");
+                string project = Path.Combine(source, "Projet");
+                Directory.CreateDirectory(Path.Combine(project, "Sous-dossier"));
+                Directory.CreateDirectory(target);
+                string pdf = Path.Combine(project, "Sous-dossier", "exemple.txt");
+                File.WriteAllText(pdf, "contenu");
+                var report = new TransferResult();
+                FileTransfer.Copy(new[] { project }, target, false, CancellationToken.None, delegate { }, report);
+                Check(report.Copied == 1 && report.Failures.Count == 0
+                    && File.ReadAllText(Path.Combine(target, "Projet", "Sous-dossier", "exemple.txt")) == "contenu",
+                    "transfer copies directory contents");
+                var same = new TransferResult();
+                FileTransfer.Copy(new[] { project }, target, false, CancellationToken.None, delegate { }, same);
+                Check(same.Skipped == 1 && same.Copied == 0, "transfer skips existing folders by default");
+                var keep = new TransferResult();
+                FileTransfer.Copy(new[] { project }, target, true, CancellationToken.None, delegate { }, keep);
+                Check(keep.Copied == 1 && Directory.Exists(Path.Combine(target, "Projet (2)")), "transfer can keep both folders");
+                var recursive = new TransferResult();
+                FileTransfer.Copy(new[] { project }, Path.Combine(project, "Sous-dossier"), true, CancellationToken.None, delegate { }, recursive);
+                Check(recursive.Failures.Count == 1 && recursive.Copied == 0, "transfer refuses a copy into the source tree");
+                using (var stop = new CancellationTokenSource())
+                {
+                    bool cancelled = false;
+                    try
+                    {
+                        FileTransfer.Copy(new[] { pdf }, target, false, stop.Token, delegate { stop.Cancel(); }, new TransferResult());
+                    }
+                    catch (OperationCanceledException) { cancelled = true; }
+                    Check(cancelled && !File.Exists(Path.Combine(target, "exemple.txt"))
+                        && Directory.GetFileSystemEntries(target, ".rayx-*.tmp").Length == 0, "cancellation leaves no partial file");
+                }
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -238,6 +281,7 @@ namespace RayDesktopTests
             TestClipboardParse();
             TestReconnectPolicy();
             TestConnectionArguments();
+            TestFileTransfer();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

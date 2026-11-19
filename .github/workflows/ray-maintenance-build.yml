@@ -6,7 +6,7 @@ on:
   push:
     branches: [ray-desktop-maintenance]
     paths:
-      - maintenance/releases/1.4.7-beta.md
+      - maintenance/releases/1.5.0a.md
 
 permissions:
   contents: read
@@ -47,5 +47,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.4.7-beta .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayXDesktop 1.4.7 bêta" --notes-file .\maintenance\releases\1.4.7-beta.md
-          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.4.7 beta.' }
+          gh release create v1.5.0a .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayXDesktop 1.5.0a bêta" --notes-file .\maintenance\releases\1.5.0a.md
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0a beta.' }

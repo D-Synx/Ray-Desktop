@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.4.7 beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.7-beta)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0a beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0a)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -21,9 +21,12 @@ RayXDesktop displays a local Windows Child Session in a separate window. The flo
 
 The interface uses French on French Windows installations and English elsewhere. Pass **--lang=fr** or **--lang=en** to choose a language. Use **--dynamic** to start with a window-sized desktop. See the French guide for the existing account-based startup options.
 
-## Clipboard and files
+## Sessions, files and graphics
 
-Windows controls native RDP text clipboard redirection in sessions opened with an explicit account. To copy files, select them in the source Explorer and press **Ctrl+C**, then click **Files** on the RayXDesktop toolbar. RayXDesktop resolves the connected account’s Desktop and copies without overwriting existing files. The process needs permission to read the source and write to the destination.
+- Open **More → Show sessions** to switch between the local desktop and authorized remote RDP connections. Add the remote computer by DNS name and sign in with Windows. Select two sessions in succession, then choose **Side by side**. Windows supports one active local Child Session.
+- **Reconnect** resets the selected RDP link and then retries. Use **Disconnect** to leave the desktop running subject to Windows policy. **Sign out of the local session** closes the applications in that Windows session.
+- Copy a file or folder in Explorer, then choose **Files → Send to RayXDesktop** or **Files → Retrieve from RayXDesktop**. Pick a destination folder. Standard Windows permissions and clipboard policy apply. A copy from the child session requires Windows to deliver the file selection to the main session.
+- Choose **More → Prefer smooth display** to reduce visual effects and display resolution on the next local connection or new remote connection. **Graphics diagnostics** shows the local Windows GPU policies. Hardware rendering and encoding depend on Windows and the host; RayXDesktop does not change those policies.
 
 ## Build and test
 

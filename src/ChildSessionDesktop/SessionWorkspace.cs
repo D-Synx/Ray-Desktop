@@ -1,0 +1,229 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace ChildSessionDesktop
+{
+    internal sealed class SessionWorkspace : Panel
+    {
+        private sealed class Slot
+        {
+            internal Panel View;
+            internal string Name;
+            internal string Status;
+            internal RemoteDesktop Remote;
+        }
+
+        private readonly Panel sidebar;
+        private readonly Panel surface;
+        private readonly FlowLayoutPanel list;
+        private readonly Button splitButton;
+        private readonly Slot local;
+        private readonly List<Slot> slots = new List<Slot>();
+        private Slot selected, previous, left, right;
+
+        internal event Action AddRequested;
+        internal event Action LocalViewportChanged;
+        internal event Action SelectionChanged;
+        internal RemoteDesktop SelectedRemote { get { return selected.Remote; } }
+        internal string SelectedName { get { return selected.Name; } }
+        internal string SelectedStatus { get { return selected.Status; } }
+        internal bool HasRemoteConnections { get { return slots.Count > 1; } }
+        internal bool IsExpanded { get { return sidebar.Visible; } }
+
+        internal SessionWorkspace(Control localDesktop, string localAccount)
+        {
+            Dock = DockStyle.Fill;
+            BackColor = Color.FromArgb(13, 19, 29);
+            surface = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
+            Controls.Add(surface);
+
+            sidebar = new Panel { Dock = DockStyle.Left, Width = 204, BackColor = Color.FromArgb(23, 34, 50), Visible = false };
+            Controls.Add(sidebar);
+            list = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
+                AutoScroll = true, Padding = new Padding(8, 4, 8, 4)
+            };
+            var add = MakeButton(Strings.T("sessions_add"));
+            add.Dock = DockStyle.Bottom;
+            add.Click += delegate { if (AddRequested != null) AddRequested(); };
+            splitButton = MakeButton(Strings.T("sessions_split"));
+            splitButton.Dock = DockStyle.Bottom;
+            splitButton.Click += delegate { ToggleSplit(); };
+            var collapse = MakeButton(Strings.T("sessions_hide"));
+            collapse.Dock = DockStyle.Top;
+            collapse.Click += delegate { ToggleSidebar(); };
+            sidebar.Controls.Add(list);
+            sidebar.Controls.Add(splitButton);
+            sidebar.Controls.Add(add);
+            sidebar.Controls.Add(collapse);
+
+            local = AddSlot(Strings.T("sessions_local", localAccount), localDesktop, null);
+            local.View.SizeChanged += delegate { if (LocalViewportChanged != null) LocalViewportChanged(); };
+            selected = left = local;
+            surface.SizeChanged += delegate { Arrange(); };
+            RebuildList();
+            Arrange();
+        }
+
+        private static Button MakeButton(string text)
+        {
+            var button = new Button
+            {
+                Text = text, TextAlign = ContentAlignment.MiddleLeft, Height = 38,
+                FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(34, 49, 68),
+                UseMnemonic = false
+            };
+            button.FlatAppearance.BorderSize = 0;
+            return button;
+        }
+
+        private Slot AddSlot(string name, Control desktop, RemoteDesktop remote)
+        {
+            var slot = new Slot
+            {
+                Name = name, Status = Strings.T("status_not_connected"), Remote = remote,
+                View = new Panel { BackColor = Color.Black, Visible = false }
+            };
+            slots.Add(slot);
+            slot.View.Controls.Add(desktop);
+            surface.Controls.Add(slot.View);
+            desktop.Enter += delegate
+            {
+                if (slot == left || slot == right) Select(slot);
+            };
+            return slot;
+        }
+
+        internal bool SelectExisting(string host, string account)
+        {
+            foreach (var slot in slots)
+            {
+                if (slot.Remote != null && string.Equals(host, slot.Remote.Server, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(account, slot.Remote.Account, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!sidebar.Visible) ToggleSidebar();
+                    Select(slot);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal void AddRemote(RemoteDesktop remote)
+        {
+            var slot = AddSlot(remote.Server + " · " + remote.Account, remote, remote);
+            remote.StatusChanged += delegate
+            {
+                slot.Status = remote.Status;
+                RefreshList();
+            };
+            if (!sidebar.Visible) ToggleSidebar();
+            Select(slot);
+        }
+
+        internal void CloseSelectedView()
+        {
+            if (selected == local) return;
+            Slot remove = selected;
+            Slot next = right == null ? local : left == remove ? right : left;
+            slots.Remove(remove);
+            if (previous == remove) previous = null;
+            right = null;
+            left = selected = next;
+            remove.View.Dispose();
+            RebuildList();
+            Arrange();
+        }
+
+        internal void UpdateLocalStatus(string message)
+        {
+            if (local.Status == message) return;
+            local.Status = message;
+            RefreshList();
+        }
+
+        internal void ToggleSidebar()
+        {
+            sidebar.Visible = !sidebar.Visible;
+            Arrange();
+        }
+
+        private void Select(Slot slot)
+        {
+            if (slot == selected) return;
+            if (right == null) left = slot;
+            else if (slot != left && slot != right)
+            {
+                if (selected == left) left = slot;
+                else right = slot;
+            }
+            previous = selected;
+            selected = slot;
+            Arrange();
+        }
+
+        private void ToggleSplit()
+        {
+            if (right != null)
+            {
+                left = selected;
+                right = null;
+            }
+            else if (slots.Count > 1)
+            {
+                left = selected;
+                right = previous != null && previous != selected ? previous : selected == local ? slots[1] : local;
+            }
+            Arrange();
+        }
+
+        private void RebuildList()
+        {
+            while (list.Controls.Count > 0) list.Controls[0].Dispose();
+            foreach (Slot slot in slots)
+            {
+                var row = MakeButton("");
+                row.Width = 165;
+                row.Height = 59;
+                row.Tag = slot;
+                row.AutoEllipsis = true;
+                row.Click += delegate { Select(slot); };
+                list.Controls.Add(row);
+            }
+            RefreshList();
+        }
+
+        private void RefreshList()
+        {
+            foreach (Button row in list.Controls)
+            {
+                var slot = (Slot)row.Tag;
+                row.Text = slot.Name + Environment.NewLine + slot.Status;
+                row.AccessibleName = row.Text;
+                row.BackColor = slot == selected ? Color.FromArgb(26, 92, 92) : Color.FromArgb(34, 49, 68);
+            }
+            if (SelectionChanged != null) SelectionChanged();
+        }
+
+        private void Arrange()
+        {
+            if (selected == null || IsDisposed) return;
+            const int Divider = 4;
+            int leftWidth = right == null ? surface.Width : Math.Max(0, (surface.Width - Divider) / 2);
+            foreach (Slot slot in slots)
+            {
+                slot.View.Visible = slot == left || slot == right;
+                if (slot == left) slot.View.SetBounds(0, 0, leftWidth, surface.Height);
+                else if (slot == right) slot.View.SetBounds(leftWidth + Divider, 0,
+                    Math.Max(0, surface.Width - leftWidth - Divider), surface.Height);
+            }
+            splitButton.Enabled = slots.Count > 1;
+            splitButton.Text = Strings.T(right == null ? "sessions_split" : "sessions_single");
+            if (list.Controls.Count != slots.Count) RebuildList();
+            else RefreshList();
+        }
+    }
+}

@@ -11,7 +11,7 @@ using MSTSCLib;
 
 namespace ChildSessionDesktop
 {
-    internal sealed class DesktopForm : Form
+    internal sealed partial class DesktopForm : Form
     {
         private readonly ChildSessionControl rdp;
         private readonly Timer statusTimer;
@@ -47,7 +47,6 @@ namespace ChildSessionDesktop
         private Size _fixedMatchClient = Size.Empty;
         private FormBorderStyle prevBorder;
         private ToolbarForm toolBar;
-        private bool copyingClipboardFiles;
         private ContextMenuStrip _displayMenu, _moreMenu, _resMenu;
         private Timer reconnectTimer;
         private readonly ReconnectPolicy reconnectPolicy = new ReconnectPolicy();
@@ -132,7 +131,11 @@ namespace ChildSessionDesktop
                 };
                 clipboardRelayTimer.Start();
             }
-            Controls.Add(rdp);
+            sessions = new SessionWorkspace(rdp, connectionAccount ?? Environment.UserName);
+            Controls.Add(sessions);
+            sessions.LocalViewportChanged += RefreshLocalViewport;
+            sessions.SelectionChanged += RefreshSessionTitle;
+            sessions.AddRequested += AddRemote;
 
             statusTimer = new Timer { Interval = 750 };
             statusTimer.Tick += delegate { UpdateConnectionStatus(); };
@@ -268,7 +271,7 @@ namespace ChildSessionDesktop
                 if (dynamicMode) QueueDisplayResize(true);
             }
 
-            if (!dynamicMode && m.Msg == WM_SIZING && aspect > 0)
+            if (!dynamicMode && m.Msg == WM_SIZING && aspect > 0 && (sessions == null || !sessions.IsExpanded))
             {
                 RECT r = (RECT)Marshal.PtrToStructure(m.LParam, typeof(RECT));
                 int bw = Width - ClientSize.Width;
@@ -319,9 +322,9 @@ namespace ChildSessionDesktop
 
         private void ApplyLetterbox()
         {
-            if (rdp == null || rdp.IsDisposed) return;
-            int cw = ClientSize.Width;
-            int ch = ClientSize.Height;
+            if (rdp == null || rdp.IsDisposed || rdp.Parent == null) return;
+            int cw = rdp.Parent.ClientSize.Width;
+            int ch = rdp.Parent.ClientSize.Height;
             if (cw <= 0 || ch <= 0) return;
             int dw, dh, dx, dy;
             Geometry.ComputeLetterbox(cw, ch,
@@ -341,8 +344,8 @@ namespace ChildSessionDesktop
 
         private void SetDynamicLayout()
         {
-            if (rdp == null || rdp.IsDisposed) return;
-            rdp.SetBounds(0, 0, Math.Max(1, ClientSize.Width), Math.Max(1, ClientSize.Height));
+            if (rdp == null || rdp.IsDisposed || rdp.Parent == null) return;
+            rdp.Bounds = rdp.Parent.ClientRectangle;
         }
 
         private bool ShowDisplayModeMenuAt(Rectangle anchor)
@@ -381,6 +384,8 @@ namespace ChildSessionDesktop
                 try { Process.Start("https://github.com/D-Synx/Ray-Desktop/actions"); }
                 catch (Exception ex) { Program.Log("Could not open update page: " + ex.GetBaseException().Message); }
             };
+            AddSessionMenuItems(menu);
+            menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(itemAbout);
             menu.Items.Add(itemLog);
             menu.Items.Add(new ToolStripSeparator());
@@ -486,40 +491,6 @@ namespace ChildSessionDesktop
             catch (Exception ex) { Program.Log("HoldCurrentDisplaySize failed: " + ex.GetBaseException().Message); }
         }
 
-        private async void TransferClipboardFiles()
-        {
-            if (copyingClipboardFiles) return;
-            try
-            {
-                var copiedFiles = Clipboard.GetFileDropList();
-                if (copiedFiles.Count == 0)
-                {
-                    MessageBox.Show(this, "Copie d’abord un ou plusieurs fichiers dans l’Explorateur de la session utilisateur.",
-                        "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                string destination = GetChildSessionDesktop();
-                copyingClipboardFiles = true;
-                string result = await System.Threading.Tasks.Task.Factory.StartNew(
-                    () => CopyClipboardFiles(copiedFiles, destination),
-                    System.Threading.CancellationToken.None,
-                    System.Threading.Tasks.TaskCreationOptions.None,
-                    System.Threading.Tasks.TaskScheduler.Default);
-                if (!IsDisposed && !closing)
-                    MessageBox.Show(this, result, "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                if (!IsDisposed && !closing)
-                    MessageBox.Show(this, ex.Message, "Transfert de fichiers", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            finally
-            {
-                copyingClipboardFiles = false;
-            }
-        }
-
         private string GetChildSessionDesktop()
         {
             uint sessionId;
@@ -575,30 +546,6 @@ namespace ChildSessionDesktop
             finally { Program.WTSFreeMemory(buffer); }
         }
 
-        private static string CopyClipboardFiles(System.Collections.Specialized.StringCollection paths, string destination)
-        {
-            int copied = 0;
-            var failures = new System.Text.StringBuilder();
-            foreach (string source in paths)
-            {
-                try
-                {
-                    if (Directory.Exists(source))
-                        throw new IOException("Ce bouton accepte uniquement les fichiers.");
-                    File.Copy(source, Path.Combine(destination, Path.GetFileName(source)), false);
-                    copied++;
-                }
-                catch (Exception ex)
-                {
-                    if (!(ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)) throw;
-                    failures.AppendLine(source + " : " + ex.Message);
-                }
-            }
-
-            return copied + " fichier(s) copié(s) sur " + paths.Count + ".\r\n" + destination
-                + (failures.Length == 0 ? "" : "\r\n\r\nÉchecs de copie :\r\n" + failures);
-        }
-
         private void OpenLogFolder()
         {
             try
@@ -644,8 +591,7 @@ namespace ChildSessionDesktop
 
         private void SetStatus(string message)
         {
-            string t = message + " — RayXDesktop";
-            if (Text != t) Text = t;
+            sessions.UpdateLocalStatus(message);
         }
 
         private void CreateToolbar()
@@ -656,8 +602,8 @@ namespace ChildSessionDesktop
             toolBar.ShowResMenu = ShowResMenuAt;
             toolBar.ShowDisplayModeMenu = ShowDisplayModeMenuAt;
             toolBar.ShowMoreMenu = ShowMoreMenuAt;
-            toolBar.ReconnectSession = Reconnect;
-            toolBar.TransferFiles = TransferClipboardFiles;
+            toolBar.ReconnectSession = ReconnectSelected;
+            toolBar.ShowFilesMenu = ShowFilesMenuAt;
             toolBar.IsDynamicMode = dynamicMode;
             toolBar.FollowHost(this);
             toolBar.Show(this);
@@ -861,6 +807,7 @@ namespace ChildSessionDesktop
 
         private void MatchWindowToSession(int sessW, int sessH)
         {
+            if (sessions != null && sessions.IsExpanded) { RefreshLocalViewport(); return; }
             if (Handle == IntPtr.Zero || IsDisposed) return;
             if (sessW <= 0 || sessH <= 0) return;
             if (fullscreen) { ApplyLetterbox(); return; }
@@ -918,6 +865,11 @@ namespace ChildSessionDesktop
                 AttachConnectionEvents(ocx);
                 var client = (IMsRdpClient9)ocx;
                 int state = client.Connected;
+                if (!hasDefaultPerformanceFlags)
+                {
+                    defaultPerformanceFlags = client.AdvancedSettings9.PerformanceFlags;
+                    hasDefaultPerformanceFlags = true;
+                }
                 if (state == 1)
                 {
                     connecting = false;
@@ -958,6 +910,8 @@ namespace ChildSessionDesktop
                     }
                 }
 
+                explicitlyDisconnected = false;
+                lastRequestedDisplaySize = Size.Empty;
                 connecting = true;
                 connectionStarted = DateTime.Now;
                 SetStatus(Strings.T("status_connecting_win"));
@@ -979,6 +933,7 @@ namespace ChildSessionDesktop
                     int sw = (currentSessW > 0 && currentSessH > 0) ? currentSessW : Screen.PrimaryScreen.Bounds.Width;
                     int sh = (currentSessW > 0 && currentSessH > 0) ? currentSessH : Screen.PrimaryScreen.Bounds.Height;
                     if (sw <= 0 || sh <= 0) { sw = 1280; sh = 720; }
+                    if (fluidGraphics) { sw = Math.Min(sw, 1600); sh = Math.Min(sh, 900); }
                     sw &= ~1;
                     sh &= ~1;
                     client.DesktopWidth = sw;
@@ -993,6 +948,9 @@ namespace ChildSessionDesktop
                 Program.Log("ConnectToChildSession set true");
                 client.AdvancedSettings9.EnableCredSspSupport = true;
                 client.AdvancedSettings9.SmartSizing = true;
+                localFluidGraphics = fluidGraphics;
+                client.AdvancedSettings9.PerformanceFlags = localFluidGraphics ? GraphicsOptions.FluidPerformanceFlags : defaultPerformanceFlags;
+                Program.Log("RDP performance profile: " + (fluidGraphics ? "fluid" : "default"));
                 client.AdvancedSettings9.RedirectClipboard = connectionAccount != null;
                 client.AdvancedSettings9.RedirectDrives = true;
                 EnableDriveRedirection(ocx);
@@ -1157,7 +1115,7 @@ namespace ChildSessionDesktop
         {
             try
             {
-                if (rdp == null || rdp.IsDisposed) return;
+                if (rdp == null || rdp.IsDisposed || rdp.Parent == null) return;
                 if (InvokeRequired) { BeginInvoke((MethodInvoker)delegate { HandleRemoteResize(width, height); }); return; }
                 Program.Log("OnRemoteDesktopSizeChange: session=" + currentSessW + "x" + currentSessH
                     + " client=" + ClientSize.Width + "x" + ClientSize.Height
@@ -1172,7 +1130,8 @@ namespace ChildSessionDesktop
 
         private void HandleDisconnected(int reason)
         {
-            if (closing || IsDisposed || reconnectTimer.Enabled) return;
+            if (closing || IsDisposed || disconnectTimer != null || reconnectTimer.Enabled) return;
+            CancelFileCopy();
             connecting = false;
             statusTimer.Stop();
             var message = reason == 1
@@ -1231,7 +1190,7 @@ namespace ChildSessionDesktop
 
         private void EnterReconnectState()
         {
-            if (closing || IsDisposed || reconnectTimer == null || connectionAccount != null) return;
+            if (closing || IsDisposed || disconnectTimer != null || explicitlyDisconnected || reconnectTimer == null || connectionAccount != null) return;
             connecting = false;
             if (!reconnectTimer.Enabled)
             {
@@ -1240,15 +1199,6 @@ namespace ChildSessionDesktop
                 reconnectTimer.Start();
                 Program.Log("Entering auto-reconnect state");
             }
-        }
-
-        private void Reconnect()
-        {
-            if (closing || rdp == null || rdp.IsDisposed || connecting) return;
-            StopReconnect();
-            reconnectPolicy.OnManualReconnect();
-            Program.Log("Manual reconnect requested");
-            ConnectChildSession();
         }
 
         private void StopReconnect()
@@ -1333,8 +1283,8 @@ namespace ChildSessionDesktop
                     return;
                 }
 
-                int width = Math.Max(200, Math.Min(8192, ClientSize.Width));
-                int height = Math.Max(200, Math.Min(8192, ClientSize.Height));
+                int width = Math.Max(200, Math.Min(localFluidGraphics ? 1600 : 8192, rdp.Parent.ClientSize.Width));
+                int height = Math.Max(200, Math.Min(localFluidGraphics ? 900 : 8192, rdp.Parent.ClientSize.Height));
                 width &= ~1; // RDP display-control requires an even pixel width.
                 var requested = new Size(width, height);
                 if (requested == lastRequestedDisplaySize) return;
@@ -1360,8 +1310,8 @@ namespace ChildSessionDesktop
             }
             catch (Exception ex)
             {
-                var requested = new Size(Math.Max(200, Math.Min(8192, ClientSize.Width)) & ~1,
-                    Math.Max(200, Math.Min(8192, ClientSize.Height)));
+                var requested = new Size(Math.Max(200, Math.Min(localFluidGraphics ? 1600 : 8192, rdp.Parent.ClientSize.Width)) & ~1,
+                    Math.Max(200, Math.Min(localFluidGraphics ? 900 : 8192, rdp.Parent.ClientSize.Height)));
                 if (requested != lastFailedDisplaySize)
                 {
                     lastFailedDisplaySize = requested;
@@ -1388,8 +1338,8 @@ namespace ChildSessionDesktop
         {
             if (e.CloseReason == CloseReason.UserClosing)
             {
-                bool connected = false;
-                try { connected = ((IMsRdpClient9)rdp.GetOcxObject()).Connected == 1; }
+                bool connected = sessions.HasRemoteConnections;
+                try { connected |= ((IMsRdpClient9)rdp.GetOcxObject()).Connected == 1; }
                 catch (Exception ex) { Program.Log("Could not read RDP state for close confirm: " + ex.GetBaseException().Message); }
                 if (connected)
                 {
@@ -1399,11 +1349,14 @@ namespace ChildSessionDesktop
                 }
             }
             closing = true;
+            CancelFileCopy();
             _resChangePending = false;
             if (toolBar != null) { toolBar.Dispose(); toolBar = null; }
             statusTimer.Dispose();
             displayResizeTimer.Dispose();
             reconnectTimer.Dispose();
+            DisposeTimer(ref disconnectTimer);
+            if (_filesMenu != null) _filesMenu.Dispose();
             if (_displayMenu != null) { _displayMenu.Dispose(); _displayMenu = null; }
             if (_moreMenu != null) { _moreMenu.Dispose(); _moreMenu = null; }
             if (_resMenu != null) { _resMenu.Dispose(); _resMenu = null; }
@@ -1434,41 +1387,7 @@ namespace ChildSessionDesktop
             try { ((IMsTscAx)rdp.GetOcxObject()).Disconnect(); }
             catch (Exception ex) { Program.Log("Disconnect during shutdown failed: " + ex.GetBaseException().Message); }
 
-            try
-            {
-                uint childSessionId;
-                if (!Program.WTSGetChildSessionId(out childSessionId))
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    if (error == 1168)
-                    {
-                        Program.Log("No Child Session exists during shutdown; no logoff is needed");
-                        return;
-                    }
-                    Program.Log("Could not get Child Session ID during shutdown; session was disconnected but not logged off. Windows error " + error);
-                    return;
-                }
 
-                if (childSessionId == uint.MaxValue)
-                {
-                    Program.Log("No Child Session was present during shutdown");
-                    return;
-                }
-
-                // WTS_CURRENT_SERVER_HANDLE is NULL. Do not wait synchronously from the UI close event.
-                if (!Program.WTSLogoffSession(IntPtr.Zero, childSessionId, false))
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    Program.Log("Could not log off Child Session " + childSessionId + "; Windows error " + error);
-                    return;
-                }
-
-                Program.Log("Requested logoff for Child Session " + childSessionId + " on host window close");
-            }
-            catch (Exception ex)
-            {
-                Program.Log("Child Session logoff failed during shutdown: " + ex);
-            }
         }
     }
 }

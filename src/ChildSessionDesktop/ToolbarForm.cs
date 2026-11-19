@@ -37,7 +37,7 @@ namespace ChildSessionDesktop
         internal Func<Rectangle, bool> ShowResMenu;
         internal Func<Rectangle, bool> ShowDisplayModeMenu;
         internal Func<Rectangle, bool> ShowMoreMenu;
-        internal Action TransferFiles;
+        internal Action<Rectangle> ShowFilesMenu;
         internal Action ReconnectSession;
         internal bool IsDynamicMode;
         internal bool Fullscreen;
@@ -420,7 +420,7 @@ namespace ChildSessionDesktop
                 case Tool.Display: if (ShowDisplayModeMenu != null) ShowDisplayModeMenu(anchor); break;
                 case Tool.Resolution: if (ShowResMenu != null) ShowResMenu(anchor); break;
                 case Tool.Fullscreen: if (ToggleFullscreen != null) ToggleFullscreen(); break;
-                case Tool.Files: if (TransferFiles != null) TransferFiles(); break;
+                case Tool.Files: if (ShowFilesMenu != null) ShowFilesMenu(anchor); break;
                 case Tool.Reconnect: if (ReconnectSession != null) ReconnectSession(); break;
                 case Tool.More: if (ShowMoreMenu != null) ShowMoreMenu(anchor); break;
                 case Tool.Collapse: SetCollapsed(true); break;
