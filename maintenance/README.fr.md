@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0d bêta
+# RayXDesktop 1.5.0e bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0d bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0d) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0e bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0e) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -36,6 +36,7 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 
 - Indique une IP, un nom DNS ou un nom de poste. Pour un port personnalisé, utilise par exemple 192.0.2.15:3390 ou [2001:db8::15]:3390. Tu peux laisser l’adresse vide si tu indiques **NOMPC\session**. Pour un compte de domaine, indique aussi l’adresse du poste.
 - Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, Windows le demande. L’authentification du poste distant reste obligatoire. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
+- **Ctrl+C** et **Ctrl+V** copient le texte dans les deux sens entre la session principale et le bureau distant intégré, selon les stratégies Windows. Sélectionne le bureau distant, puis utilise **Plus → Partager le presse-papiers (prochaine connexion)** pour régler le partage de cette session. Reconnecte la session pour appliquer le choix.
 - **Importer un .rdp** charge l’adresse et le compte. Un mot de passe protégé dans le champ Windows **password 51** peut servir pour cette tentative si le profil Windows courant peut le lire. Un champ vide, illisible ou un fichier qui utilise le Gestionnaire d’identification de Windows déclenche l’invite. RayXDesktop ne conserve ni le secret saisi ni une copie du fichier. Changer l’adresse ou le compte retire le secret importé du formulaire. L’import prend en charge les connexions directes à un bureau.
 - Au changement de session, le bouton de la session quittée affiche sa dernière miniature disponible. **Plus → Ouvrir le dossier des miniatures** montre les PNG du lancement courant, sous **%LOCALAPPDATA%\RayDesktop\Thumbnails**. RayXDesktop les efface à la fermeture normale. Si le pilote ou la session ne fournit pas d’image exploitable, le bouton conserve l’aperçu précédent.
 
@@ -94,6 +95,7 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Déconnecter, reconnecter, puis fermer la session locale | La reconnexion reprend le bureau et le document témoin quand Windows a conservé la session. Fermer la session locale demande confirmation et ferme ses applications. |
 | Récupérer un fichier, un dossier et du texte depuis le bureau ouvert | Les éléments arrivent dans la session principale selon les permissions et redirections. Un blocage apparaît dans les diagnostics si la stratégie correspondante est détectable. |
 | Ajouter un poste distant autorisé et activer Côte à côte | Les deux bureaux affichés répondent. La barre indique la session sélectionnée. La reconnexion et la fermeture ciblent cette session. |
+| Dans le Bloc-notes, copier un texte différent dans chaque sens entre la session principale et un bureau distant intégré | Le texte arrive dans les deux sens si Windows autorise le partage. Décoche **Partager le presse-papiers**, reconnecte la session et essaie avec un nouveau texte pour vérifier que le partage est coupé. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

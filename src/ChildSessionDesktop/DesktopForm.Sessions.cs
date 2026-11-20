@@ -60,14 +60,20 @@ namespace ChildSessionDesktop
             {
                 GraphicsSettingsDialog.Show(this, fluidGraphics, currentSessW, currentSessH);
             };
-            if (sessions.SelectedRemote != null)
+            RemoteDesktop remote = sessions.SelectedRemote;
+            if (remote != null)
             {
-                menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { sessions.SelectedRemote.RefreshDisplay(); };
+                var clipboard = new ToolStripMenuItem(Strings.T("remote_share_clipboard"))
+                {
+                    Checked = remote.ShareClipboard,
+                    CheckOnClick = true
+                };
+                clipboard.Click += delegate { remote.ShareClipboard = clipboard.Checked; };
+                menu.Items.Add(clipboard);
+                menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { remote.RefreshDisplay(); };
                 menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
                 menu.Items.Add(Strings.T("remote_copy_diagnostic")).Click += delegate
                 {
-                    RemoteDesktop remote = sessions.SelectedRemote;
-                    if (remote == null) return;
                     try
                     {
                         Clipboard.SetText("RayXDesktop " + Application.ProductVersion + Environment.NewLine + remote.DiagnosticText);

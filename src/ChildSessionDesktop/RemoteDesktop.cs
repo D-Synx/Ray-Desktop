@@ -33,6 +33,7 @@ namespace ChildSessionDesktop
         internal RdpEndpoint Endpoint { get; private set; }
         internal ChildSessionControl PreviewSurface { get { return view; } }
         internal string Account { get; private set; }
+        internal bool ShareClipboard { get; set; } = true;
         internal string Status { get; private set; }
         internal event Action StatusChanged;
 
@@ -137,7 +138,7 @@ namespace ChildSessionDesktop
                 settings.RDPPort = Endpoint.Port;
                 settings.SmartSizing = true;
                 if (fluid) settings.PerformanceFlags = GraphicsOptions.FluidPerformanceFlags;
-                settings.RedirectClipboard = false;
+                settings.RedirectClipboard = ShareClipboard;
                 settings.RedirectDrives = false;
                 var credentials = (IMsTscNonScriptable)ocx;
                 credentials.ResetPassword();
@@ -146,7 +147,8 @@ namespace ChildSessionDesktop
                 explicitDisconnect = false;
                 lastDisplaySize = Size.Empty;
                 signInTimer.Start();
-                Program.Log("Remote RDP " + Endpoint.Display + " starting at " + size.Width + "x" + size.Height);
+                Program.Log("Remote RDP " + Endpoint.Display + " starting at " + size.Width + "x" + size.Height +
+                    "; RedirectClipboard=" + settings.RedirectClipboard);
                 view.Select();
                 ((IMsTscAx)ocx).Connect();
             }
