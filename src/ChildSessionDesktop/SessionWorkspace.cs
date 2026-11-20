@@ -217,8 +217,10 @@ namespace ChildSessionDesktop
             foreach (Button row in list.Controls)
             {
                 var slot = (Slot)row.Tag;
-                row.Text = slot.Name + Environment.NewLine + slot.Status;
-                row.AccessibleName = row.Text;
+                // Keep the connection state readable even when the endpoint and account are long.
+                string summary = slot.Status.Split('\r', '\n')[0];
+                row.Text = summary + Environment.NewLine + slot.Name;
+                row.AccessibleName = slot.Name + ". " + slot.Status;
                 row.Image = slot.Preview;
                 row.Height = slot.Preview == null ? 54 : SessionThumbnails.Height + 54;
                 row.BackColor = slot == selected ? Color.FromArgb(26, 92, 92) : Color.FromArgb(34, 49, 68);
@@ -269,10 +271,10 @@ namespace ChildSessionDesktop
             int leftWidth = right == null ? surface.Width : Math.Max(0, (surface.Width - Divider) / 2);
             foreach (Slot slot in slots)
             {
-                slot.View.Visible = slot == left || slot == right;
                 if (slot == left) slot.View.SetBounds(0, 0, leftWidth, surface.Height);
                 else if (slot == right) slot.View.SetBounds(leftWidth + Divider, 0,
                     Math.Max(0, surface.Width - leftWidth - Divider), surface.Height);
+                slot.View.Visible = slot == left || slot == right;
             }
             splitButton.Enabled = slots.Count > 1;
             splitButton.Text = Strings.T(right == null ? "sessions_split" : "sessions_single");

@@ -20,7 +20,7 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')
 )
 
-& $compiler /nologo /target:exe /r:System.Security.dll ("/out:{0}" -f $testOut) @sources
+& $compiler /nologo /target:exe /r:System.Security.dll /r:System.Drawing.dll ("/out:{0}" -f $testOut) @sources
 if ($LASTEXITCODE -ne 0) { throw "Test build failed with exit code $LASTEXITCODE" }
 
 & $testOut

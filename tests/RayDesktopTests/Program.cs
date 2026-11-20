@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Drawing;
 using System.Text;
 using System.Security.Cryptography;
 using System.Threading;
@@ -312,6 +313,14 @@ namespace RayDesktopTests
             return false;
         }
 
+        private static void TestRemoteDisplaySizing()
+        {
+            Check(Geometry.RemoteDisplaySize(1643, 1380, false) == new Size(1642, 1380), "split remote viewport uses even width");
+            Check(Geometry.RemoteDisplaySize(3440, 1440, false) == new Size(2560, 1440), "large remote viewport has a resolution cap");
+            Check(Geometry.RemoteDisplaySize(3440, 1440, true) == new Size(1600, 900), "smooth profile caps remote resolution");
+            Check(Geometry.RemoteDisplaySize(459, 320, false) == new Size(640, 480), "small remote viewport keeps usable remote resolution");
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -322,6 +331,7 @@ namespace RayDesktopTests
             TestConnectionArguments();
             TestFileTransfer();
             TestRemoteConnections();
+            TestRemoteDisplaySizing();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

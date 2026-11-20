@@ -55,7 +55,15 @@ namespace ChildSessionDesktop
                 MessageBox.Show(this, Strings.T("graphics_applied_on_connect"), Strings.T("graphics_title"));
             };
             menu.Items.Add(fluid);
-            menu.Items.Add(Strings.T("graphics_title")).Click += delegate { ShowGraphicsDiagnostics(); };
+            menu.Items.Add(Strings.T("graphics_title")).Click += delegate
+            {
+                GraphicsSettingsDialog.Show(this, fluidGraphics, currentSessW, currentSessH);
+            };
+            if (sessions.SelectedRemote != null)
+            {
+                menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { sessions.SelectedRemote.RefreshDisplay(); };
+                menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
+            }
         }
 
         private void OpenThumbnailFolder()
@@ -250,17 +258,26 @@ namespace ChildSessionDesktop
             if (Text != title) Text = title;
         }
 
-        private void ShowGraphicsDiagnostics()
+        private void OpenSelectedInWindowsRdp()
         {
-            string message = Strings.T("graphics_report",
-                Strings.T(fluidGraphics ? "graphics_fluid" : "graphics_default"),
-                GraphicsOptions.DescribePolicy("bEnumerateHWBeforeSW"),
-                GraphicsOptions.DescribePolicy("AVCHardwareEncodePreferred"),
-                currentSessW, currentSessH);
-            if (MessageBox.Show(this, message, Strings.T("graphics_title"), MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
-            try { Process.Start("eventvwr.msc"); }
-            catch (Exception ex) { Program.Log("Could not open Event Viewer: " + ex.GetBaseException().Message); }
+            RemoteDesktop remote = sessions.SelectedRemote;
+            if (remote == null) return;
+            RdpEndpoint endpoint = remote.Endpoint;
+            string address = endpoint.Port == RdpEndpoint.DefaultPort && endpoint.Host.IndexOf(':') >= 0
+                ? "[" + endpoint.Host + "]" : endpoint.Display;
+            try
+            {
+                using (Process started = Process.Start(new ProcessStartInfo
+                {
+                    FileName = Path.Combine(Environment.SystemDirectory, "mstsc.exe"),
+                    Arguments = "/v:\"" + address + "\"",
+                    UseShellExecute = true
+                })) { }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Strings.T("remote_open_windows"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
     }
 }

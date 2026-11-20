@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0b bêta
+# RayXDesktop 1.5.0c bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0b bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0b) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0c bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0c) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -27,7 +27,7 @@ L’interface utilise le français sur les systèmes en français et l’anglais
 - **Fichiers** affiche **Envoyer vers RayXDesktop** et **Récupérer depuis RayXDesktop**. Dans l’Explorateur de la session source, sélectionne les fichiers ou dossiers et fais **Ctrl+C**. Choisis le sens, puis le dossier de destination. Le transfert local applique les droits des comptes Windows et les restrictions détectées. Les copies gérées par Windows affichent les options et la progression de l’Explorateur. La récupération nécessite que Windows transmette la sélection de la session enfant. Si le presse-papiers ne la reçoit pas, consulte **Diagnostic des transferts**.
 - La **flèche circulaire** coupe puis relance la connexion sélectionnée, sans fermer volontairement ses programmes. **Plus → Déconnecter** coupe la liaison. **Plus → Fermer la session locale** affiche le compte concerné et ferme ses applications après confirmation. Fermer la fenêtre RayXDesktop déconnecte les vues.
 - Dans **Plus → Afficher les sessions**, ajoute un poste distant autorisé par IP, par nom DNS ou en important un fichier .rdp de bureau direct. Windows prend en charge l’authentification et doit pouvoir vérifier l’identité du poste. Sélectionne successivement deux connexions, puis clique sur **Côte à côte**. La vue locale est limitée à une session enfant active par machine. Pour fermer un bureau distant, utilise la commande de fermeture de session dans ce bureau.
-- **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Diagnostic graphique** affiche les stratégies GPU et d’encodage H.264 de ce PC et ouvre l’Observateur d’événements. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
+- **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Graphismes et codec RDP** affiche trois stratégies de ce PC, avec accès à l’éditeur de stratégie locale et à l’Observateur d’événements. Choisis, dans Windows, les réglages autorisés pour le poste qui héberge le bureau. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
 - La **flèche vers le haut** réduit la barre en un moniteur turquoise. Clique dessus pour rouvrir la barre ou fais-le glisser pour la déplacer.
 
 Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log**. La ligne **RDP connected in** indique le délai jusqu’à l’état connecté.
@@ -38,6 +38,14 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 - Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, Windows le demande. L’authentification du poste distant reste obligatoire. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
 - **Importer un .rdp** charge l’adresse et le compte. Un mot de passe protégé dans le champ Windows **password 51** peut servir pour cette tentative si le profil Windows courant peut le lire. Un champ vide, illisible ou un fichier qui utilise le Gestionnaire d’identification de Windows déclenche l’invite. RayXDesktop ne conserve ni le secret saisi ni une copie du fichier. Changer l’adresse ou le compte retire le secret importé du formulaire. L’import prend en charge les connexions directes à un bureau.
 - Au changement de session, le bouton de la session quittée affiche sa dernière miniature disponible. **Plus → Ouvrir le dossier des miniatures** montre les PNG du lancement courant, sous **%LOCALAPPDATA%\RayDesktop\Thumbnails**. RayXDesktop les efface à la fermeture normale. Si le pilote ou la session ne fournit pas d’image exploitable, le bouton conserve l’aperçu précédent.
+
+## Écran distant blanc et réglages graphiques
+
+1. Clique sur la carte du bureau distant. Son bandeau indique si la liaison RDP est établie et si Windows a ouvert la session. Une déconnexion affiche le détail remonté par Windows et le journal conserve les codes.
+2. Si la session Windows est ouverte mais la vue reste blanche, utilise **Plus → Actualiser l’affichage distant**. Vérifie le résultat en vue unique et côte à côte.
+3. **Plus → Ouvrir cette adresse avec Bureau à distance Windows** utilise le client natif sur la même adresse. Authentifie-toi avec le même compte pour comparer les deux clients.
+
+Pour régler les graphismes, ouvre **Plus → Graphismes et codec RDP → Ouvrir la stratégie locale** sur le poste hôte concerné. Dans **Configuration ordinateur → Modèles d’administration → Composants Windows → Services Bureau à distance → Hôte de session Bureau à distance → Environnement de session à distance**, Windows propose trois réglages indépendants. Le premier privilégie la carte graphique matérielle pour le rendu. Le deuxième active l’encodage matériel H.264/AVC si Windows peut l’utiliser. Le troisième donne la priorité à la qualité AVC 4:4:4 si les deux côtés le prennent en charge. RayXDesktop affiche les valeurs détectées et ouvre l’éditeur. Toute modification se fait avec les droits et règles du parc.
 
 ## Compiler
 

@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("RayDesktopTests")]
@@ -10,6 +11,14 @@ namespace ChildSessionDesktop
     {
         internal const int WmszLeft = 1, WmszRight = 2, WmszTop = 3, WmszTopLeft = 4,
             WmszTopRight = 5, WmszBottom = 6, WmszBottomLeft = 7, WmszBottomRight = 8;
+
+        internal static Size RemoteDisplaySize(int width, int height, bool fluid)
+        {
+            int maxWidth = fluid ? 1600 : 2560;
+            int maxHeight = fluid ? 900 : 1440;
+            return new Size(Math.Max(640, Math.Min(maxWidth, width)) & ~1,
+                Math.Max(480, Math.Min(maxHeight, height)));
+        }
 
         internal static uint ToMillimeters(int pixels, float dpi)
         {
