@@ -16,6 +16,7 @@ namespace ChildSessionDesktop
         private readonly ChildSessionControl rdp;
         private readonly DesktopPreferences preferences = new DesktopPreferences();
         private readonly LogPane logPane;
+        private bool preferencesWarningShown;
         private readonly Timer statusTimer;
         private readonly Timer displayResizeTimer;
         private readonly Timer clipboardRelayTimer;
@@ -100,7 +101,9 @@ namespace ChildSessionDesktop
 
         internal DesktopForm(bool dynamicMode, string account = null, string password = null)
         {
+            dynamicMode = dynamicMode || preferences.DynamicDisplay;
             this.dynamicMode = dynamicMode;
+            fluidGraphics = preferences.FluidGraphics;
             connectionAccount = account;
             connectionPassword = password;
             Text = "RayXDesktop";
@@ -168,6 +171,7 @@ namespace ChildSessionDesktop
                     ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
                 }
                 CreateToolbar();
+                RestoreSavedSessions();
                 BeginInvoke((MethodInvoker)ConnectChildSession);
             };
             FormClosing += OnClosing;
@@ -390,8 +394,7 @@ namespace ChildSessionDesktop
             itemLogEdge.Click += delegate
             {
                 logPane.SetEdgeEnabled(itemLogEdge.Checked);
-                if (!preferences.SetLogEdgeEnabled(itemLogEdge.Checked))
-                    Program.Log("Could not save the log edge preference");
+                SavePreferences(preferences.SetLogEdgeEnabled(itemLogEdge.Checked));
             };
             var itemLogFolder = new ToolStripMenuItem(Strings.T("menu_open_log"));
             itemLogFolder.Click += delegate { OpenLogFolder(); };
@@ -420,6 +423,7 @@ namespace ChildSessionDesktop
         private void SetDisplayMode(bool mode)
         {
             if (dynamicMode == mode) return;
+            SavePreferences(preferences.SetDynamicDisplay(mode));
             if (mode)
             {
                 _fixedSessW = currentSessW; _fixedSessH = currentSessH;
@@ -574,6 +578,14 @@ namespace ChildSessionDesktop
                 else Process.Start("explorer.exe", Path.GetDirectoryName(log));
             }
             catch (Exception ex) { Program.Log("Could not open log folder: " + ex.GetBaseException().Message); }
+        }
+
+        private void SavePreferences(bool saved)
+        {
+            if (saved || preferencesWarningShown) return;
+            preferencesWarningShown = true;
+            Program.Log("Could not save RayXDesktop preferences to data.ini.");
+            MessageBox.Show(this, Strings.T("preferences_save_failed"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void AboutBox()
@@ -1038,6 +1050,7 @@ namespace ChildSessionDesktop
                             ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
                         LogRedirectionDiagnostics();
                         connectionReadyAt = DateTime.Now.AddSeconds(2);
+                        sessions.QueueLocalPreview();
                         resizeRetryCount = 0;
                         lastFailedDisplaySize = Size.Empty;
                         nextResizeAttempt = DateTime.MinValue;

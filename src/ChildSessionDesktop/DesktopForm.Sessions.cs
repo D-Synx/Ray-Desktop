@@ -2,8 +2,6 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Net;
-using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -47,12 +45,18 @@ namespace ChildSessionDesktop
             closeSession.Click += delegate
             {
                 if (sessions.SelectedRemote == null) LogOffLocal();
-                else sessions.CloseSelectedView();
+                else
+                {
+                    RemoteDesktop close = sessions.SelectedRemote;
+                    SavePreferences(preferences.RemoveSession(close.Endpoint, close.Account));
+                    sessions.CloseSelectedView();
+                }
             };
             var fluid = new ToolStripMenuItem(Strings.T("graphics_fluid")) { Checked = fluidGraphics };
             fluid.Click += delegate
             {
                 fluidGraphics = !fluidGraphics;
+                SavePreferences(preferences.SetFluidGraphics(fluidGraphics));
                 MessageBox.Show(this, Strings.T("graphics_applied_on_connect"), Strings.T("graphics_title"));
             };
             menu.Items.Add(fluid);
@@ -68,7 +72,11 @@ namespace ChildSessionDesktop
                     Checked = remote.ShareClipboard,
                     CheckOnClick = true
                 };
-                clipboard.Click += delegate { remote.ShareClipboard = clipboard.Checked; };
+                clipboard.Click += delegate
+                {
+                    remote.ShareClipboard = clipboard.Checked;
+                    SavePreferences(preferences.SetSession(remote.Endpoint, remote.Account, remote.ShareClipboard));
+                };
                 menu.Items.Add(clipboard);
                 var certificateWarning = new ToolStripMenuItem(Strings.T("remote_ask_on_certificate_error"))
                 {
@@ -211,7 +219,18 @@ namespace ChildSessionDesktop
             }
         }
 
-        private async void AddRemote()
+        private void RestoreSavedSessions()
+        {
+            foreach (SavedSession saved in preferences.SavedSessions)
+            {
+                var remote = new RemoteDesktop(saved.Endpoint, saved.Account, fluidGraphics, preferences);
+                remote.ShareClipboard = saved.ShareClipboard;
+                sessions.AddRemote(remote, false);
+            }
+            if (sessions.HasRemoteConnections && !sessions.IsExpanded) sessions.ToggleSidebar();
+        }
+
+        private void AddRemote()
         {
             if (closing || addingRemote) return;
             addingRemote = true;
@@ -226,12 +245,6 @@ namespace ChildSessionDesktop
                     sessions.SelectedRemote.Connect();
                     return;
                 }
-                IPAddress[] addresses = endpoint.Address == null
-                    ? await Dns.GetHostAddressesAsync(endpoint.Host)
-                    : new[] { endpoint.Address };
-                if (closing || IsDisposed) return;
-                if (addresses.Length == 0 || ResolvesLocally(addresses))
-                    throw new InvalidOperationException(Strings.T("sessions_remote_only"));
                 if (preferences.UsesCertificateWarning(endpoint)) password = null;
                 else if (password == null && imported != null && imported.HasProtectedPassword)
                 {
@@ -248,6 +261,7 @@ namespace ChildSessionDesktop
                     return;
                 }
                 var remote = new RemoteDesktop(endpoint, account, fluidGraphics, preferences);
+                SavePreferences(preferences.SetSession(endpoint, account, remote.ShareClipboard));
                 sessions.AddRemote(remote);
                 try { remote.Connect(password); }
                 finally { password = null; }
@@ -258,24 +272,6 @@ namespace ChildSessionDesktop
                     MessageBox.Show(this, ex.GetBaseException().Message, Strings.T("sessions_add"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally { addingRemote = false; }
-        }
-
-        private static bool ResolvesLocally(IPAddress[] addresses)
-        {
-            foreach (IPAddress address in addresses)
-            {
-                IPAddress normalized = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
-                if (IPAddress.IsLoopback(normalized) || normalized.Equals(IPAddress.Any) || normalized.Equals(IPAddress.IPv6Any)) return true;
-                foreach (NetworkInterface network in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    foreach (UnicastIPAddressInformation local in network.GetIPProperties().UnicastAddresses)
-                    {
-                        if (local.Address.Equals(normalized) || (local.Address.IsIPv4MappedToIPv6 && local.Address.MapToIPv4().Equals(normalized)))
-                            return true;
-                    }
-                }
-            }
-            return false;
         }
 
         private void RefreshSessionTitle()
@@ -296,6 +292,9 @@ namespace ChildSessionDesktop
                 ? "[" + endpoint.Host + "]" : endpoint.Display;
             try
             {
+                if (!await endpoint.ResolvesRemotelyAsync())
+                    throw new InvalidOperationException(Strings.T("sessions_remote_only"));
+                if (closing || IsDisposed || remote.IsDisposed) return;
                 string profile = MaintenanceProfile.CreateDirectConnectionFile(address, remote.Account, remote.AskOnCertificateError);
                 await Task.Run(() => MaintenanceClient.Run(profile));
             }

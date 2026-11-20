@@ -2,8 +2,10 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace ChildSessionDesktop
 {
@@ -86,6 +88,27 @@ namespace ChildSessionDesktop
                 return false;
             if (string.IsNullOrWhiteSpace(address) && separator > 0) address = account.Substring(0, separator);
             return TryParse(address, DefaultPort, out endpoint);
+        }
+
+        internal async Task<bool> ResolvesRemotelyAsync()
+        {
+            IPAddress[] addresses = Address == null ? await Dns.GetHostAddressesAsync(Host) : new[] { Address };
+            if (addresses.Length == 0) return false;
+            NetworkInterface[] networks = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (IPAddress address in addresses)
+            {
+                IPAddress normalized = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
+                if (IPAddress.IsLoopback(normalized) || normalized.Equals(IPAddress.Any) || normalized.Equals(IPAddress.IPv6Any)) return false;
+                foreach (NetworkInterface network in networks)
+                {
+                    foreach (UnicastIPAddressInformation local in network.GetIPProperties().UnicastAddresses)
+                    {
+                        if (local.Address.Equals(normalized) || (local.Address.IsIPv4MappedToIPv6 && local.Address.MapToIPv4().Equals(normalized)))
+                            return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 

@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0h beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0h)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0i beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0i)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -23,7 +23,7 @@ The interface uses French on French Windows installations and English elsewhere.
 
 ## Sessions, files and graphics
 
-- Open **More → Show sessions** to switch between the local desktop and authorized remote RDP connections. Add it by IP address, DNS name or direct .rdp file. You can also enter HOST\User alone and optionally type a masked password. A thumbnail of the previous desktop updates when you switch sessions. Select two sessions in succession, then choose **Side by side**. Windows supports one active local Child Session.
+- Open **More → Show sessions** to switch between the local desktop and authorized remote RDP connections. Add a connection by IP address, DNS name or direct .rdp file. Saved sessions return to the sidebar at startup. Click one to connect. RayXDesktop captures a thumbnail when the desktop opens and refreshes it when switching sessions. Select two sessions in succession, then choose **Side by side**. Windows supports one active local Child Session.
 - **Reconnect** resets the selected RDP link and then retries. Use **Disconnect** to leave the desktop running subject to Windows policy. **Sign out of the local session** closes the applications in that Windows session.
 - Copy and paste text in either direction with **Ctrl+C** and **Ctrl+V** in an embedded remote session, subject to Windows clipboard policies. Select the remote session and use **More → Share clipboard (next connection)** to turn sharing off or on for that tab, then reconnect.
 - Copy a file or folder in Explorer, then choose **Files → Send to RayXDesktop** or **Files → Retrieve from RayXDesktop**. Pick a destination folder. Standard Windows permissions and clipboard policy apply. A copy from the child session requires Windows to deliver the file selection to the main session.
@@ -31,7 +31,9 @@ The interface uses French on French Windows installations and English elsewhere.
 
 If an embedded desktop stays blank, select its card and read its connection status. Use **More → Refresh remote display** after Windows has signed in. **Open this address in Windows Remote Desktop** provides a comparison using the same account and a fresh Windows credentials prompt. **Copy remote connection diagnostics** captures the client disconnect code, the extended code and the sign-in stage.
 
-After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. After a successful sign-in in this mode, RayXDesktop remembers the setting per address and port for the current Windows user. Windows still asks for credentials and handles any certificate warning. Uncheck **More → Ask me about certificate errors (next connection)** to forget the setting for the selected address.
+After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. After a successful sign-in in this mode, RayXDesktop remembers the setting per address and port. Windows still asks for credentials and handles any certificate warning. Uncheck **More → Ask me about certificate errors (next connection)** to forget the setting for the selected address.
+
+`data.ini` next to `RayXDesktop.exe` stores the saved session addresses and account names, certificate warning modes, clipboard settings and display preferences. Keep it when upgrading. Choose **Remove saved session** to remove a connection from the list. Passwords are entered for each connection as required by Windows.
 
 ## Build and test
 

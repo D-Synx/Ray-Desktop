@@ -40,7 +40,9 @@ namespace ChildSessionDesktop
         internal bool ShareClipboard { get; set; }
         internal bool AskOnCertificateError { get { return certificateWarningOverride ?? preferences.UsesCertificateWarning(Endpoint); } }
         internal string Status { get; private set; }
+        internal bool CanConnectFromList { get { return phase == Phase.Idle; } }
         internal event Action StatusChanged;
+        internal event Action DesktopOpened;
 
         internal RemoteDesktop(RdpEndpoint endpoint, string account, bool fluid, DesktopPreferences preferences)
         {
@@ -132,10 +134,19 @@ namespace ChildSessionDesktop
             try
             {
                 // The split/single view layout must finish before the ActiveX control is activated.
-                BeginInvoke((MethodInvoker)delegate
+                BeginInvoke((MethodInvoker)async delegate
                 {
-                    connectQueued = false;
-                    if (!IsDisposed) StartConnection(password, askOnCertificateErrorForAttempt);
+                    try
+                    {
+                        if (IsDisposed || !Visible) return;
+                        bool remote = await Endpoint.ResolvesRemotelyAsync();
+                        if (IsDisposed) return;
+                        if (!remote)
+                            Fail(Strings.T("sessions_remote_only"));
+                        else StartConnection(password, askOnCertificateErrorForAttempt);
+                    }
+                    catch (Exception ex) { if (!IsDisposed) ShowFailure(ex); }
+                    finally { connectQueued = false; }
                 });
             }
             catch (InvalidOperationException ex)
@@ -280,6 +291,7 @@ namespace ChildSessionDesktop
             }
             SetStatus(Phase.Ready, Strings.T("remote_login_complete"));
             QueueDisplayUpdate();
+            if (DesktopOpened != null) DesktopOpened();
         }
 
         private void OnRemoteDesktopSizeChange(int width, int height)

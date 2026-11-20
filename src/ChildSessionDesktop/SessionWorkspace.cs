@@ -17,6 +17,7 @@ namespace ChildSessionDesktop
             internal ChildSessionControl PreviewSurface;
             internal readonly string ThumbnailId = Guid.NewGuid().ToString("N");
             internal Bitmap Preview;
+            internal int PreviewAttempts;
         }
 
         private readonly Panel sidebar;
@@ -26,6 +27,7 @@ namespace ChildSessionDesktop
         private readonly Slot local;
         private readonly List<Slot> slots = new List<Slot>();
         private readonly SessionThumbnails thumbnails = new SessionThumbnails();
+        private readonly Timer previewTimer;
         private Slot selected, previous, left, right;
         private bool capturingPreview;
 
@@ -70,6 +72,17 @@ namespace ChildSessionDesktop
             local = AddSlot(Strings.T("sessions_local", localAccount), localDesktop, localDesktop, null);
             local.View.SizeChanged += delegate { if (LocalViewportChanged != null) LocalViewportChanged(); };
             selected = left = local;
+            previewTimer = new Timer { Interval = 900 };
+            previewTimer.Tick += delegate
+            {
+                foreach (Slot slot in slots)
+                {
+                    if (slot.PreviewAttempts <= 0 || !slot.View.Visible) continue;
+                    slot.PreviewAttempts--;
+                    RefreshPreview(slot);
+                }
+                UpdatePreviewTimer();
+            };
             surface.SizeChanged += delegate { Arrange(); };
             RebuildList();
             Arrange();
@@ -120,7 +133,7 @@ namespace ChildSessionDesktop
             return false;
         }
 
-        internal void AddRemote(RemoteDesktop remote)
+        internal void AddRemote(RemoteDesktop remote, bool activate = true)
         {
             var slot = AddSlot(remote.Endpoint.Display + " · " + remote.Account, remote, remote.PreviewSurface, remote);
             remote.StatusChanged += delegate
@@ -128,6 +141,8 @@ namespace ChildSessionDesktop
                 slot.Status = remote.Status;
                 RefreshList();
             };
+            remote.DesktopOpened += delegate { QueuePreview(slot); };
+            if (!activate) { Arrange(); return; }
             if (!sidebar.Visible) ToggleSidebar();
             Select(slot);
         }
@@ -155,6 +170,20 @@ namespace ChildSessionDesktop
             if (local.Status == message) return;
             local.Status = message;
             RefreshList();
+        }
+
+        internal void QueueLocalPreview() { QueuePreview(local); }
+
+        private void QueuePreview(Slot slot)
+        {
+            slot.PreviewAttempts = 5;
+            UpdatePreviewTimer();
+        }
+
+        private void UpdatePreviewTimer()
+        {
+            if (IsDisposed || Disposing) return;
+            previewTimer.Enabled = slots.Exists(slot => slot.PreviewAttempts > 0 && slot.View.Visible);
         }
 
         internal void ToggleSidebar()
@@ -206,7 +235,11 @@ namespace ChildSessionDesktop
                 row.ImageAlign = ContentAlignment.TopCenter;
                 row.Tag = slot;
                 row.AutoEllipsis = true;
-                row.Click += delegate { Select(slot); };
+                row.Click += delegate
+                {
+                    Select(slot);
+                    if (slot.Remote != null && slot.Remote.CanConnectFromList) slot.Remote.Connect();
+                };
                 list.Controls.Add(row);
             }
             RefreshList();
@@ -245,15 +278,16 @@ namespace ChildSessionDesktop
             }
             finally { capturingPreview = false; }
             if (next == null) return;
+            slot.PreviewAttempts = 0;
             var old = slot.Preview;
             slot.Preview = next;
-            foreach (Button row in list.Controls)
-                if (row.Tag == slot) row.Image = next;
+            RefreshList();
             if (old != null) old.Dispose();
         }
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing && previewTimer != null) previewTimer.Dispose();
             base.Dispose(disposing);
             if (!disposing) return;
             foreach (Slot slot in slots)
@@ -280,6 +314,7 @@ namespace ChildSessionDesktop
             splitButton.Text = Strings.T(right == null ? "sessions_split" : "sessions_single");
             if (list.Controls.Count != slots.Count) RebuildList();
             else RefreshList();
+            UpdatePreviewTimer();
         }
     }
 }

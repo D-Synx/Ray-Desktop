@@ -352,7 +352,9 @@ namespace RayDesktopTests
 
         private static void TestDesktopPreferences()
         {
-            string path = @"Software\RayXDesktop.Test-" + Guid.NewGuid().ToString("N");
+            string folder = Path.Combine(Path.GetTempPath(), "RayXDesktop.Test-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, "data.ini");
             try
             {
                 var preferences = new DesktopPreferences(path);
@@ -362,15 +364,29 @@ namespace RayDesktopTests
                 RdpEndpoint.TryParse("pc-exemple:3390", RdpEndpoint.DefaultPort, out otherPort);
                 Check(preferences.LogEdgeEnabled && !preferences.UsesCertificateWarning(host),
                     "new users see the log edge and require server authentication");
-                Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false),
-                    "save the per-address mode and log edge preference");
+                Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&
+                    preferences.SetFluidGraphics(true) && preferences.SetDynamicDisplay(true),
+                    "save all view settings and the per-address mode in data.ini");
+                Check(preferences.SetSession(host, @"DOM\Élodie", true) &&
+                    preferences.SetSession(sameHost, @"dom\élodie", false) && preferences.SetSession(otherPort, @"DOM\Second", true),
+                    "save and update sessions without duplicating the same address and account");
                 var reopened = new DesktopPreferences(path);
-                Check(reopened.UsesCertificateWarning(sameHost) && !reopened.UsesCertificateWarning(otherPort) && !reopened.LogEdgeEnabled,
+                var profiles = new System.Collections.Generic.List<SavedSession>(reopened.SavedSessions);
+                Check(reopened.UsesCertificateWarning(sameHost) && !reopened.UsesCertificateWarning(otherPort) &&
+                    !reopened.LogEdgeEnabled && reopened.FluidGraphics && reopened.DynamicDisplay,
                     "stored choices survive reopening and are scoped to the address and port");
-                Check(reopened.SetCertificateWarning(sameHost, false) && !preferences.UsesCertificateWarning(host),
+                Check(profiles.Count == 2 && profiles[0].Account == @"dom\élodie" && !profiles[0].ShareClipboard &&
+                    profiles[1].Endpoint.Port == 3390 && profiles[1].ShareClipboard, "saved sessions retain order, account, port and clipboard preference");
+                Check(reopened.SetCertificateWarning(sameHost, false) && !new DesktopPreferences(path).UsesCertificateWarning(host),
                     "forget the interactive mode and restore strict authentication");
+                Check(reopened.RemoveSession(host, @"DOM\ÉLODIE") &&
+                    new System.Collections.Generic.List<SavedSession>(new DesktopPreferences(path).SavedSessions).Count == 1,
+                    "removing a saved session survives reopening");
+                File.AppendAllText(path, "\r\n[Session.9]\r\nAddress=localhost\r\nAccount=ignored\r\n[Session.10]\r\nAccount=PC\\ignored\r\nPassword=ignored\r\n");
+                Check(new System.Collections.Generic.List<SavedSession>(new DesktopPreferences(path).SavedSessions).Count == 1,
+                    "malformed and local targets in edited data.ini are ignored");
             }
-            finally { Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(path, false); }
+            finally { Directory.Delete(folder, true); }
         }
 
         private static void TestLogTail()
