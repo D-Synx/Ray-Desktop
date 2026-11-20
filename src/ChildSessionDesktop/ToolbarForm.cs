@@ -7,16 +7,18 @@ namespace ChildSessionDesktop
 {
     internal sealed class ToolbarForm : Form
     {
-        private enum Tool { Move, Display, Resolution, Fullscreen, Files, Reconnect, More, Collapse, Close }
+        private enum Tool { Move, Display, Resolution, Fullscreen, Files, SendFiles, ReceiveFiles, RdpClipboard, Reconnect, More, Collapse, Close }
 
         private static readonly Tool[] Tools = {
             Tool.Move, Tool.Display, Tool.Resolution, Tool.Fullscreen,
-            Tool.Files, Tool.Reconnect, Tool.More, Tool.Collapse, Tool.Close
+            Tool.Files, Tool.SendFiles, Tool.ReceiveFiles, Tool.RdpClipboard,
+            Tool.Reconnect, Tool.More, Tool.Collapse, Tool.Close
         };
 
         private static readonly Color Surface = Color.FromArgb(20, 30, 43);
         private static readonly Color Foreground = Color.FromArgb(236, 244, 250);
         private static readonly Color Accent = Color.FromArgb(130, 229, 215);
+        private static readonly Color Muted = Color.FromArgb(145, 164, 183);
         private static readonly Color Border = Color.FromArgb(59, 79, 100);
         private const double BadgeOpacity = 0.82;
         private const int BarHeight = 48, BadgeSize = 42, PaddingSize = 6;
@@ -30,7 +32,8 @@ namespace ChildSessionDesktop
         private int hover = -1, pressed = -1, focused = -1;
         private Point dragOrigin;
         private Point cursorOrigin;
-        private bool moving, moved, collapsed;
+        private bool moving, moved, collapsed, compact;
+        private int hostWidth = int.MaxValue;
         private float scale = 1;
 
         internal Func<bool> ToggleFullscreen;
@@ -38,6 +41,10 @@ namespace ChildSessionDesktop
         internal Func<Rectangle, bool> ShowDisplayModeMenu;
         internal Func<Rectangle, bool> ShowMoreMenu;
         internal Action<Rectangle> ShowFilesMenu;
+        internal Func<bool, bool?> FileTransferState;
+        internal Action<bool> ToggleFileTransfer;
+        internal Func<bool> RdpClipboardState;
+        internal Action ToggleRdpClipboard;
         internal Action ReconnectSession;
         internal bool IsDynamicMode;
         internal bool Fullscreen;
@@ -97,6 +104,9 @@ namespace ChildSessionDesktop
                     if (french) return Fullscreen ? "Quitter le plein écran" : "Plein écran";
                     return Fullscreen ? "Exit full screen" : Strings.T("btn_fullscreen");
                 case Tool.Files: return french ? "Transférer les fichiers copiés" : "Transfer copied files";
+                case Tool.SendFiles: return ToggleName(tool, "files_toggle_send");
+                case Tool.ReceiveFiles: return ToggleName(tool, "files_toggle_receive");
+                case Tool.RdpClipboard: return ToggleName(tool, "files_toggle_clipboard");
                 case Tool.Reconnect: return Strings.T("menu_reconnect");
                 case Tool.More: return french ? "Plus d’options" : Strings.T("btn_more");
                 case Tool.Collapse: return french ? "Réduire la barre" : Strings.T("tip_collapse");
@@ -105,18 +115,47 @@ namespace ChildSessionDesktop
             }
         }
 
+        private static bool IsToggle(Tool tool)
+        {
+            return tool == Tool.SendFiles || tool == Tool.ReceiveFiles || tool == Tool.RdpClipboard;
+        }
+
+        private bool? ToggleState(Tool tool)
+        {
+            if (tool == Tool.RdpClipboard) return RdpClipboardState == null ? (bool?)null : RdpClipboardState();
+            return FileTransferState == null ? null : FileTransferState(tool == Tool.SendFiles);
+        }
+
+        private string ToggleName(Tool tool, string label)
+        {
+            bool? value = ToggleState(tool);
+            return Strings.T(label) + " · " + Strings.T(!value.HasValue ? "files_toggle_unavailable"
+                : value.Value ? "policy_enabled" : "policy_disabled");
+        }
+
         private string ExpandName { get { return french ? "Afficher la barre" : Strings.T("tip_expand"); } }
+
+        private static int StandardButtonWidth(Tool tool)
+        {
+            if (tool == Tool.Files) return 80;
+            if (tool == Tool.Display || tool == Tool.Resolution) return 103;
+            return 35;
+        }
 
         private void RebuildLayout()
         {
+            int normalWidth = 2 * PaddingSize + 16;
+            foreach (Tool tool in Tools) normalWidth += StandardButtonWidth(tool) + 2;
+            compact = Px(normalWidth) > hostWidth;
+            int iconWidth = 35;
+            if (compact)
+                iconWidth = Math.Max(16, Math.Min(iconWidth, ((int)(hostWidth / scale) - 2 * PaddingSize) / Tools.Length - 2));
             int x = PaddingSize;
             for (int i = 0; i < Tools.Length; i++)
             {
                 Tool tool = Tools[i];
-                if (tool == Tool.Files || tool == Tool.Close) x += 8;
-                string label = TextLabel(tool);
-                int width = label.Length == 0 ? 35 : 103;
-                if (tool == Tool.Files) width = 80;
+                if (!compact && (tool == Tool.Files || tool == Tool.Close)) x += 8;
+                int width = compact ? iconWidth : StandardButtonWidth(tool);
                 buttons[i] = Rectangle.FromLTRB(Px(x), Px(6), Px(x + width), Px(42));
                 x += width + 2;
             }
@@ -143,6 +182,11 @@ namespace ChildSessionDesktop
         {
             host = newHost;
             Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
+            if (bounds.Width > 0 && bounds.Width != hostWidth)
+            {
+                hostWidth = bounds.Width;
+                RebuildLayout();
+            }
             Point offset = !Fullscreen && host.WindowState != FormWindowState.Maximized && hostOffset.HasValue
                 ? hostOffset.Value : new Point((bounds.Width - Width) / 2, Px(14));
             MoveInsideHost(new Point(bounds.X + offset.X, bounds.Y + offset.Y));
@@ -205,8 +249,11 @@ namespace ChildSessionDesktop
             bool highlighted = index == hover || index == focused;
             Color text = tool == Tool.Files ? Accent : Foreground;
             Color fill = Color.Empty;
-            if (tool == Tool.Files) fill = Color.FromArgb(25, 65, 65);
-            if (highlighted || index == pressed)
+            bool toggle = IsToggle(tool);
+            bool? enabled = toggle ? ToggleState(tool) : null;
+            if (tool == Tool.Files || enabled == true) fill = Color.FromArgb(25, 65, 65);
+            if (toggle) text = enabled == true ? Accent : Muted;
+            if ((highlighted || index == pressed) && (!toggle || enabled.HasValue))
                 fill = tool == Tool.Close ? Color.FromArgb(123, 53, 64) : Color.FromArgb(53, 73, 94);
 
             if (!fill.IsEmpty)
@@ -215,16 +262,27 @@ namespace ChildSessionDesktop
                 using (var brush = new SolidBrush(fill))
                     graphics.FillPath(brush, path);
             }
-            if (tool == Tool.Files || tool == Tool.Close)
+            if (!compact && (tool == Tool.Files || tool == Tool.Close))
             {
                 using (var pen = new Pen(Border))
                     graphics.DrawLine(pen, bounds.Left - Px(5), bounds.Top + Px(5),
                         bounds.Left - Px(5), bounds.Bottom - Px(5));
             }
 
-            string label = TextLabel(tool);
+            string label = compact ? "" : TextLabel(tool);
             float x = label.Length == 0 ? bounds.Left + bounds.Width / 2f : bounds.Left + Px(15);
             PaintIcon(graphics, tool, x, bounds.Top + bounds.Height / 2f, text);
+            if (toggle && enabled.HasValue)
+            {
+                float y = bounds.Bottom - Px(5);
+                using (var pen = new Pen(text, Px(1)))
+                using (var brush = new SolidBrush(text))
+                {
+                    var marker = new RectangleF(x - Px(2), y - Px(2), Px(4), Px(4));
+                    if (enabled.Value) graphics.FillEllipse(brush, marker);
+                    else graphics.DrawEllipse(pen, marker);
+                }
+            }
             if (label.Length > 0)
             {
                 var state = graphics.Save();
@@ -280,6 +338,18 @@ namespace ChildSessionDesktop
                     case Tool.Files:
                         g.DrawPolygon(pen, new[] { new Point(-8, -6), new Point(-2, -6), new Point(0, -3),
                             new Point(8, -3), new Point(8, 6), new Point(-8, 6) });
+                        break;
+                    case Tool.SendFiles:
+                    case Tool.ReceiveFiles:
+                        int direction = tool == Tool.SendFiles ? 1 : -1;
+                        g.DrawLine(pen, -6 * direction, 0, 6 * direction, 0);
+                        g.DrawLines(pen, new[] { new Point(direction, -5), new Point(6 * direction, 0), new Point(direction, 5) });
+                        break;
+                    case Tool.RdpClipboard:
+                        g.DrawRectangle(pen, -6, -6, 12, 13);
+                        g.DrawRectangle(pen, -3, -8, 6, 4);
+                        g.DrawLine(pen, -3, 0, 3, 0);
+                        g.DrawLine(pen, -3, 3, 3, 3);
                         break;
                     case Tool.Reconnect:
                         g.DrawArc(pen, -7, -7, 14, 14, 5, 300);
@@ -414,8 +484,21 @@ namespace ChildSessionDesktop
         private void Activate(int index)
         {
             tooltip.HideAway();
+            Tool tool = Tools[index];
+            if (IsToggle(tool))
+            {
+                if (!ToggleState(tool).HasValue) return;
+                if (tool == Tool.RdpClipboard)
+                {
+                    if (ToggleRdpClipboard != null) ToggleRdpClipboard();
+                }
+                else if (ToggleFileTransfer != null) ToggleFileTransfer(tool == Tool.SendFiles);
+                AccessibilityNotifyClients(AccessibleEvents.StateChange, index - 1);
+                Invalidate();
+                return;
+            }
             Rectangle anchor = RectangleToScreen(buttons[index]);
-            switch (Tools[index])
+            switch (tool)
             {
                 case Tool.Display: if (ShowDisplayModeMenu != null) ShowDisplayModeMenu(anchor); break;
                 case Tool.Resolution: if (ShowResMenu != null) ShowResMenu(anchor); break;
@@ -488,7 +571,19 @@ namespace ChildSessionDesktop
             private readonly int index;
             public ToolbarButtonAccessibility(ToolbarForm owner, int index) { toolbar = owner; this.index = index; }
             public override string Name { get { return index < 0 ? toolbar.ExpandName : toolbar.ToolName(Tools[index]); } }
-            public override AccessibleRole Role { get { return AccessibleRole.PushButton; } }
+            public override AccessibleRole Role { get { return index >= 0 && IsToggle(Tools[index])
+                ? AccessibleRole.CheckButton : AccessibleRole.PushButton; } }
+            public override AccessibleStates State
+            {
+                get
+                {
+                    AccessibleStates state = base.State;
+                    if (index < 0 || !IsToggle(Tools[index])) return state;
+                    bool? value = toolbar.ToggleState(Tools[index]);
+                    if (!value.HasValue) return state | AccessibleStates.Unavailable;
+                    return value.Value ? state | AccessibleStates.Checked : state;
+                }
+            }
             public override Rectangle Bounds { get { return index < 0 ? toolbar.Bounds : toolbar.RectangleToScreen(toolbar.buttons[index]); } }
             public override void DoDefaultAction()
             {

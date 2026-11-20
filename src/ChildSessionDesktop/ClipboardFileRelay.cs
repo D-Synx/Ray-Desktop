@@ -29,10 +29,12 @@ namespace ChildSessionDesktop
         private bool disposed;
         private DateTime lastClipboardErrorLoggedAt = DateTime.MinValue;
         private bool retryClipboardRead;
+        private readonly Func<bool, bool> allowFileTransfer;
 
-        internal ClipboardFileRelay(bool child)
+        internal ClipboardFileRelay(bool child, Func<bool, bool> allowFileTransfer = null)
         {
             isChild = child;
+            this.allowFileTransfer = allowFileTransfer;
             string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "RayDesktop", "ClipboardBridge");
             incomingPath = Path.Combine(directory, child ? "host-to-child.bin" : "child-to-host.bin");
@@ -205,7 +207,7 @@ namespace ChildSessionDesktop
                 }
                 else paths = new string[0];
 
-                if (paths.Length > 0 ? !ClipboardRestrictions.AllowsFiles(!isChild, null) : !ClipboardRestrictions.AllowsText(!isChild))
+                if (paths.Length > 0 ? !AllowsFiles(!isChild) : !ClipboardRestrictions.AllowsText(!isChild))
                     return;
                 string fingerprint = paths.Length > 0 ? Fingerprint(paths) : FingerprintText(text);
                 DateTime now = DateTime.UtcNow;
@@ -238,6 +240,11 @@ namespace ChildSessionDesktop
             if (!disposed && retryClipboardRead) OnClipboardChanged();
         }
 
+        private bool AllowsFiles(bool outbound)
+        {
+            return (allowFileTransfer == null || allowFileTransfer(outbound)) && ClipboardRestrictions.AllowsFiles(outbound, null);
+        }
+
         internal void PollIncoming()
         {
             if (disposed || !File.Exists(incomingPath)) return;
@@ -255,7 +262,7 @@ namespace ChildSessionDesktop
                     return;
                 }
 
-                if (paths.Length > 0 ? !ClipboardRestrictions.AllowsFiles(isChild, null) : !ClipboardRestrictions.AllowsText(isChild))
+                if (paths.Length > 0 ? !AllowsFiles(isChild) : !ClipboardRestrictions.AllowsText(isChild))
                 {
                     lastIncomingId = messageId;
                     DeleteIncomingFile(writeStamp);

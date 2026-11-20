@@ -364,6 +364,8 @@ namespace RayDesktopTests
                 RdpEndpoint.TryParse("pc-exemple:3390", RdpEndpoint.DefaultPort, out otherPort);
                 Check(preferences.LogEdgeEnabled && !preferences.UsesCertificateWarning(host) && preferences.ReconnectAllAtStartup,
                     "new users see the log edge and all saved sessions use strict server authentication at startup");
+                Check(preferences.AllowsFileTransfer(true) && preferences.AllowsFileTransfer(false)
+                    && !preferences.LocalRdpClipboard.HasValue, "new settings preserve the previous file and clipboard behavior");
                 Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&
                     preferences.SetFluidGraphics(true) && preferences.SetDynamicDisplay(true),
                     "save all view settings and the per-address mode in data.ini");
@@ -377,6 +379,15 @@ namespace RayDesktopTests
                     "stored choices survive reopening and are scoped to the address and port");
                 Check(profiles.Count == 2 && profiles[0].Account == @"dom\élodie" && !profiles[0].ShareClipboard &&
                     profiles[1].Endpoint.Port == 3390 && profiles[1].ShareClipboard, "saved sessions retain order, account, port and clipboard preference");
+                Check(reopened.SetFileTransfer(true, false) && reopened.SetLocalRdpClipboard(true), "save outbound files and the local clipboard independently");
+                var transferSettings = new DesktopPreferences(path);
+                Check(!transferSettings.AllowsFileTransfer(true) && transferSettings.AllowsFileTransfer(false) &&
+                    transferSettings.LocalRdpClipboard == true, "disabling send leaves receive enabled after reopening");
+                Check(reopened.SetFileTransfer(true, true) && reopened.SetFileTransfer(false, false) &&
+                    reopened.SetLocalRdpClipboard(false), "enable send and explicitly disable receive and the local native clipboard");
+                transferSettings = new DesktopPreferences(path);
+                Check(transferSettings.AllowsFileTransfer(true) && !transferSettings.AllowsFileTransfer(false) &&
+                    transferSettings.LocalRdpClipboard == false, "disabling receive leaves send enabled after reopening");
                 const string examplePassword = "Test-only-Éclair! 327_";
                 Check(reopened.SetSessionPassword(host, @"DOM\Élodie", examplePassword) &&
                     !File.ReadAllText(path).Contains(examplePassword), "password is written only as DPAPI-protected data");

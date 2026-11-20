@@ -38,6 +38,7 @@ namespace ChildSessionDesktop
             this.path = path ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.ini");
             LogEdgeEnabled = true;
             ReconnectAllAtStartup = true;
+            SendFilesEnabled = ReceiveFilesEnabled = true;
 
             try
             {
@@ -61,11 +62,32 @@ namespace ChildSessionDesktop
         internal bool FluidGraphics { get; private set; }
         internal bool DynamicDisplay { get; private set; }
         internal bool ReconnectAllAtStartup { get; private set; }
+        private bool SendFilesEnabled { get; set; }
+        private bool ReceiveFilesEnabled { get; set; }
+        internal bool? LocalRdpClipboard { get; private set; }
         internal IEnumerable<SavedSession> SavedSessions { get { return sessions.AsReadOnly(); } }
 
         internal bool SetReconnectAllAtStartup(bool enabled)
         {
             ReconnectAllAtStartup = enabled;
+            return Save();
+        }
+
+        internal bool AllowsFileTransfer(bool outbound)
+        {
+            return outbound ? SendFilesEnabled : ReceiveFilesEnabled;
+        }
+
+        internal bool SetFileTransfer(bool outbound, bool enabled)
+        {
+            if (outbound) SendFilesEnabled = enabled;
+            else ReceiveFilesEnabled = enabled;
+            return Save();
+        }
+
+        internal bool SetLocalRdpClipboard(bool enabled)
+        {
+            LocalRdpClipboard = enabled;
             return Save();
         }
 
@@ -228,6 +250,10 @@ namespace ChildSessionDesktop
                     else if (string.Equals(key, "FluidGraphics", StringComparison.OrdinalIgnoreCase)) FluidGraphics = value == "1";
                     else if (string.Equals(key, "DynamicDisplay", StringComparison.OrdinalIgnoreCase)) DynamicDisplay = value == "1";
                     else if (string.Equals(key, "ReconnectAllAtStartup", StringComparison.OrdinalIgnoreCase)) ReconnectAllAtStartup = value != "0";
+                    else if (string.Equals(key, "SendFiles", StringComparison.OrdinalIgnoreCase)) SendFilesEnabled = value != "0";
+                    else if (string.Equals(key, "ReceiveFiles", StringComparison.OrdinalIgnoreCase)) ReceiveFilesEnabled = value != "0";
+                    else if (string.Equals(key, "LocalRdpClipboard", StringComparison.OrdinalIgnoreCase) && (value == "1" || value == "0"))
+                        LocalRdpClipboard = value == "1";
                 }
                 else if (string.Equals(section, "CertificateWarnings", StringComparison.OrdinalIgnoreCase))
                 {
@@ -312,6 +338,9 @@ namespace ChildSessionDesktop
                     writer.WriteLine("FluidGraphics=" + (FluidGraphics ? "1" : "0"));
                     writer.WriteLine("DynamicDisplay=" + (DynamicDisplay ? "1" : "0"));
                     writer.WriteLine("ReconnectAllAtStartup=" + (ReconnectAllAtStartup ? "1" : "0"));
+                    writer.WriteLine("SendFiles=" + (SendFilesEnabled ? "1" : "0"));
+                    writer.WriteLine("ReceiveFiles=" + (ReceiveFilesEnabled ? "1" : "0"));
+                    if (LocalRdpClipboard.HasValue) writer.WriteLine("LocalRdpClipboard=" + (LocalRdpClipboard.Value ? "1" : "0"));
                     writer.WriteLine();
                     writer.WriteLine("[CertificateWarnings]");
                     foreach (string endpoint in certificateWarnings.Keys) writer.WriteLine(endpoint + "=1");

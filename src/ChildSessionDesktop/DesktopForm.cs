@@ -127,10 +127,11 @@ namespace ChildSessionDesktop
             if (!dynamicMode) Program.Log("Letterbox (fixed-resolution) mode enabled; session resolution is pinned to the host screen");
             if (connectionAccount == null)
             {
-                clipboardRelay = new ClipboardFileRelay(false);
+                clipboardRelay = new ClipboardFileRelay(false, preferences.AllowsFileTransfer);
                 clipboardRelayTimer = new Timer { Interval = 250 };
                 clipboardRelayTimer.Tick += delegate
                 {
+                    if (localRdpClipboardActive) return;
                     clipboardRelay.PollIncoming();
                     clipboardRelay.RetryPendingClipboardRead();
                 };
@@ -307,7 +308,7 @@ namespace ChildSessionDesktop
 
             if (m.Msg == ClipboardFileRelay.WmClipboardUpdate)
             {
-                if (clipboardRelay != null) clipboardRelay.OnClipboardChanged();
+                if (clipboardRelay != null && !localRdpClipboardActive) clipboardRelay.OnClipboardChanged();
             }
             base.WndProc(ref m);
         }
@@ -640,6 +641,10 @@ namespace ChildSessionDesktop
             toolBar.ShowMoreMenu = ShowMoreMenuAt;
             toolBar.ReconnectSession = ReconnectSelected;
             toolBar.ShowFilesMenu = ShowFilesMenuAt;
+            toolBar.FileTransferState = FileTransferToggleState;
+            toolBar.ToggleFileTransfer = ToggleFileTransfer;
+            toolBar.RdpClipboardState = WantsSelectedRdpClipboard;
+            toolBar.ToggleRdpClipboard = delegate { SetSelectedRdpClipboard(!WantsSelectedRdpClipboard()); };
             toolBar.IsDynamicMode = dynamicMode;
             toolBar.FollowHost(this);
             toolBar.Show(this);
@@ -991,15 +996,16 @@ namespace ChildSessionDesktop
                 localFluidGraphics = fluidGraphics;
                 client.AdvancedSettings9.PerformanceFlags = localFluidGraphics ? GraphicsOptions.FluidPerformanceFlags : defaultPerformanceFlags;
                 Program.Log("RDP performance profile: " + (fluidGraphics ? "fluid" : "default"));
-                client.AdvancedSettings9.RedirectClipboard = connectionAccount != null;
+                client.AdvancedSettings9.RedirectClipboard = WantsLocalRdpClipboard;
+                localRdpClipboardActive = WantsLocalRdpClipboard;
                 client.AdvancedSettings9.RedirectDrives = true;
                 EnableDriveRedirection(ocx);
                 client.AdvancedSettings9.EnableWindowsKey = 1;
                 client.AdvancedSettings9.AcceleratorPassthrough = 1;
                 client.SecuredSettings3.KeyboardHookMode = 1;
-                Program.Log(connectionAccount != null
+                Program.Log(localRdpClipboardActive
                     ? "Using native RDP clipboard redirection"
-                    : "Using RayXDesktop clipboard bridge");
+                    : clipboardRelay != null ? "Using RayXDesktop clipboard bridge" : "RDP clipboard redirection disabled");
                 ((IMsTscAx)ocx).Connect();
                 Program.Log("Connect() returned");
                 statusTimer.Interval = 150;

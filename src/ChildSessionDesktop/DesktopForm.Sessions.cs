@@ -81,8 +81,7 @@ namespace ChildSessionDesktop
                 };
                 clipboard.Click += delegate
                 {
-                    remote.ShareClipboard = clipboard.Checked;
-                    SavePreferences(preferences.SetSession(remote.Endpoint, remote.Account, remote.ShareClipboard));
+                    SetSelectedRdpClipboard(clipboard.Checked);
                 };
                 menu.Items.Add(clipboard);
                 var certificateWarning = new ToolStripMenuItem(Strings.T("remote_ask_on_certificate_error"))
@@ -310,6 +309,7 @@ namespace ChildSessionDesktop
                 : sessions.SelectedName + " · " + sessions.SelectedStatus;
             title += " — RayXDesktop";
             if (Text != title) Text = title;
+            if (toolBar != null) toolBar.Invalidate();
         }
 
         private async void OpenSelectedInWindowsRdp()

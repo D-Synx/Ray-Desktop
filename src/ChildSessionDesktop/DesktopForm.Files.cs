@@ -14,6 +14,38 @@ namespace ChildSessionDesktop
         private ContextMenuStrip _filesMenu;
         private bool copyingClipboardFiles;
         private CancellationTokenSource activeFileCopy;
+        private bool localRdpClipboardActive;
+
+        private bool WantsLocalRdpClipboard { get { return preferences.LocalRdpClipboard ?? (connectionAccount != null); } }
+
+        private bool? FileTransferToggleState(bool outbound)
+        {
+            return sessions.SelectedRemote == null && !copyingClipboardFiles ? (bool?)preferences.AllowsFileTransfer(outbound) : null;
+        }
+
+        private void ToggleFileTransfer(bool outbound)
+        {
+            bool? current = FileTransferToggleState(outbound);
+            if (current.HasValue) SavePreferences(preferences.SetFileTransfer(outbound, !current.Value));
+        }
+
+        private bool WantsSelectedRdpClipboard()
+        {
+            var remote = sessions.SelectedRemote;
+            return remote == null ? WantsLocalRdpClipboard : remote.ShareClipboard;
+        }
+
+        private void SetSelectedRdpClipboard(bool enabled)
+        {
+            var remote = sessions.SelectedRemote;
+            if (remote == null) SavePreferences(preferences.SetLocalRdpClipboard(enabled));
+            else
+            {
+                remote.ShareClipboard = enabled;
+                SavePreferences(preferences.SetSession(remote.Endpoint, remote.Account, enabled));
+            }
+            if (toolBar != null) toolBar.Invalidate();
+        }
 
         private void CancelFileCopy()
         {
@@ -29,7 +61,8 @@ namespace ChildSessionDesktop
             receive.Click += delegate { TransferClipboardFiles(false); };
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(Strings.T("files_status")).Click += delegate { ShowFileDiagnostics(); };
-            send.Enabled = receive.Enabled = !copyingClipboardFiles && sessions.SelectedRemote == null;
+            send.Enabled = FileTransferToggleState(true) == true;
+            receive.Enabled = FileTransferToggleState(false) == true;
             menu.Show(new Point(anchor.Left, anchor.Bottom));
         }
 
@@ -48,8 +81,9 @@ namespace ChildSessionDesktop
 
         private async void TransferClipboardFiles(bool outbound)
         {
-            if (copyingClipboardFiles || closing || disconnectTimer != null || sessions.SelectedRemote != null) return;
+            if (FileTransferToggleState(outbound) != true || closing || disconnectTimer != null) return;
             copyingClipboardFiles = true;
+            if (toolBar != null) toolBar.Invalidate();
             try
             {
                 string sid = GetConnectedChildSid();
@@ -108,7 +142,11 @@ namespace ChildSessionDesktop
                 if (!IsDisposed && !closing)
                     MessageBox.Show(this, ex.GetBaseException().Message, Strings.T("files_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-            finally { copyingClipboardFiles = false; }
+            finally
+            {
+                copyingClipboardFiles = false;
+                if (toolBar != null) toolBar.Invalidate();
+            }
         }
 
         private static bool IsMoveClipboard(IDataObject data)
@@ -192,13 +230,20 @@ namespace ChildSessionDesktop
                     string sid = GetConnectedChildSid();
                     var settings = ((IMsRdpClient9)rdp.GetOcxObject()).AdvancedSettings9;
                     message = Strings.T("files_report",
-                        ClipboardRestrictions.AllowsFiles(true, sid) ? Strings.T("policy_allowed") : Strings.T("policy_blocked"),
-                        ClipboardRestrictions.AllowsFiles(false, sid) ? Strings.T("policy_allowed") : Strings.T("policy_blocked"),
-                        Strings.T(settings.RedirectClipboard ? "policy_enabled" : "policy_disabled"));
+                        FileTransferDiagnostic(true, sid), FileTransferDiagnostic(false, sid),
+                        SettingLabel(settings.RedirectClipboard), SettingLabel(WantsLocalRdpClipboard));
                 }
             }
             catch (Exception ex) { message = ex.GetBaseException().Message; }
             MessageBox.Show(this, message, Strings.T("files_status"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static string SettingLabel(bool enabled) { return Strings.T(enabled ? "policy_enabled" : "policy_disabled"); }
+
+        private string FileTransferDiagnostic(bool outbound, string sid)
+        {
+            return Strings.T("files_direction_status", SettingLabel(preferences.AllowsFileTransfer(outbound)),
+                Strings.T(ClipboardRestrictions.AllowsFiles(outbound, sid) ? "policy_allowed" : "policy_blocked"));
         }
     }
 }
