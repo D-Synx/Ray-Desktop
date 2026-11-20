@@ -33,7 +33,7 @@ namespace ChildSessionDesktop
         internal RdpEndpoint Endpoint { get; private set; }
         internal ChildSessionControl PreviewSurface { get { return view; } }
         internal string Account { get; private set; }
-        internal bool ShareClipboard { get; set; } = true;
+        internal bool ShareClipboard { get; set; }
         internal string Status { get; private set; }
         internal event Action StatusChanged;
 
@@ -41,6 +41,7 @@ namespace ChildSessionDesktop
         {
             Endpoint = endpoint;
             Account = account;
+            ShareClipboard = true;
             this.fluid = fluid;
             Dock = DockStyle.Fill;
             BackColor = Color.FromArgb(13, 19, 29);
