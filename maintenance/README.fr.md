@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0f bêta
+# RayXDesktop 1.5.0g bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0f bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0f) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0g bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0g) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -48,9 +48,11 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 
 ### Certificat du poste distant
 
-Le client Windows peut afficher un avertissement sur l’éditeur du fichier `.rdp` temporaire avant toute connexion. L’erreur **L’ordinateur distant ne peut pas être authentifié** concerne le certificat présenté ensuite par le poste distant. [Avertissements liés aux fichiers RDP](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/understanding-security-warnings)
+Après une déconnexion `0x00000107` sans cause précise avant l’ouverture de session, **Réessayer avec l’avertissement de certificat** apparaît dans la vue concernée. Utilise ce bouton si tu reconnais le poste. Le mode interactif s’applique à cette tentative et Windows te laisse décider si tu poursuis lorsque sa stratégie le permet.
 
-Pour retrouver le mode interactif de Bureau à distance Windows sur un poste dont tu as vérifié l’identité, sélectionne sa session et coche **Plus → Me demander en cas d’erreur de certificat (prochaine connexion)**. Clique sur **Reconnecter** pour la vue intégrée, ou ouvre l’adresse avec Bureau à distance Windows depuis ce menu. Dans ce mode, Windows demande les identifiants et affiche son avertissement de certificat si la politique du poste le permet. Le choix s’applique à cette session pendant qu’elle figure dans la barre latérale. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
+Pour utiliser ce mode à chaque tentative tant que la session figure dans la barre latérale, coche **Plus → Me demander en cas d’erreur de certificat (prochaine connexion)**. Clique sur **Reconnecter** pour la vue intégrée, ou ouvre l’adresse avec Bureau à distance Windows depuis ce menu. Windows demande les identifiants dans ce mode. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
+
+Le client Windows peut afficher un avertissement sur l’éditeur du fichier `.rdp` temporaire avant toute connexion. L’erreur **L’ordinateur distant ne peut pas être authentifié** concerne le certificat présenté ensuite par le poste distant. [Avertissements liés aux fichiers RDP](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/understanding-security-warnings)
 
 Si Windows indique que l’autorité de certification est inconnue, le service informatique doit vérifier le certificat utilisé par l’écouteur RDP du poste cible et la chaîne de confiance sur le poste client. Utilise le nom DNS couvert par le certificat. Changer seulement d’adresse ne corrige pas une autorité inconnue. Sur un parc géré, le service informatique peut déployer les certificats avec sa PKI et ses stratégies de domaine. [Configuration du certificat de l’écouteur RDP](https://learn.microsoft.com/fr-fr/troubleshoot/windows-server/remote/remote-desktop-listener-certificate-configurations)
 
@@ -105,6 +107,7 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Ajouter un poste distant autorisé et activer Côte à côte | Les deux bureaux affichés répondent. La barre indique la session sélectionnée. La reconnexion et la fermeture ciblent cette session. |
 | Dans le Bloc-notes, copier un texte différent dans chaque sens entre la session principale et un bureau distant intégré | Le texte arrive dans les deux sens si Windows autorise le partage. Décoche **Partager le presse-papiers**, reconnecte la session et essaie avec un nouveau texte pour vérifier que le partage est coupé. |
 | Sur un poste pilote connu avec un certificat non approuvé, tester l’option **Me demander en cas d’erreur de certificat** et annuler l’avertissement Windows | Le mode par défaut refuse le certificat. En mode interactif Windows présente l’avertissement sur les postes où la stratégie le permet. Annuler ferme la connexion. |
+| Après une déconnexion `0x00000107` sans cause précise avant l’ouverture de session, cliquer sur **Réessayer avec l’avertissement de certificat** | Le bouton apparaît dans la vue concernée. Windows affiche son avertissement si sa stratégie le permet. Si l’utilisateur annule, RayXDesktop affiche l’état déconnecté sans nouvelle tentative. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

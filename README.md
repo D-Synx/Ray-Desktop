@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0f beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0f)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0g beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0g)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -31,7 +31,7 @@ The interface uses French on French Windows installations and English elsewhere.
 
 If an embedded desktop stays blank, select its card and read its connection status. Use **More → Refresh remote display** after Windows has signed in. **Open this address in Windows Remote Desktop** provides a comparison using the same account and a fresh Windows credentials prompt. **Copy remote connection diagnostics** captures the client disconnect code, the extended code and the sign-in stage.
 
-For a known remote host, **More → Ask me about certificate errors (next connection)** lets Windows present its certificate warning and ask whether to continue, subject to Windows policy. Reconnect the selected session to apply the setting. Windows prompts for credentials in this mode. New sessions require server authentication by default.
+After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. The button enables interactive certificate review for that attempt. Windows displays the warning when its policy permits and asks for credentials. To use the same mode for the selected session's subsequent connections, choose **More → Ask me about certificate errors (next connection)**.
 
 ## Build and test
 

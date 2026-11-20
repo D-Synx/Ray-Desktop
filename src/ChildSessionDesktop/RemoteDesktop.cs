@@ -12,7 +12,9 @@ namespace ChildSessionDesktop
 
         private readonly ChildSessionControl view;
         private readonly Panel viewport;
+        private readonly TableLayoutPanel messageOverlay;
         private readonly Label statusLine, messagePane;
+        private readonly Button retryCertificateButton;
         private readonly Timer timer, signInTimer, displayTimer;
         private readonly bool fluid;
         private bool reconnect, explicitDisconnect, connectQueued;
@@ -22,7 +24,7 @@ namespace ChildSessionDesktop
         private Phase phase;
         private Size lastDisplaySize;
         private int? logonError, fatalError;
-        private bool loginCompleted;
+        private bool loginCompleted, certificateWarningRequested;
         private string lastFailure = "";
         internal string DiagnosticText { get { return lastFailure.Length == 0 ? Status : lastFailure; } }
 
@@ -50,17 +52,34 @@ namespace ChildSessionDesktop
             view = new ChildSessionControl { Dock = DockStyle.Fill, BackColor = Color.Black };
             messagePane = new Label
             {
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                Padding = new Padding(22), ForeColor = Color.Gainsboro, BackColor = BackColor
+                AutoSize = true, Anchor = AnchorStyles.None, TextAlign = ContentAlignment.MiddleCenter,
+                Margin = new Padding(16, 8, 16, 8), ForeColor = Color.Gainsboro
             };
+            retryCertificateButton = new Button
+            {
+                Text = Strings.T("remote_retry_certificate"), AutoSize = true, Anchor = AnchorStyles.None,
+                Padding = new Padding(10, 4, 10, 4), FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(23, 34, 50), ForeColor = Color.White,
+                Visible = false
+            };
+            retryCertificateButton.FlatAppearance.BorderColor = Color.FromArgb(65, 86, 107);
+            retryCertificateButton.Click += delegate { Connect(null, askOnCertificateErrorForAttempt: true); };
+            messageOverlay = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4 };
+            messageOverlay.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            messageOverlay.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            messageOverlay.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            messageOverlay.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            messageOverlay.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            messageOverlay.Controls.Add(messagePane, 0, 1);
+            messageOverlay.Controls.Add(retryCertificateButton, 0, 2);
             statusLine = new Label
             {
                 Dock = DockStyle.Top, Height = 30, Padding = new Padding(10, 4, 10, 0),
                 AutoEllipsis = true, ForeColor = Color.White, BackColor = Color.FromArgb(23, 34, 50)
             };
             viewport.Controls.Add(view);
-            viewport.Controls.Add(messagePane);
-            messagePane.BringToFront();
+            viewport.Controls.Add(messageOverlay);
+            messageOverlay.BringToFront();
             Controls.Add(viewport);
             Controls.Add(statusLine);
 
@@ -70,23 +89,28 @@ namespace ChildSessionDesktop
             signInTimer.Tick += delegate { ReportSlowLogin(); };
             displayTimer = new Timer { Interval = 220 };
             displayTimer.Tick += delegate { displayTimer.Stop(); UpdateDisplay(false); };
-            viewport.SizeChanged += delegate { QueueDisplayUpdate(); };
+            viewport.SizeChanged += delegate
+            {
+                messagePane.MaximumSize = new Size(Math.Max(100, Math.Min(760, viewport.ClientSize.Width - 32)), 0);
+                QueueDisplayUpdate();
+            };
             VisibleChanged += delegate { QueueDisplayUpdate(); };
             SetStatus(Phase.Idle, Strings.T("status_not_connected"));
         }
 
-        private void SetStatus(Phase next, string message)
+        private void SetStatus(Phase next, string message, bool offerCertificateRetry = false)
         {
             phase = next;
             Status = message;
             statusLine.Text = Endpoint.Display + "   ·   " + message;
             messagePane.Text = message;
-            messagePane.Visible = next == Phase.Idle || next == Phase.Failed;
-            if (messagePane.Visible) messagePane.BringToFront();
+            retryCertificateButton.Visible = offerCertificateRetry;
+            messageOverlay.Visible = next == Phase.Idle || next == Phase.Failed;
+            if (messageOverlay.Visible) messageOverlay.BringToFront();
             if (StatusChanged != null) StatusChanged();
         }
 
-        internal void Connect(string password = null)
+        internal void Connect(string password = null, bool askOnCertificateErrorForAttempt = false)
         {
             if (IsDisposed || timer.Enabled || connectQueued) return;
             connectQueued = true;
@@ -96,7 +120,7 @@ namespace ChildSessionDesktop
                 BeginInvoke((MethodInvoker)delegate
                 {
                     connectQueued = false;
-                    if (!IsDisposed) StartConnection(password);
+                    if (!IsDisposed) StartConnection(password, askOnCertificateErrorForAttempt);
                 });
             }
             catch (InvalidOperationException ex)
@@ -106,7 +130,7 @@ namespace ChildSessionDesktop
             }
         }
 
-        private void StartConnection(string password)
+        private void StartConnection(string password, bool askOnCertificateErrorForAttempt)
         {
             if (timer.Enabled) return;
             try
@@ -135,9 +159,9 @@ namespace ChildSessionDesktop
                 client.DesktopWidth = size.Width;
                 client.DesktopHeight = size.Height;
                 var settings = client.AdvancedSettings9;
-                bool askOnCertificateError = AskOnCertificateError;
+                certificateWarningRequested = AskOnCertificateError || askOnCertificateErrorForAttempt;
                 settings.EnableCredSspSupport = true;
-                settings.AuthenticationLevel = askOnCertificateError
+                settings.AuthenticationLevel = certificateWarningRequested
                     ? MaintenanceProfile.WarnOnServerAuthenticationFailure
                     : MaintenanceProfile.RequireServerAuthentication;
                 settings.RDPPort = Endpoint.Port;
@@ -147,7 +171,7 @@ namespace ChildSessionDesktop
                 settings.RedirectDrives = false;
                 var credentials = (IMsTscNonScriptable)ocx;
                 credentials.ResetPassword();
-                bool promptForCredentials = askOnCertificateError || password == null;
+                bool promptForCredentials = certificateWarningRequested || password == null;
                 if (!promptForCredentials) credentials.ClearTextPassword = password;
                 ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = promptForCredentials;
                 explicitDisconnect = false;
@@ -283,10 +307,13 @@ namespace ChildSessionDesktop
                 message += Environment.NewLine + Strings.T("remote_logon_code", logonError.Value);
             }
 
-            string hint = RdpFailure.DisconnectHint(reason, extended, loginCompleted, Endpoint.Address != null);
+            bool offerCertificateRetry = !logonError.HasValue && !fatalError.HasValue &&
+                RdpFailure.CanRetryWithCertificateWarning(reason, extended, loginCompleted, certificateWarningRequested);
+            string hint = offerCertificateRetry ? Strings.T("remote_retry_certificate_hint")
+                : RdpFailure.DisconnectHint(reason, extended, loginCompleted, Endpoint.Address != null);
             if (hint.Length != 0) message += Environment.NewLine + Environment.NewLine + hint;
             if (fatalError.HasValue) message += Environment.NewLine + Strings.T("status_fatal", fatalError.Value);
-            Fail(message);
+            Fail(message, offerCertificateRetry);
         }
 
         private void OnFatalError(int code)
@@ -357,14 +384,14 @@ namespace ChildSessionDesktop
             }
         }
 
-        private void Fail(string message)
+        private void Fail(string message, bool offerCertificateRetry = false)
         {
             if (timer.Enabled || IsDisposed) return;
             signInTimer.Stop();
             displayTimer.Stop();
             lastFailure = message;
             Program.Log("Remote RDP " + Endpoint.Display + " " + message.Replace(Environment.NewLine, " "));
-            SetStatus(Phase.Failed, message);
+            SetStatus(Phase.Failed, message, offerCertificateRetry);
         }
 
         private void ShowFailure(Exception ex)

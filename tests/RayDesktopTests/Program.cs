@@ -337,6 +337,15 @@ namespace RayDesktopTests
                 "ActiveX 263 alone is not a server licensing code");
             Check(RdpFailure.DisconnectHint(0x3, 0x107, false, false) == Strings.T("remote_licensing_interrupted"),
                 "server's extended 0x107 is a licensing interruption");
+            Check(RdpFailure.CanRetryWithCertificateWarning(0x107, 0, false, false) &&
+                RdpFailure.CanRetryWithCertificateWarning(0x107, null, false, false),
+                "early unspecified disconnect offers one interactive certificate retry");
+            Check(!RdpFailure.CanRetryWithCertificateWarning(0x107, 0, true, false) &&
+                !RdpFailure.CanRetryWithCertificateWarning(0x107, 0, false, true),
+                "no certificate retry after sign-in or after an interactive attempt");
+            Check(!RdpFailure.CanRetryWithCertificateWarning(0x107, 0x107, false, false) &&
+                !RdpFailure.CanRetryWithCertificateWarning(0x104, 0, false, false),
+                "certificate retry is not offered for a specific disconnect reason");
             Check(RdpFailure.LoginMessageKey(unchecked((int)0xC000006E)) == "remote_logon_denied"
                 && RdpFailure.LoginMessageKey(-2) == null, "sign-in restrictions are recognized without treating progress as an error");
         }

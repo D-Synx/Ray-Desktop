@@ -23,9 +23,19 @@ namespace ChildSessionDesktop
         {
             // The same numeric value means different things in the ActiveX and server error code fields.
             if (extendedReason == 0x107U) return Strings.T("remote_licensing_interrupted");
-            if (reason != 0x107 || (extendedReason.HasValue && extendedReason.Value != 0)) return "";
+            if (!IsUnspecifiedDisconnect(reason, extendedReason)) return "";
             if (loginCompleted) return Strings.T("remote_ended_after_login");
             return Strings.T(byIp ? "remote_ended_early_ip" : "remote_ended_early");
+        }
+
+        internal static bool CanRetryWithCertificateWarning(int reason, uint? extendedReason, bool loginCompleted, bool warningRequested)
+        {
+            return !loginCompleted && !warningRequested && IsUnspecifiedDisconnect(reason, extendedReason);
+        }
+
+        private static bool IsUnspecifiedDisconnect(int reason, uint? extendedReason)
+        {
+            return reason == 0x107 && extendedReason.GetValueOrDefault() == 0;
         }
     }
 }
