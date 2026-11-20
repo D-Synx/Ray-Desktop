@@ -159,7 +159,7 @@ namespace ChildSessionDesktop
             };
             logPane = new LogPane(Program.LogPath, preferences.LogEdgeEnabled);
             Controls.Add(logPane);
-            Shown += delegate
+            Shown += async delegate
             {
                 Program.Log("Host form shown");
                 if (dynamicMode) SetDynamicLayout();
@@ -172,9 +172,13 @@ namespace ChildSessionDesktop
                     ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
                 }
                 CreateToolbar();
-                RemoteDesktop startup = RestoreSavedSessions();
-                if (startup != null && sessions.SelectExisting(startup.Endpoint, startup.Account)) startup.Connect();
-                else BeginInvoke((MethodInvoker)ConnectChildSession);
+                var startup = RestoreSavedSessions();
+                if (startup.Count == 0) BeginInvoke((MethodInvoker)ConnectChildSession);
+                else
+                {
+                    try { await sessions.ReconnectAtStartupAsync(startup); }
+                    catch (Exception ex) { Program.Log("Startup RDP reconnection failed: 0x" + ex.HResult.ToString("X8")); }
+                }
             };
             FormClosing += OnClosing;
         }

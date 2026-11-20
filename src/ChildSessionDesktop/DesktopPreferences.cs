@@ -37,6 +37,7 @@ namespace ChildSessionDesktop
         {
             this.path = path ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.ini");
             LogEdgeEnabled = true;
+            ReconnectAllAtStartup = true;
 
             try
             {
@@ -59,7 +60,14 @@ namespace ChildSessionDesktop
         internal bool LogEdgeEnabled { get; private set; }
         internal bool FluidGraphics { get; private set; }
         internal bool DynamicDisplay { get; private set; }
+        internal bool ReconnectAllAtStartup { get; private set; }
         internal IEnumerable<SavedSession> SavedSessions { get { return sessions.AsReadOnly(); } }
+
+        internal bool SetReconnectAllAtStartup(bool enabled)
+        {
+            ReconnectAllAtStartup = enabled;
+            return Save();
+        }
 
         internal bool SetLogEdgeEnabled(bool enabled)
         {
@@ -122,8 +130,6 @@ namespace ChildSessionDesktop
         {
             int index = FindSession(endpoint, account);
             if (index < 0) return false;
-            if (enabled)
-                foreach (SavedSession item in sessions) item.ReconnectAtStartup = false;
             sessions[index].ReconnectAtStartup = enabled;
             return Save();
         }
@@ -221,6 +227,7 @@ namespace ChildSessionDesktop
                     if (string.Equals(key, "ShowLogEdge", StringComparison.OrdinalIgnoreCase)) LogEdgeEnabled = value != "0";
                     else if (string.Equals(key, "FluidGraphics", StringComparison.OrdinalIgnoreCase)) FluidGraphics = value == "1";
                     else if (string.Equals(key, "DynamicDisplay", StringComparison.OrdinalIgnoreCase)) DynamicDisplay = value == "1";
+                    else if (string.Equals(key, "ReconnectAllAtStartup", StringComparison.OrdinalIgnoreCase)) ReconnectAllAtStartup = value != "0";
                 }
                 else if (string.Equals(section, "CertificateWarnings", StringComparison.OrdinalIgnoreCase))
                 {
@@ -243,7 +250,6 @@ namespace ChildSessionDesktop
                 }
             }
 
-            bool haveStartupSession = false;
             foreach (var record in records.Values)
             {
                 string address, account, clipboard;
@@ -256,8 +262,7 @@ namespace ChildSessionDesktop
                 string encrypted, startup;
                 if (record.TryGetValue("PasswordDpapi", out encrypted) && encrypted.Length > 0 && encrypted.Length <= 16384)
                     item.ProtectedPassword = encrypted;
-                if (!haveStartupSession && record.TryGetValue("ReconnectAtStartup", out startup) && startup == "1")
-                    haveStartupSession = item.ReconnectAtStartup = true;
+                item.ReconnectAtStartup = record.TryGetValue("ReconnectAtStartup", out startup) && startup == "1";
                 sessions.Add(item);
             }
         }
@@ -306,6 +311,7 @@ namespace ChildSessionDesktop
                     writer.WriteLine("ShowLogEdge=" + (LogEdgeEnabled ? "1" : "0"));
                     writer.WriteLine("FluidGraphics=" + (FluidGraphics ? "1" : "0"));
                     writer.WriteLine("DynamicDisplay=" + (DynamicDisplay ? "1" : "0"));
+                    writer.WriteLine("ReconnectAllAtStartup=" + (ReconnectAllAtStartup ? "1" : "0"));
                     writer.WriteLine();
                     writer.WriteLine("[CertificateWarnings]");
                     foreach (string endpoint in certificateWarnings.Keys) writer.WriteLine(endpoint + "=1");

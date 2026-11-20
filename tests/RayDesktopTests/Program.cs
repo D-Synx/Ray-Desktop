@@ -362,8 +362,8 @@ namespace RayDesktopTests
                 RdpEndpoint.TryParse("PC-EXEMPLE", RdpEndpoint.DefaultPort, out host);
                 RdpEndpoint.TryParse("pc-exemple:3389", RdpEndpoint.DefaultPort, out sameHost);
                 RdpEndpoint.TryParse("pc-exemple:3390", RdpEndpoint.DefaultPort, out otherPort);
-                Check(preferences.LogEdgeEnabled && !preferences.UsesCertificateWarning(host),
-                    "new users see the log edge and require server authentication");
+                Check(preferences.LogEdgeEnabled && !preferences.UsesCertificateWarning(host) && preferences.ReconnectAllAtStartup,
+                    "new users see the log edge and all saved sessions use strict server authentication at startup");
                 Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&
                     preferences.SetFluidGraphics(true) && preferences.SetDynamicDisplay(true),
                     "save all view settings and the per-address mode in data.ini");
@@ -381,13 +381,17 @@ namespace RayDesktopTests
                 Check(reopened.SetSessionPassword(host, @"DOM\Élodie", examplePassword) &&
                     !File.ReadAllText(path).Contains(examplePassword), "password is written only as DPAPI-protected data");
                 Check(reopened.SetStartupSession(host, @"DOM\Élodie", true) &&
-                    reopened.SetStartupSession(otherPort, @"DOM\Second", true), "choosing a startup session replaces the previous choice");
+                    reopened.SetStartupSession(otherPort, @"DOM\Second", true) && reopened.SetReconnectAllAtStartup(false),
+                    "save multiple selected startup sessions and turn off the global option");
                 Check(reopened.SetSession(sameHost, @"dom\élodie", false), "updating clipboard preference preserves credential state");
                 var withPassword = new DesktopPreferences(path);
                 Check(withPassword.ReadSessionPassword(sameHost, @"dom\élodie") == examplePassword &&
                     withPassword.ReadSessionPassword(otherPort, @"DOM\Second") == null &&
-                    !withPassword.ReconnectsAtStartup(host, @"DOM\Élodie") && withPassword.ReconnectsAtStartup(otherPort, @"DOM\Second"),
-                    "DPAPI password and selected startup session survive reopening");
+                    withPassword.ReconnectsAtStartup(host, @"DOM\Élodie") && withPassword.ReconnectsAtStartup(otherPort, @"DOM\Second") &&
+                    !withPassword.ReconnectAllAtStartup, "DPAPI password and multiple startup choices survive reopening");
+                Check(reopened.SetStartupSession(host, @"DOM\Élodie", false) &&
+                    !reopened.ReconnectsAtStartup(host, @"DOM\Élodie") && reopened.ReconnectsAtStartup(otherPort, @"DOM\Second"),
+                    "disabling one startup session preserves the other");
                 string savedIni = File.ReadAllText(path);
                 string wrongIdentity = savedIni.Replace("Account=dom\\élodie", "Account=DOM\\Different");
                 File.WriteAllText(path, wrongIdentity, Encoding.UTF8);

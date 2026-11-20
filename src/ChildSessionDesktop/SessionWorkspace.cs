@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ChildSessionDesktop
@@ -28,7 +29,8 @@ namespace ChildSessionDesktop
         private readonly List<Slot> slots = new List<Slot>();
         private readonly SessionThumbnails thumbnails = new SessionThumbnails();
         private readonly Timer previewTimer;
-        private Slot selected, previous, left, right;
+        private Slot selected, previous, left, right, startupSlot;
+        private int userSelection;
         private bool capturingPreview;
 
         internal event Action AddRequested;
@@ -148,6 +150,40 @@ namespace ChildSessionDesktop
             Select(slot);
         }
 
+        internal async Task ReconnectAtStartupAsync(IEnumerable<RemoteDesktop> remotes)
+        {
+            int initialSelection = userSelection;
+            foreach (RemoteDesktop remote in remotes)
+            {
+                if (IsDisposed || Disposing) return;
+                Slot slot = slots.Find(item => item.Remote == remote);
+                if (slot == null) continue;
+
+                startupSlot = slot;
+                Arrange();
+                try
+                {
+                    if (await remote.ConnectAtStartupAsync())
+                    {
+                        await Task.Delay(250);
+                        if (!IsDisposed && !Disposing && !remote.IsDisposed) RefreshPreview(slot);
+                    }
+                    else await Task.Yield();
+                }
+                finally
+                {
+                    startupSlot = null;
+                    if (!IsDisposed && !Disposing) Arrange();
+                }
+            }
+
+            if (!IsDisposed && userSelection == initialSelection && selected == local)
+            {
+                Slot ready = slots.Find(slot => slot.Remote != null && slot.Remote.IsReady);
+                if (ready != null) Select(ready);
+            }
+        }
+
         internal void CloseSelectedView()
         {
             if (selected == local) return;
@@ -238,6 +274,7 @@ namespace ChildSessionDesktop
                 row.AutoEllipsis = true;
                 row.Click += delegate
                 {
+                    userSelection++;
                     Select(slot);
                     if (slot.Remote != null && slot.Remote.CanConnectFromList) slot.Remote.Connect();
                     else if (slot == local && LocalConnectRequested != null) LocalConnectRequested();
@@ -310,7 +347,13 @@ namespace ChildSessionDesktop
                 if (slot == left) slot.View.SetBounds(0, 0, leftWidth, surface.Height);
                 else if (slot == right) slot.View.SetBounds(leftWidth + Divider, 0,
                     Math.Max(0, surface.Width - leftWidth - Divider), surface.Height);
-                slot.View.Visible = slot == left || slot == right;
+                else if (slot == startupSlot)
+                {
+                    slot.View.SetBounds(0, 0, surface.Width, surface.Height);
+                    slot.View.SendToBack();
+                }
+                if (slot == startupSlot && (slot == left || slot == right)) slot.View.BringToFront();
+                slot.View.Visible = slot == left || slot == right || slot == startupSlot;
             }
             splitButton.Enabled = slots.Count > 1;
             splitButton.Text = Strings.T(right == null ? "sessions_split" : "sessions_single");

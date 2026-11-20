@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -34,6 +35,12 @@ namespace ChildSessionDesktop
             toggle.Click += delegate { sessions.ToggleSidebar(); };
             var add = menu.Items.Add(Strings.T("sessions_add"));
             add.Click += delegate { AddRemote(); };
+            var startupAll = new ToolStripMenuItem(Strings.T("remote_reconnect_all_at_startup"))
+            {
+                Checked = preferences.ReconnectAllAtStartup, CheckOnClick = true
+            };
+            startupAll.Click += delegate { SavePreferences(preferences.SetReconnectAllAtStartup(startupAll.Checked)); };
+            menu.Items.Add(startupAll);
             menu.Items.Add(Strings.T("sessions_thumbnail_folder")).Click += delegate { OpenThumbnailFolder(); };
             var disconnect = menu.Items.Add(Strings.T("sessions_disconnect"));
             disconnect.Click += delegate
@@ -88,7 +95,8 @@ namespace ChildSessionDesktop
                 menu.Items.Add(certificateWarning);
                 var startup = new ToolStripMenuItem(Strings.T("remote_reconnect_at_startup"))
                 {
-                    Checked = preferences.ReconnectsAtStartup(remote.Endpoint, remote.Account), CheckOnClick = true
+                    Checked = preferences.ReconnectAllAtStartup || preferences.ReconnectsAtStartup(remote.Endpoint, remote.Account),
+                    Enabled = !preferences.ReconnectAllAtStartup, CheckOnClick = true
                 };
                 startup.Click += delegate { SavePreferences(preferences.SetStartupSession(remote.Endpoint, remote.Account, startup.Checked)); };
                 menu.Items.Add(startup);
@@ -236,15 +244,15 @@ namespace ChildSessionDesktop
             }
         }
 
-        private RemoteDesktop RestoreSavedSessions()
+        private List<RemoteDesktop> RestoreSavedSessions()
         {
-            RemoteDesktop startup = null;
+            var startup = new List<RemoteDesktop>();
             foreach (SavedSession saved in preferences.SavedSessions)
             {
                 var remote = new RemoteDesktop(saved.Endpoint, saved.Account, fluidGraphics, preferences);
                 remote.ShareClipboard = saved.ShareClipboard;
                 sessions.AddRemote(remote, false);
-                if (saved.ReconnectAtStartup) startup = remote;
+                if (preferences.ReconnectAllAtStartup || saved.ReconnectAtStartup) startup.Add(remote);
             }
             if (sessions.HasRemoteConnections && !sessions.IsExpanded) sessions.ToggleSidebar();
             return startup;

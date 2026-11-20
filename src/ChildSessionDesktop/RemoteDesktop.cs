@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using MSTSCLib;
 
@@ -29,6 +30,7 @@ namespace ChildSessionDesktop
         private int? logonError, fatalError;
         private bool loginCompleted, certificateWarningRequested, rememberCertificateWarning;
         private bool? certificateWarningOverride;
+        private TaskCompletionSource<bool> startupAttempt;
         private string lastFailure = "";
         internal string DiagnosticText { get { return lastFailure.Length == 0 ? Status : lastFailure; } }
 
@@ -43,9 +45,10 @@ namespace ChildSessionDesktop
         internal bool AskOnCertificateError { get { return certificateWarningOverride ?? preferences.UsesCertificateWarning(Endpoint); } }
         internal string Status { get; private set; }
         internal bool CanConnectFromList { get { return phase == Phase.Idle; } }
+        internal bool IsReady { get { return phase == Phase.Ready; } }
         internal bool CanEditSavedPassword
         {
-            get { return !connectQueued && phase != Phase.Connecting && phase != Phase.SigningIn && phase != Phase.Stopping; }
+            get { return startupAttempt == null && !connectQueued && phase != Phase.Connecting && phase != Phase.SigningIn && phase != Phase.Stopping; }
         }
         internal event Action StatusChanged;
         internal event Action DesktopOpened;
@@ -131,11 +134,60 @@ namespace ChildSessionDesktop
             messageOverlay.Visible = next == Phase.Idle || next == Phase.Failed;
             if (messageOverlay.Visible) messageOverlay.BringToFront();
             if (StatusChanged != null) StatusChanged();
+            if (startupAttempt != null && (next == Phase.Ready || next == Phase.Idle || next == Phase.Failed))
+                startupAttempt.TrySetResult(next == Phase.Ready);
+        }
+
+        internal async Task<bool> ConnectAtStartupAsync()
+        {
+            if (IsDisposed || startupAttempt != null || connectQueued || phase != Phase.Idle) return false;
+            if (AskOnCertificateError || !preferences.HasSessionPassword(Endpoint, Account))
+            {
+                SetStatus(Phase.Idle, Strings.T("remote_startup_manual"));
+                return false;
+            }
+
+            var attempt = new TaskCompletionSource<bool>();
+            startupAttempt = attempt;
+            try
+            {
+                SetStatus(Phase.Connecting, Strings.T("sessions_connecting"));
+                Task<bool> resolve = Endpoint.ResolvesRemotelyAsync();
+                Task completed = await Task.WhenAny(resolve, attempt.Task, Task.Delay(10000));
+                if (IsDisposed || attempt.Task.IsCompleted) return false;
+                if (completed != resolve)
+                {
+                    Fail(Strings.T("remote_startup_timeout"));
+                    return false;
+                }
+                if (!await resolve)
+                {
+                    Fail(Strings.T("sessions_remote_only"));
+                    return false;
+                }
+
+                StartConnection(null, false, false);
+                if (await Task.WhenAny(attempt.Task, Task.Delay(15000)) == attempt.Task)
+                    return await attempt.Task;
+
+                if (!IsDisposed)
+                {
+                    Program.Log("Remote RDP " + Endpoint.Display + " startup sign-in timed out.");
+                    Disconnect(false);
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed) ShowFailure(ex);
+                return false;
+            }
+            finally { startupAttempt = null; }
         }
 
         internal void Connect(string password = null, bool askOnCertificateErrorForAttempt = false, bool rememberPassword = false)
         {
-            if (IsDisposed || timer.Enabled || connectQueued) return;
+            if (IsDisposed || timer.Enabled || connectQueued || startupAttempt != null) return;
             connectQueued = true;
             try
             {
@@ -192,6 +244,7 @@ namespace ChildSessionDesktop
                 client.DesktopHeight = size.Height;
                 var settings = client.AdvancedSettings9;
                 certificateWarningRequested = AskOnCertificateError || askOnCertificateErrorForAttempt;
+                bool unattended = startupAttempt != null;
                 rememberCertificateWarning = certificateWarningRequested;
                 settings.EnableCredSspSupport = true;
                 settings.AuthenticationLevel = certificateWarningRequested
@@ -216,6 +269,12 @@ namespace ChildSessionDesktop
                     else if (rememberPassword) passwordToSave = password;
                 }
                 bool promptForCredentials = certificateWarningRequested || password == null;
+                if (unattended && promptForCredentials)
+                {
+                    SetStatus(Phase.Idle, Strings.T("remote_startup_manual"));
+                    return;
+                }
+                ((IMsRdpClientNonScriptable5)ocx).AllowPromptingForCredentials = !unattended;
                 if (!promptForCredentials) credentials.ClearTextPassword = password;
                 ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = promptForCredentials;
                 explicitDisconnect = false;
@@ -223,7 +282,7 @@ namespace ChildSessionDesktop
                 signInTimer.Start();
                 Program.Log("Remote RDP " + Endpoint.Display + " starting at " + size.Width + "x" + size.Height +
                     "; RedirectClipboard=" + settings.RedirectClipboard + "; AuthenticationLevel=" + settings.AuthenticationLevel);
-                view.Select();
+                if (!unattended) view.Select();
                 ((IMsTscAx)ocx).Connect();
             }
             catch (Exception ex) { ShowFailure(ex); }
@@ -476,6 +535,7 @@ namespace ChildSessionDesktop
         {
             if (disposing)
             {
+                if (startupAttempt != null) startupAttempt.TrySetResult(false);
                 if (events != null)
                 {
                     events.OnConnected -= OnConnected;
