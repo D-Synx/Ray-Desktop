@@ -141,6 +141,7 @@ namespace ChildSessionDesktop
             sessions.LocalViewportChanged += RefreshLocalViewport;
             sessions.SelectionChanged += RefreshSessionTitle;
             sessions.AddRequested += AddRemote;
+            sessions.LocalConnectRequested += ConnectChildSession;
 
             statusTimer = new Timer { Interval = 750 };
             statusTimer.Tick += delegate { UpdateConnectionStatus(); };
@@ -171,8 +172,9 @@ namespace ChildSessionDesktop
                     ClipboardFileRelay.UnregisterChildAgent(connectionAccount);
                 }
                 CreateToolbar();
-                RestoreSavedSessions();
-                BeginInvoke((MethodInvoker)ConnectChildSession);
+                RemoteDesktop startup = RestoreSavedSessions();
+                if (startup != null && sessions.SelectExisting(startup.Endpoint, startup.Account)) startup.Connect();
+                else BeginInvoke((MethodInvoker)ConnectChildSession);
             };
             FormClosing += OnClosing;
         }

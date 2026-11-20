@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Win32;
 
@@ -14,6 +15,8 @@ namespace ChildSessionDesktop
         internal readonly RdpEndpoint Endpoint;
         internal readonly string Account;
         internal readonly bool ShareClipboard;
+        internal string ProtectedPassword;
+        internal bool ReconnectAtStartup;
 
         internal SavedSession(RdpEndpoint endpoint, string account, bool shareClipboard)
         {
@@ -94,8 +97,86 @@ namespace ChildSessionDesktop
             var item = new SavedSession(endpoint, account, shareClipboard);
             int index = FindSession(endpoint, account);
             if (index < 0) sessions.Add(item);
-            else sessions[index] = item;
+            else
+            {
+                item.ProtectedPassword = sessions[index].ProtectedPassword;
+                item.ReconnectAtStartup = sessions[index].ReconnectAtStartup;
+                sessions[index] = item;
+            }
             return Save();
+        }
+
+        internal bool HasSessionPassword(RdpEndpoint endpoint, string account)
+        {
+            int index = FindSession(endpoint, account);
+            return index >= 0 && sessions[index].ProtectedPassword != null;
+        }
+
+        internal bool ReconnectsAtStartup(RdpEndpoint endpoint, string account)
+        {
+            int index = FindSession(endpoint, account);
+            return index >= 0 && sessions[index].ReconnectAtStartup;
+        }
+
+        internal bool SetStartupSession(RdpEndpoint endpoint, string account, bool enabled)
+        {
+            int index = FindSession(endpoint, account);
+            if (index < 0) return false;
+            if (enabled)
+                foreach (SavedSession item in sessions) item.ReconnectAtStartup = false;
+            sessions[index].ReconnectAtStartup = enabled;
+            return Save();
+        }
+
+        private static byte[] PasswordEntropy(RdpEndpoint endpoint, string account)
+        {
+            return Encoding.UTF8.GetBytes("RayXDesktop/RDP/1\0" + endpoint.Display.ToUpperInvariant() + "\0" + account.ToUpperInvariant());
+        }
+
+        internal bool SetSessionPassword(RdpEndpoint endpoint, string account, string password)
+        {
+            int index = FindSession(endpoint, account);
+            if (index < 0) return false;
+            if (password == null)
+            {
+                sessions[index].ProtectedPassword = null;
+                return Save();
+            }
+            if (password.Length == 0 || password.Length > 1024 || password.IndexOf('\0') >= 0) return false;
+
+            byte[] plain = Encoding.Unicode.GetBytes(password);
+            try
+            {
+                byte[] encrypted = ProtectedData.Protect(plain, PasswordEntropy(endpoint, account), DataProtectionScope.CurrentUser);
+                string previous = sessions[index].ProtectedPassword;
+                sessions[index].ProtectedPassword = Convert.ToBase64String(encrypted);
+                if (Save()) return true;
+                sessions[index].ProtectedPassword = previous;
+                return false;
+            }
+            catch (CryptographicException) { return false; }
+            catch (SecurityException) { return false; }
+            finally { Array.Clear(plain, 0, plain.Length); }
+        }
+
+        internal string ReadSessionPassword(RdpEndpoint endpoint, string account)
+        {
+            int index = FindSession(endpoint, account);
+            if (index < 0 || sessions[index].ProtectedPassword == null) return null;
+
+            byte[] plain = null;
+            try
+            {
+                byte[] encrypted = Convert.FromBase64String(sessions[index].ProtectedPassword);
+                plain = ProtectedData.Unprotect(encrypted, PasswordEntropy(endpoint, account), DataProtectionScope.CurrentUser);
+                if (plain.Length == 0 || plain.Length > 2048 || (plain.Length & 1) != 0) return null;
+                string password = Encoding.Unicode.GetString(plain);
+                return password.IndexOf('\0') < 0 ? password : null;
+            }
+            catch (FormatException) { return null; }
+            catch (CryptographicException) { return null; }
+            catch (SecurityException) { return null; }
+            finally { if (plain != null) Array.Clear(plain, 0, plain.Length); }
         }
 
         internal bool RemoveSession(RdpEndpoint endpoint, string account)
@@ -162,6 +243,7 @@ namespace ChildSessionDesktop
                 }
             }
 
+            bool haveStartupSession = false;
             foreach (var record in records.Values)
             {
                 string address, account, clipboard;
@@ -170,7 +252,13 @@ namespace ChildSessionDesktop
                     !ValidAccount(account) || !RdpEndpoint.TryForAccount(address, account, out endpoint) ||
                     string.IsNullOrWhiteSpace(address) || FindSession(endpoint, account) >= 0) continue;
                 record.TryGetValue("ShareClipboard", out clipboard);
-                sessions.Add(new SavedSession(endpoint, account, clipboard != "0"));
+                var item = new SavedSession(endpoint, account, clipboard != "0");
+                string encrypted, startup;
+                if (record.TryGetValue("PasswordDpapi", out encrypted) && encrypted.Length > 0 && encrypted.Length <= 16384)
+                    item.ProtectedPassword = encrypted;
+                if (!haveStartupSession && record.TryGetValue("ReconnectAtStartup", out startup) && startup == "1")
+                    haveStartupSession = item.ReconnectAtStartup = true;
+                sessions.Add(item);
             }
         }
 
@@ -229,6 +317,8 @@ namespace ChildSessionDesktop
                         writer.WriteLine("Address=" + item.Endpoint.Display);
                         writer.WriteLine("Account=" + item.Account);
                         writer.WriteLine("ShareClipboard=" + (item.ShareClipboard ? "1" : "0"));
+                        if (item.ReconnectAtStartup) writer.WriteLine("ReconnectAtStartup=1");
+                        if (item.ProtectedPassword != null) writer.WriteLine("PasswordDpapi=" + item.ProtectedPassword);
                     }
                 }
                 const uint ReplaceExisting = 1, WriteThrough = 8;

@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0i beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0i)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0j beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0j)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -33,7 +33,9 @@ If an embedded desktop stays blank, select its card and read its connection stat
 
 After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. After a successful sign-in in this mode, RayXDesktop remembers the setting per address and port. Windows still asks for credentials and handles any certificate warning. Uncheck **More → Ask me about certificate errors (next connection)** to forget the setting for the selected address.
 
-`data.ini` next to `RayXDesktop.exe` stores the saved session addresses and account names, certificate warning modes, clipboard settings and display preferences. Keep it when upgrading. Choose **Remove saved session** to remove a connection from the list. Passwords are entered for each connection as required by Windows.
+`data.ini` next to `RayXDesktop.exe` stores the saved session addresses and account names, certificate warning modes, clipboard and display settings. Keep it when upgrading. Choose **Remove saved session** to remove a connection from the list.
+
+Select a remote session and use **More → Save or update password** to save the password after a successful sign-in. You can also opt in when adding a connection. Windows DPAPI protects the password for the current user, normally on the same PC. RayXDesktop supplies it only in strict server-authentication mode. Choose **Forget saved password** to remove it, or **Reconnect at startup** to open the selected remote session when RayXDesktop starts. Only one session is selected for startup.
 
 ## Build and test
 

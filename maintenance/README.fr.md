@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0i bêta
+# RayXDesktop 1.5.0j bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0i bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0i) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0j bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0j) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -35,13 +35,21 @@ Clique sur la bande verticale de **4 px** à droite ou choisis **Plus → Ouvrir
 ## Connexion distante et miniatures
 
 - Indique une IP, un nom DNS ou un nom de poste. Pour un port personnalisé, utilise par exemple 192.0.2.15:3390 ou [2001:db8::15]:3390. Tu peux laisser l’adresse vide si tu indiques **NOMPC\session**. Pour un compte de domaine, indique aussi l’adresse du poste.
-- Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, Windows le demande. Par défaut, Windows doit pouvoir authentifier le poste distant. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
+- Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, RayXDesktop tente d’utiliser le mot de passe enregistré pour cette session ou laisse Windows le demander. Par défaut, Windows doit pouvoir authentifier le poste distant. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
 - **Ctrl+C** et **Ctrl+V** copient le texte dans les deux sens entre la session principale et le bureau distant intégré, selon les stratégies Windows. Sélectionne le bureau distant, puis utilise **Plus → Partager le presse-papiers (prochaine connexion)** pour régler le partage de cette session. Reconnecte la session pour appliquer le choix.
-- **Importer un .rdp** charge l’adresse et le compte. Un mot de passe protégé dans le champ Windows **password 51** peut servir pour cette tentative si le profil Windows courant peut le lire. Un champ vide, illisible ou un fichier qui utilise le Gestionnaire d’identification de Windows déclenche l’invite. RayXDesktop ne conserve ni le secret saisi ni une copie du fichier. Changer l’adresse ou le compte retire le secret importé du formulaire. L’import prend en charge les connexions directes à un bureau.
+- **Importer un .rdp** charge l’adresse et le compte. Un mot de passe protégé dans le champ Windows **password 51** peut servir pour cette tentative si le profil Windows courant peut le lire. Changer l’adresse ou le compte retire le secret importé du formulaire. L’import prend en charge les connexions directes à un bureau.
 - Les sessions enregistrées réapparaissent dans la liste de gauche au démarrage. Clique sur une session pour lancer sa connexion. **Plus → Retirer la session enregistrée** la supprime de la liste.
 - RayXDesktop prend une miniature dès que le bureau s’affiche et l’actualise lorsque tu quittes sa vue. **Plus → Ouvrir le dossier des miniatures** montre les PNG du lancement courant, sous **%LOCALAPPDATA%\RayDesktop\Thumbnails**. RayXDesktop les efface à la fermeture normale. Si le pilote ne fournit pas d’image exploitable, le bouton conserve l’aperçu précédent.
 
 `data.ini` se trouve à côté de `RayXDesktop.exe`. Il contient les adresses et noms de compte des sessions, le mode d’avertissement par adresse, les choix de presse-papiers, d’affichage et de journal. Garde-le lors d’une mise à jour. Les anciennes préférences de journal et d’avertissement sont importées lors de la première création du fichier. Ajoute une dernière fois les sessions des versions antérieures, qui ne conservaient que les préférences.
+
+### Mot de passe et démarrage automatique
+
+Lors de l’ajout d’une connexion, saisis son mot de passe et coche **Enregistrer ce mot de passe sur ce PC**. Pour une session existante, sélectionne-la, puis choisis **Plus → Enregistrer ou modifier le mot de passe…**. Une connexion réussie enregistre le mot de passe sous forme chiffrée dans `data.ini`. Windows DPAPI protège le secret avec le profil Windows courant, généralement sur le même PC. En cas de changement de PC ou de profil, Windows peut redemander le mot de passe. [Protection DPAPI](https://learn.microsoft.com/fr-fr/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)
+
+Coche **Plus → Reconnecter au démarrage** sur le bureau distant à ouvrir au lancement. Choisir une autre session lui donne la priorité. Le bureau local reste accessible depuis sa carte. **Oublier le mot de passe enregistré** retire le secret de `data.ini`.
+
+RayXDesktop utilise le mot de passe enregistré uniquement avec l’authentification stricte du poste distant. En mode **Me demander en cas d’erreur de certificat**, l’invite Windows reste nécessaire, y compris au démarrage. L’ouverture automatique utilise les stratégies du poste et les droits du compte. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
 
 ## Écran distant blanc et réglages graphiques
 
@@ -114,6 +122,7 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Réussir une connexion après le réessai, relancer RayXDesktop et rouvrir la même adresse et le même port | RayXDesktop démarre directement en mode interactif pour cette adresse. Décocher l’option du menu rétablit le mode strict. |
 | Ouvrir puis réduire le journal, masquer sa bande et redémarrer RayXDesktop | Le journal suit les nouvelles lignes quand il est ouvert. La bande masquée ne réapparaît pas au redémarrage et le volet reste accessible dans le menu. |
 | Ajouter deux sessions puis relancer RayXDesktop | Les sessions sont visibles à gauche. Un clic relance la connexion voulue et sa miniature apparaît dès que le bureau fournit une image exploitable. |
+| Enregistrer un mot de passe pour un poste authentifié et le sélectionner pour le démarrage | La connexion réussie écrit un champ `PasswordDpapi` dans `data.ini`. Au prochain lancement cette session est sélectionnée et le client RDP utilise le mot de passe chiffré si Windows peut le lire. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

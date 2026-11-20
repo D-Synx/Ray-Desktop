@@ -86,6 +86,23 @@ namespace ChildSessionDesktop
                 };
                 certificateWarning.Click += delegate { remote.SetCertificateWarningPreference(certificateWarning.Checked); };
                 menu.Items.Add(certificateWarning);
+                var startup = new ToolStripMenuItem(Strings.T("remote_reconnect_at_startup"))
+                {
+                    Checked = preferences.ReconnectsAtStartup(remote.Endpoint, remote.Account), CheckOnClick = true
+                };
+                startup.Click += delegate { SavePreferences(preferences.SetStartupSession(remote.Endpoint, remote.Account, startup.Checked)); };
+                menu.Items.Add(startup);
+                var editPassword = menu.Items.Add(Strings.T("remote_edit_password"));
+                editPassword.Enabled = remote.CanEditSavedPassword && !remote.AskOnCertificateError;
+                editPassword.Click += delegate
+                {
+                    string secret = PasswordDialog.Prompt(this, remote.Endpoint.Display + " · " + remote.Account);
+                    if (!string.IsNullOrEmpty(secret) && !closing && !remote.IsDisposed)
+                        remote.Disconnect(true, secret, rememberPassword: true);
+                };
+                var forgetPassword = menu.Items.Add(Strings.T("remote_forget_password"));
+                forgetPassword.Enabled = remote.CanEditSavedPassword && preferences.HasSessionPassword(remote.Endpoint, remote.Account);
+                forgetPassword.Click += delegate { SavePreferences(preferences.SetSessionPassword(remote.Endpoint, remote.Account, null)); };
                 menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { remote.RefreshDisplay(); };
                 menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
                 menu.Items.Add(Strings.T("remote_copy_diagnostic")).Click += delegate
@@ -219,15 +236,18 @@ namespace ChildSessionDesktop
             }
         }
 
-        private void RestoreSavedSessions()
+        private RemoteDesktop RestoreSavedSessions()
         {
+            RemoteDesktop startup = null;
             foreach (SavedSession saved in preferences.SavedSessions)
             {
                 var remote = new RemoteDesktop(saved.Endpoint, saved.Account, fluidGraphics, preferences);
                 remote.ShareClipboard = saved.ShareClipboard;
                 sessions.AddRemote(remote, false);
+                if (saved.ReconnectAtStartup) startup = remote;
             }
             if (sessions.HasRemoteConnections && !sessions.IsExpanded) sessions.ToggleSidebar();
+            return startup;
         }
 
         private void AddRemote()
@@ -239,7 +259,8 @@ namespace ChildSessionDesktop
                 RdpEndpoint endpoint;
                 RdpImport imported;
                 string account, password;
-                if (!RemoteConnectionDialog.Prompt(this, out endpoint, out account, out password, out imported)) return;
+                bool rememberPassword;
+                if (!RemoteConnectionDialog.Prompt(this, preferences, out endpoint, out account, out password, out imported, out rememberPassword)) return;
                 if (password == null && (imported == null || !imported.HasProtectedPassword) && sessions.SelectExisting(endpoint, account))
                 {
                     sessions.SelectedRemote.Connect();
@@ -255,7 +276,7 @@ namespace ChildSessionDesktop
                 }
                 if (sessions.SelectExisting(endpoint, account))
                 {
-                    if (password != null) sessions.SelectedRemote.Disconnect(true, password);
+                    if (password != null) sessions.SelectedRemote.Disconnect(true, password, rememberPassword);
                     else sessions.SelectedRemote.Connect();
                     password = null;
                     return;
@@ -263,7 +284,7 @@ namespace ChildSessionDesktop
                 var remote = new RemoteDesktop(endpoint, account, fluidGraphics, preferences);
                 SavePreferences(preferences.SetSession(endpoint, account, remote.ShareClipboard));
                 sessions.AddRemote(remote);
-                try { remote.Connect(password); }
+                try { remote.Connect(password, rememberPassword: rememberPassword); }
                 finally { password = null; }
             }
             catch (Exception ex)

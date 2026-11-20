@@ -32,6 +32,7 @@ namespace ChildSessionDesktop
         private bool capturingPreview;
 
         internal event Action AddRequested;
+        internal event Action LocalConnectRequested;
         internal event Action LocalViewportChanged;
         internal event Action SelectionChanged;
         internal RemoteDesktop SelectedRemote { get { return selected.Remote; } }
@@ -239,6 +240,7 @@ namespace ChildSessionDesktop
                 {
                     Select(slot);
                     if (slot.Remote != null && slot.Remote.CanConnectFromList) slot.Remote.Connect();
+                    else if (slot == local && LocalConnectRequested != null) LocalConnectRequested();
                 };
                 list.Controls.Add(row);
             }

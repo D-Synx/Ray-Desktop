@@ -377,6 +377,25 @@ namespace RayDesktopTests
                     "stored choices survive reopening and are scoped to the address and port");
                 Check(profiles.Count == 2 && profiles[0].Account == @"dom\élodie" && !profiles[0].ShareClipboard &&
                     profiles[1].Endpoint.Port == 3390 && profiles[1].ShareClipboard, "saved sessions retain order, account, port and clipboard preference");
+                const string examplePassword = "Test-only-Éclair! 327_";
+                Check(reopened.SetSessionPassword(host, @"DOM\Élodie", examplePassword) &&
+                    !File.ReadAllText(path).Contains(examplePassword), "password is written only as DPAPI-protected data");
+                Check(reopened.SetStartupSession(host, @"DOM\Élodie", true) &&
+                    reopened.SetStartupSession(otherPort, @"DOM\Second", true), "choosing a startup session replaces the previous choice");
+                Check(reopened.SetSession(sameHost, @"dom\élodie", false), "updating clipboard preference preserves credential state");
+                var withPassword = new DesktopPreferences(path);
+                Check(withPassword.ReadSessionPassword(sameHost, @"dom\élodie") == examplePassword &&
+                    withPassword.ReadSessionPassword(otherPort, @"DOM\Second") == null &&
+                    !withPassword.ReconnectsAtStartup(host, @"DOM\Élodie") && withPassword.ReconnectsAtStartup(otherPort, @"DOM\Second"),
+                    "DPAPI password and selected startup session survive reopening");
+                string savedIni = File.ReadAllText(path);
+                string wrongIdentity = savedIni.Replace("Account=dom\\élodie", "Account=DOM\\Different");
+                File.WriteAllText(path, wrongIdentity, Encoding.UTF8);
+                Check(new DesktopPreferences(path).ReadSessionPassword(sameHost, @"DOM\Different") == null,
+                    "moving a protected password to another account fails safely");
+                File.WriteAllText(path, savedIni, Encoding.UTF8);
+                Check(reopened.SetSessionPassword(host, @"DOM\Élodie", null) &&
+                    !new DesktopPreferences(path).HasSessionPassword(sameHost, @"dom\élodie"), "forget removes the encrypted password");
                 Check(reopened.SetCertificateWarning(sameHost, false) && !new DesktopPreferences(path).UsesCertificateWarning(host),
                     "forget the interactive mode and restore strict authentication");
                 Check(reopened.RemoveSession(host, @"DOM\ÉLODIE") &&

@@ -21,6 +21,8 @@ namespace ChildSessionDesktop
         private bool reconnect, explicitDisconnect, connectQueued;
         private DateTime deadline;
         private string pendingPassword;
+        private bool pendingRememberPassword, usedSavedPassword;
+        private string passwordToSave;
         private IMsTscAxEvents_Event events;
         private Phase phase;
         private Size lastDisplaySize;
@@ -41,6 +43,10 @@ namespace ChildSessionDesktop
         internal bool AskOnCertificateError { get { return certificateWarningOverride ?? preferences.UsesCertificateWarning(Endpoint); } }
         internal string Status { get; private set; }
         internal bool CanConnectFromList { get { return phase == Phase.Idle; } }
+        internal bool CanEditSavedPassword
+        {
+            get { return !connectQueued && phase != Phase.Connecting && phase != Phase.SigningIn && phase != Phase.Stopping; }
+        }
         internal event Action StatusChanged;
         internal event Action DesktopOpened;
 
@@ -127,7 +133,7 @@ namespace ChildSessionDesktop
             if (StatusChanged != null) StatusChanged();
         }
 
-        internal void Connect(string password = null, bool askOnCertificateErrorForAttempt = false)
+        internal void Connect(string password = null, bool askOnCertificateErrorForAttempt = false, bool rememberPassword = false)
         {
             if (IsDisposed || timer.Enabled || connectQueued) return;
             connectQueued = true;
@@ -143,7 +149,7 @@ namespace ChildSessionDesktop
                         if (IsDisposed) return;
                         if (!remote)
                             Fail(Strings.T("sessions_remote_only"));
-                        else StartConnection(password, askOnCertificateErrorForAttempt);
+                        else StartConnection(password, askOnCertificateErrorForAttempt, rememberPassword);
                     }
                     catch (Exception ex) { if (!IsDisposed) ShowFailure(ex); }
                     finally { connectQueued = false; }
@@ -156,7 +162,7 @@ namespace ChildSessionDesktop
             }
         }
 
-        private void StartConnection(string password, bool askOnCertificateErrorForAttempt)
+        private void StartConnection(string password, bool askOnCertificateErrorForAttempt, bool rememberPassword)
         {
             if (timer.Enabled) return;
             try
@@ -198,6 +204,17 @@ namespace ChildSessionDesktop
                 settings.RedirectDrives = false;
                 var credentials = (IMsTscNonScriptable)ocx;
                 credentials.ResetPassword();
+                passwordToSave = null;
+                usedSavedPassword = false;
+                if (!certificateWarningRequested)
+                {
+                    if (password == null)
+                    {
+                        password = preferences.ReadSessionPassword(Endpoint, Account);
+                        usedSavedPassword = password != null;
+                    }
+                    else if (rememberPassword) passwordToSave = password;
+                }
                 bool promptForCredentials = certificateWarningRequested || password == null;
                 if (!promptForCredentials) credentials.ClearTextPassword = password;
                 ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = promptForCredentials;
@@ -224,7 +241,7 @@ namespace ChildSessionDesktop
             events.OnRemoteDesktopSizeChange += OnRemoteDesktopSizeChange;
         }
 
-        internal void Disconnect(bool resume, string password = null)
+        internal void Disconnect(bool resume, string password = null, bool rememberPassword = false)
         {
             if (timer.Enabled || connectQueued || IsDisposed) return;
             try
@@ -232,13 +249,15 @@ namespace ChildSessionDesktop
                 signInTimer.Stop();
                 if (events == null || ((IMsRdpClient9)view.GetOcxObject()).Connected == 0)
                 {
-                    if (resume) Connect(password);
+                    if (resume) Connect(password, rememberPassword: rememberPassword);
                     else SetStatus(Phase.Idle, Strings.T("status_not_connected"));
                     return;
                 }
                 explicitDisconnect = true;
                 reconnect = resume;
                 pendingPassword = resume ? password : null;
+                pendingRememberPassword = resume && rememberPassword;
+                passwordToSave = null;
                 deadline = DateTime.UtcNow.AddSeconds(10);
                 timer.Start();
                 SetStatus(Phase.Stopping, Strings.T("sessions_disconnect_wait"));
@@ -256,13 +275,16 @@ namespace ChildSessionDesktop
                     timer.Stop();
                     string password = pendingPassword;
                     pendingPassword = null;
+                    bool rememberPassword = pendingRememberPassword;
+                    pendingRememberPassword = false;
                     SetStatus(Phase.Idle, Strings.T("status_not_connected"));
-                    if (reconnect) Connect(password);
+                    if (reconnect) Connect(password, rememberPassword: rememberPassword);
                 }
                 else if (DateTime.UtcNow >= deadline)
                 {
                     timer.Stop();
                     pendingPassword = null;
+                    pendingRememberPassword = false;
                     SetStatus(Phase.Failed, Strings.T("sessions_disconnect_timeout"));
                 }
             }
@@ -289,7 +311,11 @@ namespace ChildSessionDesktop
                 if (!saved)
                     Program.Log("Could not save the RDP certificate warning preference for " + Endpoint.Display);
             }
-            SetStatus(Phase.Ready, Strings.T("remote_login_complete"));
+            bool saveFailed = passwordToSave != null && !preferences.SetSessionPassword(Endpoint, Account, passwordToSave);
+            passwordToSave = null;
+            usedSavedPassword = false;
+            if (saveFailed) Program.Log("Could not protect or save the RDP password in data.ini.");
+            SetStatus(Phase.Ready, Strings.T("remote_login_complete") + (saveFailed ? " · " + Strings.T("remote_password_save_failed") : ""));
             QueueDisplayUpdate();
             if (DesktopOpened != null) DesktopOpened();
         }
@@ -363,6 +389,13 @@ namespace ChildSessionDesktop
             string key = RdpFailure.LoginMessageKey(code);
             if (key != null && (phase == Phase.Connecting || phase == Phase.SigningIn))
             {
+                if (usedSavedPassword && key == "remote_logon_invalid")
+                {
+                    usedSavedPassword = false;
+                    if (!preferences.SetSessionPassword(Endpoint, Account, null))
+                        Program.Log("Could not remove the rejected RDP password from data.ini.");
+                }
+                if (key == "remote_logon_invalid") passwordToSave = null;
                 logonError = code;
                 SetStatus(Phase.SigningIn, Strings.T(key));
             }
@@ -422,6 +455,8 @@ namespace ChildSessionDesktop
         private void Fail(string message, bool offerCertificateRetry = false)
         {
             if (timer.Enabled || IsDisposed) return;
+            passwordToSave = null;
+            usedSavedPassword = false;
             signInTimer.Stop();
             displayTimer.Stop();
             lastFailure = message;
@@ -433,6 +468,7 @@ namespace ChildSessionDesktop
         {
             timer.Stop();
             pendingPassword = null;
+            pendingRememberPassword = false;
             Fail(Strings.T("remote_setup_error", ex.HResult));
         }
 
@@ -454,6 +490,7 @@ namespace ChildSessionDesktop
                 signInTimer.Dispose();
                 displayTimer.Dispose();
                 pendingPassword = null;
+                passwordToSave = null;
             }
             base.Dispose(disposing);
         }

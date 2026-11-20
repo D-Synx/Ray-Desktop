@@ -5,12 +5,13 @@ namespace ChildSessionDesktop
 {
     internal static class RemoteConnectionDialog
     {
-        internal static bool Prompt(IWin32Window parent, out RdpEndpoint endpoint, out string account,
-            out string password, out RdpImport imported)
+        internal static bool Prompt(IWin32Window parent, DesktopPreferences preferences, out RdpEndpoint endpoint, out string account,
+            out string password, out RdpImport imported, out bool rememberPassword)
         {
             endpoint = null;
             account = password = null;
             imported = null;
+            rememberPassword = false;
             RdpImport selectedProfile = null;
             using (var dialog = new Form
             {
@@ -24,10 +25,11 @@ namespace ChildSessionDesktop
                 var user = new TextBox { Width = 370, MaxLength = 255 };
                 var secret = new TextBox
                 {
-                    Width = 370, UseSystemPasswordChar = true,
+                    Width = 370, MaxLength = 1024, UseSystemPasswordChar = true,
                     AccessibleName = Strings.T("credentials_password")
                 };
                 var summary = new Label { AutoSize = true, MaximumSize = new System.Drawing.Size(370, 0) };
+                var remember = new CheckBox { AutoSize = true, Text = Strings.T("remote_remember_password") };
                 var connect = new Button { Text = Strings.T("credentials_connect"), AutoSize = true, DialogResult = DialogResult.OK, Enabled = false };
                 var cancel = new Button { Text = Strings.T("credentials_cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
                 var import = new Button { Text = Strings.T("rdp_import"), AutoSize = true };
@@ -36,6 +38,10 @@ namespace ChildSessionDesktop
                     RdpEndpoint target;
                     connect.Enabled = RdpEndpoint.TryForAccount(server.Text, user.Text.Trim(), out target);
                     summary.Text = !connect.Enabled ? "" : Strings.T("rdp_target", target.Display);
+                    bool certificateWarning = connect.Enabled && preferences.UsesCertificateWarning(target);
+                    remember.Enabled = connect.Enabled && !certificateWarning && secret.TextLength != 0;
+                    if (!remember.Enabled) remember.Checked = false;
+                    if (certificateWarning) summary.Text += Environment.NewLine + Strings.T("remote_password_requires_certificate");
                     if (selectedProfile != null && selectedProfile.HasProtectedPassword && secret.TextLength == 0)
                         summary.Text += Environment.NewLine + Strings.T("rdp_protected_ready");
                 };
@@ -78,6 +84,7 @@ namespace ChildSessionDesktop
                 layout.Controls.Add(user);
                 layout.Controls.Add(new Label { Text = Strings.T("rdp_password_optional"), AutoSize = true });
                 layout.Controls.Add(secret);
+                layout.Controls.Add(remember);
                 layout.Controls.Add(summary);
                 layout.Controls.Add(actions);
                 dialog.Controls.Add(layout);
@@ -88,6 +95,7 @@ namespace ChildSessionDesktop
                 account = user.Text.Trim();
                 if (!RdpEndpoint.TryForAccount(server.Text, account, out endpoint)) return false;
                 password = secret.TextLength == 0 ? null : secret.Text;
+                rememberPassword = remember.Checked;
                 secret.Clear();
                 imported = selectedProfile;
                 return true;
