@@ -46,6 +46,12 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 2. Si la session Windows est ouverte mais la vue reste blanche, utilise **Plus → Actualiser l’affichage distant**. Vérifie le résultat en vue unique et côte à côte.
 3. **Plus → Ouvrir cette adresse avec Bureau à distance Windows** ouvre le client natif avec la même adresse et le même compte. Il te demande à nouveau le mot de passe. Après un échec, **Plus → Copier le diagnostic de connexion distante** récupère le code client, le code étendu et l’étape d’ouverture de session. Le code client 0x107 seul ne suffit pas à attribuer la déconnexion au mot de passe ou à une licence.
 
+### Certificat du poste distant
+
+Le client Windows peut afficher un avertissement sur l’éditeur du fichier `.rdp` temporaire avant toute connexion. L’erreur **L’ordinateur distant ne peut pas être authentifié** concerne le certificat présenté ensuite par le poste distant. [Avertissements liés aux fichiers RDP](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/understanding-security-warnings)
+
+Si Windows indique que l’autorité de certification est inconnue, le service informatique doit vérifier le certificat utilisé par l’écouteur RDP du poste cible et la chaîne de confiance sur le poste client. Utilise le nom DNS couvert par le certificat. Changer seulement d’adresse ne corrige pas une autorité inconnue. Sur un parc géré, le service informatique peut déployer les certificats avec sa PKI et ses stratégies de domaine. [Configuration du certificat de l’écouteur RDP](https://learn.microsoft.com/fr-fr/troubleshoot/windows-server/remote/remote-desktop-listener-certificate-configurations)
+
 ### Réglages graphiques de départ
 
 Sur le **poste hôte** autorisé, ouvre **Plus → Graphismes et codec RDP** puis choisis **Réglages conseillés**. Cette commande prépare les choix suivants.
