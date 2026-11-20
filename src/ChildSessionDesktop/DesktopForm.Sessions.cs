@@ -70,6 +70,14 @@ namespace ChildSessionDesktop
                 };
                 clipboard.Click += delegate { remote.ShareClipboard = clipboard.Checked; };
                 menu.Items.Add(clipboard);
+                var certificateWarning = new ToolStripMenuItem(Strings.T("remote_ask_on_certificate_error"))
+                {
+                    Checked = remote.AskOnCertificateError,
+                    CheckOnClick = true,
+                    ToolTipText = Strings.T("remote_ask_on_certificate_error_hint")
+                };
+                certificateWarning.Click += delegate { remote.AskOnCertificateError = certificateWarning.Checked; };
+                menu.Items.Add(certificateWarning);
                 menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { remote.RefreshDisplay(); };
                 menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
                 menu.Items.Add(Strings.T("remote_copy_diagnostic")).Click += delegate
@@ -287,7 +295,7 @@ namespace ChildSessionDesktop
                 ? "[" + endpoint.Host + "]" : endpoint.Display;
             try
             {
-                string profile = MaintenanceProfile.CreateDirectConnectionFile(address, remote.Account);
+                string profile = MaintenanceProfile.CreateDirectConnectionFile(address, remote.Account, remote.AskOnCertificateError);
                 await Task.Run(() => MaintenanceClient.Run(profile));
             }
             catch (Exception ex)

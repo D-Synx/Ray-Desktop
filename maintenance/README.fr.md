@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0e bêta
+# RayXDesktop 1.5.0f bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0e bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0e) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0f bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0f) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -35,7 +35,7 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 ## Connexion distante et miniatures
 
 - Indique une IP, un nom DNS ou un nom de poste. Pour un port personnalisé, utilise par exemple 192.0.2.15:3390 ou [2001:db8::15]:3390. Tu peux laisser l’adresse vide si tu indiques **NOMPC\session**. Pour un compte de domaine, indique aussi l’adresse du poste.
-- Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, Windows le demande. L’authentification du poste distant reste obligatoire. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
+- Le mot de passe est facultatif dans le formulaire RayXDesktop. Si tu le laisses vide, Windows le demande. Par défaut, Windows doit pouvoir authentifier le poste distant. Si l’IP ne correspond pas à l’identité vérifiable du poste, utilise son nom DNS.
 - **Ctrl+C** et **Ctrl+V** copient le texte dans les deux sens entre la session principale et le bureau distant intégré, selon les stratégies Windows. Sélectionne le bureau distant, puis utilise **Plus → Partager le presse-papiers (prochaine connexion)** pour régler le partage de cette session. Reconnecte la session pour appliquer le choix.
 - **Importer un .rdp** charge l’adresse et le compte. Un mot de passe protégé dans le champ Windows **password 51** peut servir pour cette tentative si le profil Windows courant peut le lire. Un champ vide, illisible ou un fichier qui utilise le Gestionnaire d’identification de Windows déclenche l’invite. RayXDesktop ne conserve ni le secret saisi ni une copie du fichier. Changer l’adresse ou le compte retire le secret importé du formulaire. L’import prend en charge les connexions directes à un bureau.
 - Au changement de session, le bouton de la session quittée affiche sa dernière miniature disponible. **Plus → Ouvrir le dossier des miniatures** montre les PNG du lancement courant, sous **%LOCALAPPDATA%\RayDesktop\Thumbnails**. RayXDesktop les efface à la fermeture normale. Si le pilote ou la session ne fournit pas d’image exploitable, le bouton conserve l’aperçu précédent.
@@ -49,6 +49,8 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 ### Certificat du poste distant
 
 Le client Windows peut afficher un avertissement sur l’éditeur du fichier `.rdp` temporaire avant toute connexion. L’erreur **L’ordinateur distant ne peut pas être authentifié** concerne le certificat présenté ensuite par le poste distant. [Avertissements liés aux fichiers RDP](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/understanding-security-warnings)
+
+Pour retrouver le mode interactif de Bureau à distance Windows sur un poste dont tu as vérifié l’identité, sélectionne sa session et coche **Plus → Me demander en cas d’erreur de certificat (prochaine connexion)**. Clique sur **Reconnecter** pour la vue intégrée, ou ouvre l’adresse avec Bureau à distance Windows depuis ce menu. Dans ce mode, Windows demande les identifiants et affiche son avertissement de certificat si la politique du poste le permet. Le choix s’applique à cette session pendant qu’elle figure dans la barre latérale. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
 
 Si Windows indique que l’autorité de certification est inconnue, le service informatique doit vérifier le certificat utilisé par l’écouteur RDP du poste cible et la chaîne de confiance sur le poste client. Utilise le nom DNS couvert par le certificat. Changer seulement d’adresse ne corrige pas une autorité inconnue. Sur un parc géré, le service informatique peut déployer les certificats avec sa PKI et ses stratégies de domaine. [Configuration du certificat de l’écouteur RDP](https://learn.microsoft.com/fr-fr/troubleshoot/windows-server/remote/remote-desktop-listener-certificate-configurations)
 
@@ -102,6 +104,7 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Récupérer un fichier, un dossier et du texte depuis le bureau ouvert | Les éléments arrivent dans la session principale selon les permissions et redirections. Un blocage apparaît dans les diagnostics si la stratégie correspondante est détectable. |
 | Ajouter un poste distant autorisé et activer Côte à côte | Les deux bureaux affichés répondent. La barre indique la session sélectionnée. La reconnexion et la fermeture ciblent cette session. |
 | Dans le Bloc-notes, copier un texte différent dans chaque sens entre la session principale et un bureau distant intégré | Le texte arrive dans les deux sens si Windows autorise le partage. Décoche **Partager le presse-papiers**, reconnecte la session et essaie avec un nouveau texte pour vérifier que le partage est coupé. |
+| Sur un poste pilote connu avec un certificat non approuvé, tester l’option **Me demander en cas d’erreur de certificat** et annuler l’avertissement Windows | Le mode par défaut refuse le certificat. En mode interactif Windows présente l’avertissement sur les postes où la stratégie le permet. Annuler ferme la connexion. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

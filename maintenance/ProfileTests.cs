@@ -27,6 +27,11 @@ internal static class ProfileTests
         Require(profile.Contains("authentication level:i:1"), "Certificate check missing.");
         Require(profile.Contains("redirectclipboard:i:0") && profile.Contains("drivestoredirect:s:\r\n"), "Redirection enabled.");
         Require(!profile.Contains("password"), "Password field present.");
+        string warningProfile = MaintenanceProfile.CreateDirectConnectionFile("192.0.2.15", @"PC\maint", true);
+        Require(warningProfile.Contains("authentication level:i:2\r\n") && !warningProfile.Contains("authentication level:i:1"),
+            "Interactive certificate review was not selected for this connection.");
+        Require(warningProfile.Contains("prompt for credentials:i:1\r\n") && warningProfile.Contains("enablecredsspsupport:i:1\r\n") &&
+            !warningProfile.Contains("password"), "Interactive certificate review changed credential handling.");
         Require(MaintenanceProfile.Parse(new[] { host, "--admin-account=maint@it.example.test" }) != null, "UPN rejected.");
         Reject(host);
         Reject(account);

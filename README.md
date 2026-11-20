@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0e beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0e)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0f beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0f)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -30,6 +30,8 @@ The interface uses French on French Windows installations and English elsewhere.
 - Choose **More → Prefer smooth display** to reduce visual effects and display resolution on the next local connection or new remote connection. **RDP graphics and codec** shows the effective GPU, H.264 hardware encoder and AVC 4:4:4 policies. Use its switches to change the local policy on the machine hosting the remote desktop, with confirmation and Windows administrator approval.
 
 If an embedded desktop stays blank, select its card and read its connection status. Use **More → Refresh remote display** after Windows has signed in. **Open this address in Windows Remote Desktop** provides a comparison using the same account and a fresh Windows credentials prompt. **Copy remote connection diagnostics** captures the client disconnect code, the extended code and the sign-in stage.
+
+For a known remote host, **More → Ask me about certificate errors (next connection)** lets Windows present its certificate warning and ask whether to continue, subject to Windows policy. Reconnect the selected session to apply the setting. Windows prompts for credentials in this mode. New sessions require server authentication by default.
 
 ## Build and test
 

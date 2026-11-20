@@ -5,6 +5,9 @@ namespace ChildSessionDesktop
 {
     internal sealed class MaintenanceProfile
     {
+        internal const uint RequireServerAuthentication = 1;
+        internal const uint WarnOnServerAuthenticationFailure = 2;
+
         private readonly string host;
         private readonly string account;
 
@@ -65,7 +68,7 @@ namespace ChildSessionDesktop
             return CreateDirectConnectionFile(host, account);
         }
 
-        internal static string CreateDirectConnectionFile(string host, string account)
+        internal static string CreateDirectConnectionFile(string host, string account, bool askOnCertificateError = false)
         {
             if (host.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0 ||
                 account.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0)
@@ -76,7 +79,7 @@ namespace ChildSessionDesktop
                 "username:s:" + account,
                 "screen mode id:i:1",
                 "prompt for credentials:i:1",
-                "authentication level:i:1",
+                "authentication level:i:" + (askOnCertificateError ? WarnOnServerAuthenticationFailure : RequireServerAuthentication),
                 "enablecredsspsupport:i:1",
                 "redirectclipboard:i:0",
                 "redirectprinters:i:0",

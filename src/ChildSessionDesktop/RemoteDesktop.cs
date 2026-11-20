@@ -34,6 +34,7 @@ namespace ChildSessionDesktop
         internal ChildSessionControl PreviewSurface { get { return view; } }
         internal string Account { get; private set; }
         internal bool ShareClipboard { get; set; }
+        internal bool AskOnCertificateError { get; set; }
         internal string Status { get; private set; }
         internal event Action StatusChanged;
 
@@ -134,8 +135,11 @@ namespace ChildSessionDesktop
                 client.DesktopWidth = size.Width;
                 client.DesktopHeight = size.Height;
                 var settings = client.AdvancedSettings9;
+                bool askOnCertificateError = AskOnCertificateError;
                 settings.EnableCredSspSupport = true;
-                settings.AuthenticationLevel = 1;
+                settings.AuthenticationLevel = askOnCertificateError
+                    ? MaintenanceProfile.WarnOnServerAuthenticationFailure
+                    : MaintenanceProfile.RequireServerAuthentication;
                 settings.RDPPort = Endpoint.Port;
                 settings.SmartSizing = true;
                 if (fluid) settings.PerformanceFlags = GraphicsOptions.FluidPerformanceFlags;
@@ -143,13 +147,14 @@ namespace ChildSessionDesktop
                 settings.RedirectDrives = false;
                 var credentials = (IMsTscNonScriptable)ocx;
                 credentials.ResetPassword();
-                if (password != null) credentials.ClearTextPassword = password;
-                ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = password == null;
+                bool promptForCredentials = askOnCertificateError || password == null;
+                if (!promptForCredentials) credentials.ClearTextPassword = password;
+                ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = promptForCredentials;
                 explicitDisconnect = false;
                 lastDisplaySize = Size.Empty;
                 signInTimer.Start();
                 Program.Log("Remote RDP " + Endpoint.Display + " starting at " + size.Width + "x" + size.Height +
-                    "; RedirectClipboard=" + settings.RedirectClipboard);
+                    "; RedirectClipboard=" + settings.RedirectClipboard + "; AuthenticationLevel=" + settings.AuthenticationLevel);
                 view.Select();
                 ((IMsTscAx)ocx).Connect();
             }
