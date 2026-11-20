@@ -62,6 +62,14 @@ namespace ChildSessionDesktop
 
         internal string ConnectionFile()
         {
+            return CreateDirectConnectionFile(host, account);
+        }
+
+        internal static string CreateDirectConnectionFile(string host, string account)
+        {
+            if (host.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0 ||
+                account.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0)
+                throw new ArgumentException("Invalid address or account in the RDP profile.");
             return string.Join("\r\n", new[]
             {
                 "full address:s:" + host,

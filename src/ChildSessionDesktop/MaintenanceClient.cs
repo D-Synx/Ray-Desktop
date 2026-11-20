@@ -9,6 +9,11 @@ namespace ChildSessionDesktop
     {
         internal static int Run(MaintenanceProfile profile)
         {
+            return Run(profile.ConnectionFile());
+        }
+
+        internal static int Run(string connectionFile)
+        {
             string path = Path.Combine(Path.GetTempPath(), "RayMaintenance-" + Guid.NewGuid().ToString("N") + ".rdp");
             bool created = false;
             try
@@ -17,7 +22,7 @@ namespace ChildSessionDesktop
                 {
                     created = true;
                     using (var writer = new StreamWriter(stream, Encoding.Unicode))
-                        writer.Write(profile.ConnectionFile());
+                        writer.Write(connectionFile);
                 }
 
                 var start = new ProcessStartInfo

@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using MSTSCLib;
 
@@ -63,6 +64,19 @@ namespace ChildSessionDesktop
             {
                 menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { sessions.SelectedRemote.RefreshDisplay(); };
                 menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
+                menu.Items.Add(Strings.T("remote_copy_diagnostic")).Click += delegate
+                {
+                    RemoteDesktop remote = sessions.SelectedRemote;
+                    if (remote == null) return;
+                    try
+                    {
+                        Clipboard.SetText("RayXDesktop " + Application.ProductVersion + Environment.NewLine + remote.DiagnosticText);
+                    }
+                    catch (ExternalException ex)
+                    {
+                        MessageBox.Show(this, ex.Message, Strings.T("remote_copy_diagnostic"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                };
             }
         }
 
@@ -258,7 +272,7 @@ namespace ChildSessionDesktop
             if (Text != title) Text = title;
         }
 
-        private void OpenSelectedInWindowsRdp()
+        private async void OpenSelectedInWindowsRdp()
         {
             RemoteDesktop remote = sessions.SelectedRemote;
             if (remote == null) return;
@@ -267,16 +281,13 @@ namespace ChildSessionDesktop
                 ? "[" + endpoint.Host + "]" : endpoint.Display;
             try
             {
-                using (Process started = Process.Start(new ProcessStartInfo
-                {
-                    FileName = Path.Combine(Environment.SystemDirectory, "mstsc.exe"),
-                    Arguments = "/v:\"" + address + "\"",
-                    UseShellExecute = true
-                })) { }
+                string profile = MaintenanceProfile.CreateDirectConnectionFile(address, remote.Account);
+                await Task.Run(() => MaintenanceClient.Run(profile));
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, Strings.T("remote_open_windows"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (!closing && !IsDisposed)
+                    MessageBox.Show(this, ex.Message, Strings.T("remote_open_windows"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
     }

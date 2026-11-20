@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0c bêta
+# RayXDesktop 1.5.0d bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0c bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0c) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0d bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0d) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -27,7 +27,7 @@ L’interface utilise le français sur les systèmes en français et l’anglais
 - **Fichiers** affiche **Envoyer vers RayXDesktop** et **Récupérer depuis RayXDesktop**. Dans l’Explorateur de la session source, sélectionne les fichiers ou dossiers et fais **Ctrl+C**. Choisis le sens, puis le dossier de destination. Le transfert local applique les droits des comptes Windows et les restrictions détectées. Les copies gérées par Windows affichent les options et la progression de l’Explorateur. La récupération nécessite que Windows transmette la sélection de la session enfant. Si le presse-papiers ne la reçoit pas, consulte **Diagnostic des transferts**.
 - La **flèche circulaire** coupe puis relance la connexion sélectionnée, sans fermer volontairement ses programmes. **Plus → Déconnecter** coupe la liaison. **Plus → Fermer la session locale** affiche le compte concerné et ferme ses applications après confirmation. Fermer la fenêtre RayXDesktop déconnecte les vues.
 - Dans **Plus → Afficher les sessions**, ajoute un poste distant autorisé par IP, par nom DNS ou en important un fichier .rdp de bureau direct. Windows prend en charge l’authentification et doit pouvoir vérifier l’identité du poste. Sélectionne successivement deux connexions, puis clique sur **Côte à côte**. La vue locale est limitée à une session enfant active par machine. Pour fermer un bureau distant, utilise la commande de fermeture de session dans ce bureau.
-- **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Graphismes et codec RDP** affiche trois stratégies de ce PC, avec accès à l’éditeur de stratégie locale et à l’Observateur d’événements. Choisis, dans Windows, les réglages autorisés pour le poste qui héberge le bureau. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
+- **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Graphismes et codec RDP** affiche les valeurs appliquées par Windows et les interrupteurs de la stratégie locale. Régle-les sur le poste qui héberge le bureau. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
 - La **flèche vers le haut** réduit la barre en un moniteur turquoise. Clique dessus pour rouvrir la barre ou fais-le glisser pour la déplacer.
 
 Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log**. La ligne **RDP connected in** indique le délai jusqu’à l’état connecté.
@@ -43,9 +43,19 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 
 1. Clique sur la carte du bureau distant. Son bandeau indique si la liaison RDP est établie et si Windows a ouvert la session. Une déconnexion affiche le détail remonté par Windows et le journal conserve les codes.
 2. Si la session Windows est ouverte mais la vue reste blanche, utilise **Plus → Actualiser l’affichage distant**. Vérifie le résultat en vue unique et côte à côte.
-3. **Plus → Ouvrir cette adresse avec Bureau à distance Windows** utilise le client natif sur la même adresse. Authentifie-toi avec le même compte pour comparer les deux clients.
+3. **Plus → Ouvrir cette adresse avec Bureau à distance Windows** ouvre le client natif avec la même adresse et le même compte. Il te demande à nouveau le mot de passe. Après un échec, **Plus → Copier le diagnostic de connexion distante** récupère le code client, le code étendu et l’étape d’ouverture de session. Le code client 0x107 seul ne suffit pas à attribuer la déconnexion au mot de passe ou à une licence.
 
-Pour régler les graphismes, ouvre **Plus → Graphismes et codec RDP → Ouvrir la stratégie locale** sur le poste hôte concerné. Dans **Configuration ordinateur → Modèles d’administration → Composants Windows → Services Bureau à distance → Hôte de session Bureau à distance → Environnement de session à distance**, Windows propose trois réglages indépendants. Le premier privilégie la carte graphique matérielle pour le rendu. Le deuxième active l’encodage matériel H.264/AVC si Windows peut l’utiliser. Le troisième donne la priorité à la qualité AVC 4:4:4 si les deux côtés le prennent en charge. RayXDesktop affiche les valeurs détectées et ouvre l’éditeur. Toute modification se fait avec les droits et règles du parc.
+### Réglages graphiques de départ
+
+Sur le **poste hôte** autorisé, ouvre **Plus → Graphismes et codec RDP** puis choisis **Réglages conseillés**. Cette commande prépare les choix suivants.
+
+| Réglage | Point de départ |
+| --- | --- |
+| Rendu avec la carte graphique matérielle | Activé |
+| Encodage matériel H.264/AVC | Activé |
+| Priorité à H.264/AVC 4:4:4 | Non configuré. Essaie Activé ensuite si tu veux comparer la netteté. |
+
+Pour enregistrer, clique sur **Appliquer sur ce PC**, confirme le détail, puis valide la demande administrateur de Windows. **Non configuré** efface le réglage de la stratégie locale. **Désactivé** l’enregistre à l’état désactivé. Une stratégie du parc peut prendre le dessus. **Relire les valeurs** montre ce que Windows a appliqué. Le bouton **Ouvrir la stratégie locale** permet aussi d’utiliser l’éditeur Windows. Pour un premier essai, laisse les paramètres RemoteFX et WDDM du parc tels qu’ils sont.
 
 ## Compiler
 

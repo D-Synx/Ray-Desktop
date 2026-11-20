@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using RayXDesktop.Configuration;
 
 namespace ChildSessionSetup
 {
@@ -17,6 +18,9 @@ namespace ChildSessionSetup
         [STAThread]
         private static int Main(string[] args)
         {
+            if (args.Length != 0 && args[0] == "--set-rdp-graphics")
+                return SetGraphicsPolicy(args);
+
             try
             {
                 bool enabled;
@@ -70,6 +74,23 @@ namespace ChildSessionSetup
                     "Could Not Enable Child Sessions",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+                return 1;
+            }
+        }
+        private static int SetGraphicsPolicy(string[] args)
+        {
+            PolicyChoice[] changes;
+            if (!RdpGraphicsPolicies.TryParse(args, out changes)) return 2;
+            bool french = args[1] == "fr";
+            try
+            {
+                return RdpGraphicsPolicies.SaveLocal(changes) ? 0 : 4;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show((french ? "Impossible d’enregistrer la stratégie graphique locale."
+                    : "Could not save the local graphics policy.") + Environment.NewLine + ex.Message,
+                    "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }

@@ -14,7 +14,9 @@ function Publish-BuildOutput([string]$temporary, [string]$target) {
     [IO.File]::Delete($temporary)
 }
 
+$graphicsPolicySource = Join-Path $PSScriptRoot 'src\Shared\RdpGraphicsPolicies.cs'
 $childSources = @(
+    $graphicsPolicySource,
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ConnectionArguments.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\PasswordDialog.cs'),
@@ -27,6 +29,7 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.Files.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionWorkspace.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteDesktop.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RdpFailure.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteConnectionDialog.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RdpConnection.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionThumbnails.cs'),
@@ -47,8 +50,8 @@ $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.5.0.2'
-$productVersion = '1.5.0c'
+$version = '1.5.0.3'
+$productVersion = '1.5.0d'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
     "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
@@ -126,7 +129,7 @@ try {
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) ("/win32icon:{0}" -f $icon) ("/win32manifest:{0}" -f $childManifest) @childReferences @childSources
     if ($LASTEXITCODE -ne 0) { throw "Child-session GUI build failed with exit code $LASTEXITCODE" }
 
-    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $setupAssemblyInfo
+    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $graphicsPolicySource $setupAssemblyInfo
     if ($LASTEXITCODE -ne 0) { throw "Child-session setup helper build failed with exit code $LASTEXITCODE" }
 
     Publish-BuildOutput $childTemporary $childTarget

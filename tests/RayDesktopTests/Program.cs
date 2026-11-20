@@ -5,6 +5,7 @@ using System.Text;
 using System.Security.Cryptography;
 using System.Threading;
 using ChildSessionDesktop;
+using RayXDesktop.Configuration;
 
 namespace RayDesktopTests
 {
@@ -321,6 +322,25 @@ namespace RayDesktopTests
             Check(Geometry.RemoteDisplaySize(459, 320, false) == new Size(640, 480), "small remote viewport keeps usable remote resolution");
         }
 
+        private static void TestGraphicsAndRdpDiagnostics()
+        {
+            PolicyChoice[] changes;
+            Check(RdpGraphicsPolicies.TryParse(new[] { "--set-rdp-graphics", "fr", "on", "keep", "default" }, out changes)
+                && changes[0] == PolicyChoice.On && changes[1] == PolicyChoice.Keep && changes[2] == PolicyChoice.Default,
+                "graphics helper changes only requested rows");
+            Check(!RdpGraphicsPolicies.TryParse(new[] { "--set-rdp-graphics", "fr", "on", "keep", "HKLM" }, out changes),
+                "graphics helper rejects unknown commands");
+            Check(!RdpGraphicsPolicies.TryParse(new[] { "--set-rdp-graphics", "en", "keep", "keep", "keep" }, out changes),
+                "graphics helper rejects empty changes");
+            Check(RdpGraphicsPolicies.Argument(PolicyChoice.Off) == "off", "explicit disable differs from resetting to Windows default");
+            Check(RdpFailure.DisconnectHint(0x107, 0, false, true) == Strings.T("remote_ended_early_ip"),
+                "ActiveX 263 alone is not a server licensing code");
+            Check(RdpFailure.DisconnectHint(0x3, 0x107, false, false) == Strings.T("remote_licensing_interrupted"),
+                "server's extended 0x107 is a licensing interruption");
+            Check(RdpFailure.LoginMessageKey(unchecked((int)0xC000006E)) == "remote_logon_denied"
+                && RdpFailure.LoginMessageKey(-2) == null, "sign-in restrictions are recognized without treating progress as an error");
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -332,6 +352,7 @@ namespace RayDesktopTests
             TestFileTransfer();
             TestRemoteConnections();
             TestRemoteDisplaySizing();
+            TestGraphicsAndRdpDiagnostics();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

@@ -14,6 +14,8 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ConnectionArguments.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\FileTransfer.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpConnection.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpFailure.cs'),
+    (Join-Path $PSScriptRoot '..\src\Shared\RdpGraphicsPolicies.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),

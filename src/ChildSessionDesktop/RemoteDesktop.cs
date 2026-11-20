@@ -21,6 +21,10 @@ namespace ChildSessionDesktop
         private IMsTscAxEvents_Event events;
         private Phase phase;
         private Size lastDisplaySize;
+        private int? logonError, fatalError;
+        private bool loginCompleted;
+        private string lastFailure = "";
+        internal string DiagnosticText { get { return lastFailure.Length == 0 ? Status : lastFailure; } }
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -115,6 +119,10 @@ namespace ChildSessionDesktop
                 var client = (IMsRdpClient9)ocx;
                 if (client.Connected != 0) return;
                 AttachEvents(ocx);
+                logonError = null;
+                fatalError = null;
+                loginCompleted = false;
+                lastFailure = "";
                 SetStatus(Phase.Connecting, Strings.T("sessions_connecting"));
                 client.Server = Endpoint.Host;
                 int separator = Account.IndexOf('\\');
@@ -212,6 +220,8 @@ namespace ChildSessionDesktop
         {
             if (phase != Phase.Connecting && phase != Phase.SigningIn) return;
             signInTimer.Stop();
+            loginCompleted = true;
+            logonError = null;
             Program.Log("Remote RDP " + Endpoint.Display + " OnLoginComplete");
             SetStatus(Phase.Ready, Strings.T("remote_login_complete"));
             QueueDisplayUpdate();
@@ -242,30 +252,49 @@ namespace ChildSessionDesktop
                 return;
             }
             var message = Strings.T("status_disconnected", reason);
+            uint? extended = null;
             try
             {
                 var client = (IMsRdpClient9)view.GetOcxObject();
-                uint extended = (uint)client.ExtendedDisconnectReason;
-                string description = client.GetErrorDescription(unchecked((uint)reason), extended);
+                extended = (uint)client.ExtendedDisconnectReason;
+                string description = client.GetErrorDescription(unchecked((uint)reason), extended.Value);
                 if (!string.IsNullOrWhiteSpace(description)) message += Environment.NewLine + description;
-                Program.Log("Remote RDP " + Endpoint.Display + " disconnection extended code 0x" + extended.ToString("X"));
             }
             catch (Exception ex)
             {
                 Program.Log("Remote RDP could not get the Windows disconnection details (0x" + ex.HResult.ToString("X8") + ")");
             }
+
+            string fields = extended.HasValue ? "0x" + extended.Value.ToString("X8") : Strings.T("remote_code_unavailable");
+            string phaseText = Strings.T(loginCompleted ? "remote_stage_signed_in" : "remote_stage_before_login");
+            message += Environment.NewLine + Strings.T("remote_disconnect_fields", fields, phaseText);
+            if (logonError.HasValue)
+            {
+                string key = RdpFailure.LoginMessageKey(logonError.Value);
+                if (key != null) message += Environment.NewLine + Strings.T(key);
+                message += Environment.NewLine + Strings.T("remote_logon_code", logonError.Value);
+            }
+
+            string hint = RdpFailure.DisconnectHint(reason, extended, loginCompleted, Endpoint.Address != null);
+            if (hint.Length != 0) message += Environment.NewLine + Environment.NewLine + hint;
+            if (fatalError.HasValue) message += Environment.NewLine + Strings.T("status_fatal", fatalError.Value);
             Fail(message);
         }
 
-        private void OnFatalError(int code) { Fail(Strings.T("status_fatal", code)); }
+        private void OnFatalError(int code)
+        {
+            fatalError = code;
+            Fail(Strings.T("status_fatal", code));
+        }
 
         private void OnLogonError(int code)
         {
             Program.Log("Remote RDP " + Endpoint.Display + " logon event " + code);
-            if (code >= 0 && (phase == Phase.Connecting || phase == Phase.SigningIn))
+            string key = RdpFailure.LoginMessageKey(code);
+            if (key != null && (phase == Phase.Connecting || phase == Phase.SigningIn))
             {
-                // Keep the viewport visible while Windows handles the sign-in error, then show the disconnect details.
-                SetStatus(Phase.SigningIn, Strings.T("status_logon_error", code));
+                logonError = code;
+                SetStatus(Phase.SigningIn, Strings.T(key));
             }
         }
 
@@ -325,6 +354,7 @@ namespace ChildSessionDesktop
             if (timer.Enabled || IsDisposed) return;
             signInTimer.Stop();
             displayTimer.Stop();
+            lastFailure = message;
             Program.Log("Remote RDP " + Endpoint.Display + " " + message.Replace(Environment.NewLine, " "));
             SetStatus(Phase.Failed, message);
         }
