@@ -15,6 +15,8 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\FileTransfer.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpConnection.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpFailure.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\DesktopPreferences.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\LogPane.cs'),
     (Join-Path $PSScriptRoot '..\src\Shared\RdpGraphicsPolicies.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
@@ -22,7 +24,7 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')
 )
 
-& $compiler /nologo /target:exe /r:System.Security.dll /r:System.Drawing.dll ("/out:{0}" -f $testOut) @sources
+& $compiler /nologo /target:exe /r:System.Security.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll ("/out:{0}" -f $testOut) @sources
 if ($LASTEXITCODE -ne 0) { throw "Test build failed with exit code $LASTEXITCODE" }
 
 & $testOut

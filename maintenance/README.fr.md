@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0g bêta
+# RayXDesktop 1.5.0h bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0g bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0g) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0h bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0h) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -30,7 +30,7 @@ L’interface utilise le français sur les systèmes en français et l’anglais
 - **Plus → Privilégier la fluidité** réduit certains effets et plafonne la définition initiale à 1 600 × 900, ainsi que les redimensionnements dynamiques du bureau local. Ce mode s’applique à la prochaine connexion locale ou à la création d’une connexion distante. **Graphismes et codec RDP** affiche les valeurs appliquées par Windows et les interrupteurs de la stratégie locale. Régle-les sur le poste qui héberge le bureau. Le rendu et l’encodage matériel dépendent de Windows, du pilote et du poste hôte.
 - La **flèche vers le haut** réduit la barre en un moniteur turquoise. Clique dessus pour rouvrir la barre ou fais-le glisser pour la déplacer.
 
-Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log**. La ligne **RDP connected in** indique le délai jusqu’à l’état connecté.
+Clique sur la bande verticale de **4 px** à droite ou choisis **Plus → Ouvrir le journal d’activité** pour consulter les dernières lignes. Le chevron réduit le volet. Décoche **Plus → Afficher la bande du journal** pour faire disparaître la bande. Ce choix est mémorisé pour le compte Windows courant et le menu permet toujours d’ouvrir le journal. La ligne **RDP connected in** dans **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log** indique le délai jusqu’à l’état connecté.
 
 ## Connexion distante et miniatures
 
@@ -48,9 +48,9 @@ Le journal conserve son emplacement **%LOCALAPPDATA%\RayDesktop\Logs\child-sessi
 
 ### Certificat du poste distant
 
-Après une déconnexion `0x00000107` sans cause précise avant l’ouverture de session, **Réessayer avec l’avertissement de certificat** apparaît dans la vue concernée. Utilise ce bouton si tu reconnais le poste. Le mode interactif s’applique à cette tentative et Windows te laisse décider si tu poursuis lorsque sa stratégie le permet.
+Après une déconnexion `0x00000107` sans cause précise avant l’ouverture de session, **Réessayer avec l’avertissement de certificat** apparaît dans la vue concernée. Utilise ce bouton si tu reconnais le poste. Après une connexion réussie dans ce mode, RayXDesktop mémorise le choix pour cette adresse et ce port dans le profil Windows local. Les identifiants restent demandés par Windows.
 
-Pour utiliser ce mode à chaque tentative tant que la session figure dans la barre latérale, coche **Plus → Me demander en cas d’erreur de certificat (prochaine connexion)**. Clique sur **Reconnecter** pour la vue intégrée, ou ouvre l’adresse avec Bureau à distance Windows depuis ce menu. Windows demande les identifiants dans ce mode. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
+Tu peux aussi activer ce mode depuis **Plus → Me demander en cas d’erreur de certificat (prochaine connexion)**. Clique sur **Reconnecter** pour la vue intégrée, ou ouvre l’adresse avec Bureau à distance Windows depuis ce menu. Décoche l’option pour oublier le mode mémorisé et rétablir la validation stricte à la prochaine connexion. Windows décide quand afficher son avertissement. [Modes d’authentification du serveur](https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpclientadvancedsettings4-authenticationlevel)
 
 Le client Windows peut afficher un avertissement sur l’éditeur du fichier `.rdp` temporaire avant toute connexion. L’erreur **L’ordinateur distant ne peut pas être authentifié** concerne le certificat présenté ensuite par le poste distant. [Avertissements liés aux fichiers RDP](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/understanding-security-warnings)
 
@@ -108,6 +108,8 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Dans le Bloc-notes, copier un texte différent dans chaque sens entre la session principale et un bureau distant intégré | Le texte arrive dans les deux sens si Windows autorise le partage. Décoche **Partager le presse-papiers**, reconnecte la session et essaie avec un nouveau texte pour vérifier que le partage est coupé. |
 | Sur un poste pilote connu avec un certificat non approuvé, tester l’option **Me demander en cas d’erreur de certificat** et annuler l’avertissement Windows | Le mode par défaut refuse le certificat. En mode interactif Windows présente l’avertissement sur les postes où la stratégie le permet. Annuler ferme la connexion. |
 | Après une déconnexion `0x00000107` sans cause précise avant l’ouverture de session, cliquer sur **Réessayer avec l’avertissement de certificat** | Le bouton apparaît dans la vue concernée. Windows affiche son avertissement si sa stratégie le permet. Si l’utilisateur annule, RayXDesktop affiche l’état déconnecté sans nouvelle tentative. |
+| Réussir une connexion après le réessai, relancer RayXDesktop et rouvrir la même adresse et le même port | RayXDesktop démarre directement en mode interactif pour cette adresse. Décocher l’option du menu rétablit le mode strict. |
+| Ouvrir puis réduire le journal, masquer sa bande et redémarrer RayXDesktop | Le journal suit les nouvelles lignes quand il est ouvert. La bande masquée ne réapparaît pas au redémarrage et le volet reste accessible dans le menu. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

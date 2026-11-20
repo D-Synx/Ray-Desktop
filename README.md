@@ -4,7 +4,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The floating toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. Collapse it to a draggable monitor badge.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0g beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0g)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0h beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0h)
 
 ## Aperçu de la barre · 1.4.6
 
@@ -31,7 +31,7 @@ The interface uses French on French Windows installations and English elsewhere.
 
 If an embedded desktop stays blank, select its card and read its connection status. Use **More → Refresh remote display** after Windows has signed in. **Open this address in Windows Remote Desktop** provides a comparison using the same account and a fresh Windows credentials prompt. **Copy remote connection diagnostics** captures the client disconnect code, the extended code and the sign-in stage.
 
-After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. The button enables interactive certificate review for that attempt. Windows displays the warning when its policy permits and asks for credentials. To use the same mode for the selected session's subsequent connections, choose **More → Ask me about certificate errors (next connection)**.
+After an early `0x00000107` disconnect with no specific cause, **Retry with certificate warning** appears in the affected view. After a successful sign-in in this mode, RayXDesktop remembers the setting per address and port for the current Windows user. Windows still asks for credentials and handles any certificate warning. Uncheck **More → Ask me about certificate errors (next connection)** to forget the setting for the selected address.
 
 ## Build and test
 
@@ -41,7 +41,7 @@ See the [French guide](maintenance/README.fr.md#vérifier-et-signer-le-zip) for 
 
 ## Diagnose
 
-The **More** menu opens the log folder. The existing path remains **%LOCALAPPDATA%\RayDesktop\Logs\child-session.log**. Look for **RDP connected in** to distinguish the Windows connection wait from the time it takes the toolbar to appear.
+Click the thin strip at the right edge or choose **More → Open activity log** to view recent entries. **Show activity log edge** controls whether the strip is visible when collapsed. The **More** menu can also open the log folder at **%LOCALAPPDATA%\RayDesktop\Logs**. Look for **RDP connected in** in `child-session.log` to distinguish the Windows connection wait from the time it takes the toolbar to appear.
 
 ## Credits
 

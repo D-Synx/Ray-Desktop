@@ -14,6 +14,8 @@ namespace ChildSessionDesktop
     internal sealed partial class DesktopForm : Form
     {
         private readonly ChildSessionControl rdp;
+        private readonly DesktopPreferences preferences = new DesktopPreferences();
+        private readonly LogPane logPane;
         private readonly Timer statusTimer;
         private readonly Timer displayResizeTimer;
         private readonly Timer clipboardRelayTimer;
@@ -151,6 +153,8 @@ namespace ChildSessionDesktop
                 if (closing || IsDisposed) return;
                 TryAutoReconnect();
             };
+            logPane = new LogPane(Program.LogPath, preferences.LogEdgeEnabled);
+            Controls.Add(logPane);
             Shown += delegate
             {
                 Program.Log("Host form shown");
@@ -189,6 +193,7 @@ namespace ChildSessionDesktop
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
+            if (logPane != null) logPane.ResizeToFit(ClientSize.Width);
             bool max = (WindowState == FormWindowState.Maximized);
             if (max != _lastMaximized)
             {
@@ -373,11 +378,23 @@ namespace ChildSessionDesktop
         {
             var menu = MenuInstance(ref _moreMenu);
             menu.ShowImageMargin = false;
-            menu.ShowCheckMargin = false;
+            menu.ShowCheckMargin = true;
             var itemAbout = new ToolStripMenuItem(Strings.T("menu_about"));
             itemAbout.Click += delegate { AboutBox(); };
-            var itemLog = new ToolStripMenuItem(Strings.T("menu_open_log"));
-            itemLog.Click += delegate { OpenLogFolder(); };
+            var itemLog = new ToolStripMenuItem(Strings.T(logPane.IsOpen ? "log_collapse" : "log_show"));
+            itemLog.Click += delegate { logPane.SetOpen(!logPane.IsOpen); };
+            var itemLogEdge = new ToolStripMenuItem(Strings.T("log_show_edge"))
+            {
+                Checked = logPane.EdgeEnabled, CheckOnClick = true
+            };
+            itemLogEdge.Click += delegate
+            {
+                logPane.SetEdgeEnabled(itemLogEdge.Checked);
+                if (!preferences.SetLogEdgeEnabled(itemLogEdge.Checked))
+                    Program.Log("Could not save the log edge preference");
+            };
+            var itemLogFolder = new ToolStripMenuItem(Strings.T("menu_open_log"));
+            itemLogFolder.Click += delegate { OpenLogFolder(); };
             var itemUpdate = new ToolStripMenuItem(Strings.T("menu_check_update"));
             itemUpdate.Click += delegate
             {
@@ -388,6 +405,8 @@ namespace ChildSessionDesktop
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(itemAbout);
             menu.Items.Add(itemLog);
+            menu.Items.Add(itemLogEdge);
+            menu.Items.Add(itemLogFolder);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(itemUpdate);
             Point pos = new Point(anchor.Left, anchor.Bottom);
@@ -550,10 +569,9 @@ namespace ChildSessionDesktop
         {
             try
             {
-                string dir = Program.LogDirectory;
-                string log = Path.Combine(dir, "child-session.log");
+                string log = Program.LogPath;
                 if (File.Exists(log)) Process.Start("explorer.exe", "/select,\"" + log + "\"");
-                else Process.Start("explorer.exe", dir);
+                else Process.Start("explorer.exe", Path.GetDirectoryName(log));
             }
             catch (Exception ex) { Program.Log("Could not open log folder: " + ex.GetBaseException().Message); }
         }
@@ -807,7 +825,11 @@ namespace ChildSessionDesktop
 
         private void MatchWindowToSession(int sessW, int sessH)
         {
-            if (sessions != null && sessions.IsExpanded) { RefreshLocalViewport(); return; }
+            if (sessions != null && (sessions.IsExpanded || (logPane != null && logPane.IsOpen)))
+            {
+                RefreshLocalViewport();
+                return;
+            }
             if (Handle == IntPtr.Zero || IsDisposed) return;
             if (sessW <= 0 || sessH <= 0) return;
             if (fullscreen) { ApplyLetterbox(); return; }

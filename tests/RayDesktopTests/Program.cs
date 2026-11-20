@@ -350,6 +350,47 @@ namespace RayDesktopTests
                 && RdpFailure.LoginMessageKey(-2) == null, "sign-in restrictions are recognized without treating progress as an error");
         }
 
+        private static void TestDesktopPreferences()
+        {
+            string path = @"Software\RayXDesktop.Test-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                var preferences = new DesktopPreferences(path);
+                RdpEndpoint host, sameHost, otherPort;
+                RdpEndpoint.TryParse("PC-EXEMPLE", RdpEndpoint.DefaultPort, out host);
+                RdpEndpoint.TryParse("pc-exemple:3389", RdpEndpoint.DefaultPort, out sameHost);
+                RdpEndpoint.TryParse("pc-exemple:3390", RdpEndpoint.DefaultPort, out otherPort);
+                Check(preferences.LogEdgeEnabled && !preferences.UsesCertificateWarning(host),
+                    "new users see the log edge and require server authentication");
+                Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false),
+                    "save the per-address mode and log edge preference");
+                var reopened = new DesktopPreferences(path);
+                Check(reopened.UsesCertificateWarning(sameHost) && !reopened.UsesCertificateWarning(otherPort) && !reopened.LogEdgeEnabled,
+                    "stored choices survive reopening and are scoped to the address and port");
+                Check(reopened.SetCertificateWarning(sameHost, false) && !preferences.UsesCertificateWarning(host),
+                    "forget the interactive mode and restore strict authentication");
+            }
+            finally { Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(path, false); }
+        }
+
+        private static void TestLogTail()
+        {
+            string path = Path.GetTempFileName();
+            try
+            {
+                const string tail = "nouvelle entrée\r\nfin\r\n";
+                int tailBytes = Encoding.UTF8.GetByteCount(tail);
+                File.WriteAllText(path, new string('x', 256) + "é\r\n" + tail, Encoding.UTF8);
+                Check(LogPane.ReadRecentText(path, tailBytes + 4) == tail && LogPane.ReadRecentText(path, tailBytes) == tail,
+                    "log tail skips partial lines and preserves complete UTF-8 entries");
+                using (var writer = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read))
+                    Check(LogPane.ReadRecentText(path, tailBytes) == tail, "activity log can be read while a writer holds it");
+                File.WriteAllText(path, "rotation\r\n", Encoding.UTF8);
+                Check(LogPane.ReadRecentText(path) == "rotation\r\n", "activity log reloads the current file after rotation");
+            }
+            finally { File.Delete(path); }
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -362,6 +403,8 @@ namespace RayDesktopTests
             TestRemoteConnections();
             TestRemoteDisplaySizing();
             TestGraphicsAndRdpDiagnostics();
+            TestDesktopPreferences();
+            TestLogTail();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

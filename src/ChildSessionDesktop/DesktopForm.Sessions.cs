@@ -76,7 +76,7 @@ namespace ChildSessionDesktop
                     CheckOnClick = true,
                     ToolTipText = Strings.T("remote_ask_on_certificate_error_hint")
                 };
-                certificateWarning.Click += delegate { remote.AskOnCertificateError = certificateWarning.Checked; };
+                certificateWarning.Click += delegate { remote.SetCertificateWarningPreference(certificateWarning.Checked); };
                 menu.Items.Add(certificateWarning);
                 menu.Items.Add(Strings.T("remote_refresh_display")).Click += delegate { remote.RefreshDisplay(); };
                 menu.Items.Add(Strings.T("remote_open_windows")).Click += delegate { OpenSelectedInWindowsRdp(); };
@@ -232,7 +232,8 @@ namespace ChildSessionDesktop
                 if (closing || IsDisposed) return;
                 if (addresses.Length == 0 || ResolvesLocally(addresses))
                     throw new InvalidOperationException(Strings.T("sessions_remote_only"));
-                if (password == null && imported != null && imported.HasProtectedPassword)
+                if (preferences.UsesCertificateWarning(endpoint)) password = null;
+                else if (password == null && imported != null && imported.HasProtectedPassword)
                 {
                     password = imported.TakePassword();
                     if (password == null)
@@ -246,7 +247,7 @@ namespace ChildSessionDesktop
                     password = null;
                     return;
                 }
-                var remote = new RemoteDesktop(endpoint, account, fluidGraphics);
+                var remote = new RemoteDesktop(endpoint, account, fluidGraphics, preferences);
                 sessions.AddRemote(remote);
                 try { remote.Connect(password); }
                 finally { password = null; }

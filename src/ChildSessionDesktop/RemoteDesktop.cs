@@ -17,6 +17,7 @@ namespace ChildSessionDesktop
         private readonly Button retryCertificateButton;
         private readonly Timer timer, signInTimer, displayTimer;
         private readonly bool fluid;
+        private readonly DesktopPreferences preferences;
         private bool reconnect, explicitDisconnect, connectQueued;
         private DateTime deadline;
         private string pendingPassword;
@@ -24,7 +25,8 @@ namespace ChildSessionDesktop
         private Phase phase;
         private Size lastDisplaySize;
         private int? logonError, fatalError;
-        private bool loginCompleted, certificateWarningRequested;
+        private bool loginCompleted, certificateWarningRequested, rememberCertificateWarning;
+        private bool? certificateWarningOverride;
         private string lastFailure = "";
         internal string DiagnosticText { get { return lastFailure.Length == 0 ? Status : lastFailure; } }
 
@@ -36,14 +38,15 @@ namespace ChildSessionDesktop
         internal ChildSessionControl PreviewSurface { get { return view; } }
         internal string Account { get; private set; }
         internal bool ShareClipboard { get; set; }
-        internal bool AskOnCertificateError { get; set; }
+        internal bool AskOnCertificateError { get { return certificateWarningOverride ?? preferences.UsesCertificateWarning(Endpoint); } }
         internal string Status { get; private set; }
         internal event Action StatusChanged;
 
-        internal RemoteDesktop(RdpEndpoint endpoint, string account, bool fluid)
+        internal RemoteDesktop(RdpEndpoint endpoint, string account, bool fluid, DesktopPreferences preferences)
         {
             Endpoint = endpoint;
             Account = account;
+            this.preferences = preferences;
             ShareClipboard = true;
             this.fluid = fluid;
             Dock = DockStyle.Fill;
@@ -96,6 +99,18 @@ namespace ChildSessionDesktop
             };
             VisibleChanged += delegate { QueueDisplayUpdate(); };
             SetStatus(Phase.Idle, Strings.T("status_not_connected"));
+        }
+
+        internal void SetCertificateWarningPreference(bool enabled)
+        {
+            certificateWarningOverride = enabled ? (bool?)true : null;
+            if (enabled) return;
+            rememberCertificateWarning = false;
+            if (!preferences.SetCertificateWarning(Endpoint, false))
+            {
+                certificateWarningOverride = false;
+                Program.Log("Could not forget the RDP certificate warning preference for " + Endpoint.Display);
+            }
         }
 
         private void SetStatus(Phase next, string message, bool offerCertificateRetry = false)
@@ -160,6 +175,7 @@ namespace ChildSessionDesktop
                 client.DesktopHeight = size.Height;
                 var settings = client.AdvancedSettings9;
                 certificateWarningRequested = AskOnCertificateError || askOnCertificateErrorForAttempt;
+                rememberCertificateWarning = certificateWarningRequested;
                 settings.EnableCredSspSupport = true;
                 settings.AuthenticationLevel = certificateWarningRequested
                     ? MaintenanceProfile.WarnOnServerAuthenticationFailure
@@ -255,6 +271,13 @@ namespace ChildSessionDesktop
             loginCompleted = true;
             logonError = null;
             Program.Log("Remote RDP " + Endpoint.Display + " OnLoginComplete");
+            if (rememberCertificateWarning)
+            {
+                bool saved = preferences.SetCertificateWarning(Endpoint, true);
+                certificateWarningOverride = saved ? (bool?)null : true;
+                if (!saved)
+                    Program.Log("Could not save the RDP certificate warning preference for " + Endpoint.Display);
+            }
             SetStatus(Phase.Ready, Strings.T("remote_login_complete"));
             QueueDisplayUpdate();
         }

@@ -104,6 +104,8 @@ namespace ChildSessionDesktop
             }
         }
 
+        internal static string LogPath { get { return Path.Combine(LogDirectory, "child-session.log"); } }
+
         internal static void Log(string message)
         {
             try
@@ -126,7 +128,7 @@ namespace ChildSessionDesktop
                                 ownsMutex = true;
                             }
 
-                            string path = Path.Combine(LogDirectory, "child-session.log");
+                            string path = LogPath;
                             const long MaxLogBytes = 5 * 1024 * 1024;
                             if (File.Exists(path) && new FileInfo(path).Length > MaxLogBytes)
                             {
