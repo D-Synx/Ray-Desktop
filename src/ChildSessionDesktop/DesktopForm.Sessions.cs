@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
@@ -34,6 +35,7 @@ namespace ChildSessionDesktop
             toggle.Click += delegate { sessions.ToggleSidebar(); };
             var add = menu.Items.Add(Strings.T("sessions_add"));
             add.Click += delegate { AddRemote(); };
+            menu.Items.Add(Strings.T("sessions_thumbnail_folder")).Click += delegate { OpenThumbnailFolder(); };
             var disconnect = menu.Items.Add(Strings.T("sessions_disconnect"));
             disconnect.Click += delegate
             {
@@ -54,6 +56,21 @@ namespace ChildSessionDesktop
             };
             menu.Items.Add(fluid);
             menu.Items.Add(Strings.T("graphics_title")).Click += delegate { ShowGraphicsDiagnostics(); };
+        }
+
+        private void OpenThumbnailFolder()
+        {
+            try
+            {
+                Directory.CreateDirectory(sessions.ThumbnailFolder);
+                Process.Start("explorer.exe", "\"" + sessions.ThumbnailFolder + "\"");
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Could not open the session previews folder: " + ex.GetType().Name);
+                MessageBox.Show(this, ex.GetBaseException().Message, Strings.T("sessions_thumbnail_folder"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void ReconnectSelected()
@@ -164,16 +181,39 @@ namespace ChildSessionDesktop
             addingRemote = true;
             try
             {
-                string host, account;
-                if (!RemoteConnectionDialog.Prompt(this, out host, out account)) return;
-                if (sessions.SelectExisting(host, account)) return;
-                IPAddress[] addresses = await Dns.GetHostAddressesAsync(host);
+                RdpEndpoint endpoint;
+                RdpImport imported;
+                string account, password;
+                if (!RemoteConnectionDialog.Prompt(this, out endpoint, out account, out password, out imported)) return;
+                if (password == null && (imported == null || !imported.HasProtectedPassword) && sessions.SelectExisting(endpoint, account))
+                {
+                    sessions.SelectedRemote.Connect();
+                    return;
+                }
+                IPAddress[] addresses = endpoint.Address == null
+                    ? await Dns.GetHostAddressesAsync(endpoint.Host)
+                    : new[] { endpoint.Address };
                 if (closing || IsDisposed) return;
                 if (addresses.Length == 0 || ResolvesLocally(addresses))
                     throw new InvalidOperationException(Strings.T("sessions_remote_only"));
-                var remote = new RemoteDesktop(host, account, fluidGraphics);
+                if (password == null && imported != null && imported.HasProtectedPassword)
+                {
+                    password = imported.TakePassword();
+                    if (password == null)
+                        MessageBox.Show(this, Strings.T("rdp_protected_unavailable"), Strings.T("rdp_import"),
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                if (sessions.SelectExisting(endpoint, account))
+                {
+                    if (password != null) sessions.SelectedRemote.Disconnect(true, password);
+                    else sessions.SelectedRemote.Connect();
+                    password = null;
+                    return;
+                }
+                var remote = new RemoteDesktop(endpoint, account, fluidGraphics);
                 sessions.AddRemote(remote);
-                remote.Connect();
+                try { remote.Connect(password); }
+                finally { password = null; }
             }
             catch (Exception ex)
             {

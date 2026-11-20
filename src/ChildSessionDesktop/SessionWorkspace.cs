@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace ChildSessionDesktop
@@ -13,6 +14,9 @@ namespace ChildSessionDesktop
             internal string Name;
             internal string Status;
             internal RemoteDesktop Remote;
+            internal ChildSessionControl PreviewSurface;
+            internal readonly string ThumbnailId = Guid.NewGuid().ToString("N");
+            internal Bitmap Preview;
         }
 
         private readonly Panel sidebar;
@@ -21,7 +25,9 @@ namespace ChildSessionDesktop
         private readonly Button splitButton;
         private readonly Slot local;
         private readonly List<Slot> slots = new List<Slot>();
+        private readonly SessionThumbnails thumbnails = new SessionThumbnails();
         private Slot selected, previous, left, right;
+        private bool capturingPreview;
 
         internal event Action AddRequested;
         internal event Action LocalViewportChanged;
@@ -31,8 +37,9 @@ namespace ChildSessionDesktop
         internal string SelectedStatus { get { return selected.Status; } }
         internal bool HasRemoteConnections { get { return slots.Count > 1; } }
         internal bool IsExpanded { get { return sidebar.Visible; } }
+        internal string ThumbnailFolder { get { return thumbnails.Folder; } }
 
-        internal SessionWorkspace(Control localDesktop, string localAccount)
+        internal SessionWorkspace(ChildSessionControl localDesktop, string localAccount)
         {
             Dock = DockStyle.Fill;
             BackColor = Color.FromArgb(13, 19, 29);
@@ -60,7 +67,7 @@ namespace ChildSessionDesktop
             sidebar.Controls.Add(add);
             sidebar.Controls.Add(collapse);
 
-            local = AddSlot(Strings.T("sessions_local", localAccount), localDesktop, null);
+            local = AddSlot(Strings.T("sessions_local", localAccount), localDesktop, localDesktop, null);
             local.View.SizeChanged += delegate { if (LocalViewportChanged != null) LocalViewportChanged(); };
             selected = left = local;
             surface.SizeChanged += delegate { Arrange(); };
@@ -80,11 +87,11 @@ namespace ChildSessionDesktop
             return button;
         }
 
-        private Slot AddSlot(string name, Control desktop, RemoteDesktop remote)
+        private Slot AddSlot(string name, Control desktop, ChildSessionControl previewSurface, RemoteDesktop remote)
         {
             var slot = new Slot
             {
-                Name = name, Status = Strings.T("status_not_connected"), Remote = remote,
+                Name = name, Status = Strings.T("status_not_connected"), Remote = remote, PreviewSurface = previewSurface,
                 View = new Panel { BackColor = Color.Black, Visible = false }
             };
             slots.Add(slot);
@@ -97,11 +104,12 @@ namespace ChildSessionDesktop
             return slot;
         }
 
-        internal bool SelectExisting(string host, string account)
+        internal bool SelectExisting(RdpEndpoint endpoint, string account)
         {
             foreach (var slot in slots)
             {
-                if (slot.Remote != null && string.Equals(host, slot.Remote.Server, StringComparison.OrdinalIgnoreCase)
+                if (slot.Remote != null && endpoint.Port == slot.Remote.Endpoint.Port
+                    && string.Equals(endpoint.Host, slot.Remote.Endpoint.Host, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(account, slot.Remote.Account, StringComparison.OrdinalIgnoreCase))
                 {
                     if (!sidebar.Visible) ToggleSidebar();
@@ -114,7 +122,7 @@ namespace ChildSessionDesktop
 
         internal void AddRemote(RemoteDesktop remote)
         {
-            var slot = AddSlot(remote.Server + " · " + remote.Account, remote, remote);
+            var slot = AddSlot(remote.Endpoint.Display + " · " + remote.Account, remote, remote.PreviewSurface, remote);
             remote.StatusChanged += delegate
             {
                 slot.Status = remote.Status;
@@ -135,6 +143,10 @@ namespace ChildSessionDesktop
             left = selected = next;
             remove.View.Dispose();
             RebuildList();
+            if (remove.Preview != null) remove.Preview.Dispose();
+            try { thumbnails.Remove(remove.ThumbnailId); }
+            catch (IOException ex) { Program.Log("Could not remove a session preview: " + ex.GetType().Name); }
+            catch (UnauthorizedAccessException ex) { Program.Log("Could not remove a session preview: " + ex.GetType().Name); }
             Arrange();
         }
 
@@ -154,6 +166,7 @@ namespace ChildSessionDesktop
         private void Select(Slot slot)
         {
             if (slot == selected) return;
+            RefreshPreview(selected);
             if (right == null) left = slot;
             else if (slot != left && slot != right)
             {
@@ -169,6 +182,7 @@ namespace ChildSessionDesktop
         {
             if (right != null)
             {
+                RefreshPreview(left == selected ? right : left);
                 left = selected;
                 right = null;
             }
@@ -187,7 +201,9 @@ namespace ChildSessionDesktop
             {
                 var row = MakeButton("");
                 row.Width = 165;
-                row.Height = 59;
+                row.Height = 54;
+                row.TextImageRelation = TextImageRelation.ImageAboveText;
+                row.ImageAlign = ContentAlignment.TopCenter;
                 row.Tag = slot;
                 row.AutoEllipsis = true;
                 row.Click += delegate { Select(slot); };
@@ -203,9 +219,47 @@ namespace ChildSessionDesktop
                 var slot = (Slot)row.Tag;
                 row.Text = slot.Name + Environment.NewLine + slot.Status;
                 row.AccessibleName = row.Text;
+                row.Image = slot.Preview;
+                row.Height = slot.Preview == null ? 54 : SessionThumbnails.Height + 54;
                 row.BackColor = slot == selected ? Color.FromArgb(26, 92, 92) : Color.FromArgb(34, 49, 68);
             }
             if (SelectionChanged != null) SelectionChanged();
+        }
+
+        private void RefreshPreview(Slot slot)
+        {
+            if (slot == null || capturingPreview) return;
+            Bitmap next = null;
+            capturingPreview = true;
+            try
+            {
+                next = SessionThumbnails.Capture(slot.PreviewSurface);
+                if (next == null) return;
+                thumbnails.Save(slot.ThumbnailId, next);
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Session preview unavailable: " + ex.GetType().Name);
+            }
+            finally { capturingPreview = false; }
+            if (next == null) return;
+            var old = slot.Preview;
+            slot.Preview = next;
+            foreach (Button row in list.Controls)
+                if (row.Tag == slot) row.Image = next;
+            if (old != null) old.Dispose();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (!disposing) return;
+            foreach (Slot slot in slots)
+                if (slot.Preview != null) slot.Preview.Dispose();
+            slots.Clear();
+            try { thumbnails.Dispose(); }
+            catch (IOException ex) { Program.Log("Could not clear session previews: " + ex.GetType().Name); }
+            catch (UnauthorizedAccessException ex) { Program.Log("Could not clear session previews: " + ex.GetType().Name); }
         }
 
         private void Arrange()

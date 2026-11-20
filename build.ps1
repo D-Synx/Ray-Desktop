@@ -8,7 +8,7 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 }
 
 $output = Join-Path $PSScriptRoot 'Raydesktop'
-$references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll')
+$references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Security.dll')
 function Publish-BuildOutput([string]$temporary, [string]$target) {
     [IO.File]::Copy($temporary, $target, $true)
     [IO.File]::Delete($temporary)
@@ -28,6 +28,8 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionWorkspace.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteDesktop.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RemoteConnectionDialog.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\RdpConnection.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionThumbnails.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\GraphicsOptions.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\FileTransfer.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ShellClipboard.cs'),
@@ -44,8 +46,8 @@ $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.5.0.0'
-$productVersion = '1.5.0a'
+$version = '1.5.0.1'
+$productVersion = '1.5.0b'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
     "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",

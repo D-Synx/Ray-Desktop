@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Security.Cryptography;
 using System.Threading;
 using ChildSessionDesktop;
 
@@ -273,6 +274,44 @@ namespace RayDesktopTests
             finally { Directory.Delete(root, true); }
         }
 
+        private static void TestRemoteConnections()
+        {
+            RdpEndpoint endpoint;
+            Check(RdpEndpoint.TryForAccount("", @"PC-EXEMPLE\Maintenance", out endpoint)
+                && endpoint.Host == "PC-EXEMPLE" && endpoint.Port == 3389, "qualified account can supply the host");
+            Check(RdpEndpoint.TryForAccount("192.0.2.15:3390", @"PC-EXEMPLE\Maintenance", out endpoint)
+                && endpoint.Address != null && endpoint.Port == 3390, "IPv4 with explicit port");
+            Check(RdpEndpoint.TryParse("[2001:db8::15]:3391", 3389, out endpoint)
+                && endpoint.Address != null && endpoint.Display == "[2001:db8::15]:3391", "IPv6 bracketed port");
+            Check(!RdpEndpoint.TryParse("127.0.0.1:3390", 3389, out endpoint), "IPv4 local address rejected");
+            Check(!RdpEndpoint.TryParse("[::ffff:127.0.0.1]", 3389, out endpoint), "mapped IPv6 loopback rejected");
+            Check(!RdpEndpoint.TryParse("focus.example:65536", 3389, out endpoint), "invalid RDP port rejected");
+            Check(!RdpEndpoint.TryForAccount("", @"PC-EXEMPLE\", out endpoint), "incomplete account rejected");
+
+            var imported = RdpImport.Parse(new StringReader(
+                "full address:s:192.0.2.22\nusername:s:operator\ndomain:s:PC-EXEMPLE\nserver port:i:3398\n"));
+            Check(imported.Endpoint.Port == 3398 && imported.Account == @"PC-EXEMPLE\operator"
+                && !imported.HasProtectedPassword, "direct file imports address, port and account");
+            Check(RejectsRdpFile("full address:s:PC-E1\nfull address:s:PC-E2"), "duplicate RDP target rejected");
+            Check(RejectsRdpFile("full address:s:PC-E1\ngatewayusagemethod:i:1"), "gateway profile is not silently changed");
+
+            byte[] placeholder = Encoding.Unicode.GetBytes("test-only!" + '\0');
+            byte[] protectedValue = ProtectedData.Protect(placeholder, null, DataProtectionScope.CurrentUser);
+            imported = RdpImport.Parse(new StringReader("full address:s:PC-EXEMPLE\nusername:s:PC-EXEMPLE\\operator\npassword 51:b:"
+                + BitConverter.ToString(protectedValue).Replace("-", "")));
+            Check(imported.HasProtectedPassword && imported.TakePassword() == "test-only!" && !imported.HasProtectedPassword,
+                "Windows-protected file password is consumed once");
+            imported = RdpImport.Parse(new StringReader("full address:s:PC-EXEMPLE\nusername:s:PC-EXEMPLE\\operator\npassword 51:b:010203"));
+            Check(imported.TakePassword() == null, "unreadable protected password falls back to an interactive prompt");
+        }
+
+        private static bool RejectsRdpFile(string content)
+        {
+            try { RdpImport.Parse(new StringReader(content)); }
+            catch (InvalidDataException) { return true; }
+            return false;
+        }
+
         private static int Main()
         {
             TestToMillimeters();
@@ -282,6 +321,7 @@ namespace RayDesktopTests
             TestReconnectPolicy();
             TestConnectionArguments();
             TestFileTransfer();
+            TestRemoteConnections();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;
         }

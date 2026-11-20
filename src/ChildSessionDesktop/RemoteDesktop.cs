@@ -12,16 +12,18 @@ namespace ChildSessionDesktop
         private readonly bool fluid;
         private bool reconnect, explicitDisconnect, attempted;
         private DateTime deadline;
+        private string pendingPassword;
         private IMsTscAxEvents_Event events;
 
-        internal string Server { get; private set; }
+        internal RdpEndpoint Endpoint { get; private set; }
+        internal ChildSessionControl PreviewSurface { get { return view; } }
         internal string Account { get; private set; }
         internal string Status { get; private set; }
         internal event Action StatusChanged;
 
-        internal RemoteDesktop(string server, string account, bool fluid)
+        internal RemoteDesktop(RdpEndpoint endpoint, string account, bool fluid)
         {
-            Server = server;
+            Endpoint = endpoint;
             Account = account;
             this.fluid = fluid;
             Status = Strings.T("status_not_connected");
@@ -38,7 +40,7 @@ namespace ChildSessionDesktop
             if (StatusChanged != null) StatusChanged();
         }
 
-        internal void Connect()
+        internal void Connect(string password = null)
         {
             if (IsDisposed || timer.Enabled) return;
             view.CreateControl();
@@ -54,7 +56,7 @@ namespace ChildSessionDesktop
                     events.OnDisconnected += OnDisconnected;
                     events.OnFatalError += OnFatalError;
                 }
-                client.Server = Server;
+                client.Server = Endpoint.Host;
                 int separator = Account.IndexOf('\\');
                 client.Domain = separator < 0 ? "" : Account.Substring(0, separator);
                 client.UserName = separator < 0 ? Account : Account.Substring(separator + 1);
@@ -63,11 +65,15 @@ namespace ChildSessionDesktop
                 var settings = client.AdvancedSettings9;
                 settings.EnableCredSspSupport = true;
                 settings.AuthenticationLevel = 1;
+                settings.RDPPort = Endpoint.Port;
                 settings.SmartSizing = true;
                 if (fluid) settings.PerformanceFlags = GraphicsOptions.FluidPerformanceFlags;
                 settings.RedirectClipboard = false;
                 settings.RedirectDrives = false;
-                ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = true;
+                var credentials = (IMsTscNonScriptable)ocx;
+                credentials.ResetPassword();
+                if (password != null) credentials.ClearTextPassword = password;
+                ((IMsRdpClientNonScriptable3)ocx).PromptForCredentials = password == null;
                 explicitDisconnect = false;
                 attempted = true;
                 SetStatus(Strings.T("sessions_connecting"));
@@ -76,19 +82,20 @@ namespace ChildSessionDesktop
             catch (Exception ex) { ShowFailure(ex); }
         }
 
-        internal void Disconnect(bool resume)
+        internal void Disconnect(bool resume, string password = null)
         {
             if (timer.Enabled || IsDisposed) return;
             try
             {
                 if (!attempted || ((IMsRdpClient9)view.GetOcxObject()).Connected == 0)
                 {
-                    if (resume) Connect();
+                    if (resume) Connect(password);
                     else SetStatus(Strings.T("status_not_connected"));
                     return;
                 }
                 explicitDisconnect = true;
                 reconnect = resume;
+                pendingPassword = resume ? password : null;
                 deadline = DateTime.UtcNow.AddSeconds(10);
                 timer.Start();
                 SetStatus(Strings.T("sessions_disconnect_wait"));
@@ -104,12 +111,15 @@ namespace ChildSessionDesktop
                 if (((IMsRdpClient9)view.GetOcxObject()).Connected == 0)
                 {
                     timer.Stop();
+                    string password = pendingPassword;
+                    pendingPassword = null;
                     SetStatus(Strings.T("status_not_connected"));
-                    if (reconnect) Connect();
+                    if (reconnect) Connect(password);
                 }
                 else if (DateTime.UtcNow >= deadline)
                 {
                     timer.Stop();
+                    pendingPassword = null;
                     SetStatus(Strings.T("sessions_disconnect_timeout"));
                 }
             }
@@ -129,6 +139,7 @@ namespace ChildSessionDesktop
         private void ShowFailure(Exception ex)
         {
             timer.Stop();
+            pendingPassword = null;
             SetStatus(Strings.T("msg_connect_fail") + ex.GetBaseException().Message);
             Program.Log("Remote RDP operation failed: " + ex.GetBaseException().Message);
         }
@@ -138,6 +149,7 @@ namespace ChildSessionDesktop
             if (disposing)
             {
                 timer.Dispose();
+                pendingPassword = null;
                 if (events != null)
                 {
                     events.OnConnected -= OnConnected;

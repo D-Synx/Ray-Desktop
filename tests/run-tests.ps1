@@ -13,13 +13,14 @@ $sources = @(
     (Join-Path $root 'RayDesktopTests\Program.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ConnectionArguments.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\FileTransfer.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpConnection.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')
 )
 
-& $compiler /nologo /target:exe ("/out:{0}" -f $testOut) @sources
+& $compiler /nologo /target:exe /r:System.Security.dll ("/out:{0}" -f $testOut) @sources
 if ($LASTEXITCODE -ne 0) { throw "Test build failed with exit code $LASTEXITCODE" }
 
 & $testOut
