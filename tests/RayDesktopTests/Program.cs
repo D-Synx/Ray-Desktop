@@ -527,6 +527,30 @@ namespace RayDesktopTests
             }
         }
 
+        private static void TestGpuPreview()
+        {
+            Check(GpuPreview.ParseEngine("Vulkan") == PreviewEngine.Vulkan &&
+                GpuPreview.ParseEngine("Direct3D") == PreviewEngine.Direct3D, "parse explicit preview engine names");
+            Check(GpuPreview.ParseEngine("3") == PreviewEngine.Auto &&
+                GpuPreview.ParseEngine("unknown") == PreviewEngine.Auto, "invalid preview engine falls back to automatic");
+            string missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing.exe");
+            using (var gpu = new GpuPreview(PreviewEngine.Vulkan, missing))
+            using (var source = new Bitmap(80, 80, System.Drawing.Imaging.PixelFormat.Format32bppRgb))
+            {
+                using (Graphics graphics = Graphics.FromImage(source)) graphics.Clear(Color.Orange);
+                using (Bitmap thumbnail = gpu.ResizeAsync(source).GetAwaiter().GetResult())
+                {
+                    Check(thumbnail.Size == new Size(160, 90) &&
+                        thumbnail.GetPixel(80, 45).ToArgb() == Color.Orange.ToArgb() &&
+                        thumbnail.GetPixel(0, 0).ToArgb() == Color.FromArgb(10, 15, 22).ToArgb(),
+                        "missing Vulkan helper falls back and preserves the thumbnail ratio");
+                }
+                Check(gpu.Status().Contains(Strings.T("gpu_no_helper")), "the fallback is visible in diagnostics");
+                gpu.Select(PreviewEngine.Windows);
+                Check(gpu.Status() == Strings.T("gpu_no_preview"), "changing the mode resets the last operation");
+            }
+        }
+
         [STAThread]
         private static int Main()
         {
@@ -541,6 +565,7 @@ namespace RayDesktopTests
             TestRemoteDisplaySizing();
             TestGraphicsAndRdpDiagnostics();
             TestDesktopPreferences();
+            TestGpuPreview();
             TestToolbarPlacement();
             TestLogTail();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");

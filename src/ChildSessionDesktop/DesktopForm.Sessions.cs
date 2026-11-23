@@ -42,6 +42,15 @@ namespace ChildSessionDesktop
             startupAll.Click += delegate { SavePreferences(preferences.SetReconnectAllAtStartup(startupAll.Checked)); };
             menu.Items.Add(startupAll);
             menu.Items.Add(Strings.T("sessions_thumbnail_folder")).Click += delegate { OpenThumbnailFolder(); };
+            menu.Items.Add(Strings.T("gpu_refresh_preview")).Click += delegate { sessions.QueueSelectedPreview(); };
+            menu.Items.Add(Strings.T("gpu_title")).Click += delegate
+            {
+                GpuSettingsDialog.Show(this, sessions.PreviewRenderer, engine =>
+                {
+                    SavePreferences(preferences.SetThumbnailEngine(engine));
+                    sessions.QueueSelectedPreview();
+                });
+            };
             var disconnect = menu.Items.Add(Strings.T("sessions_disconnect"));
             disconnect.Click += delegate
             {

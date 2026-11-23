@@ -1,10 +1,12 @@
-# RayˣDesktop 1.5.0.1 bêta
+# RayˣDesktop · Guide Windows
 
 ![RayˣDesktop, avec un X bleu et or sur fond de galaxie](https://raw.githubusercontent.com/D-Synx/Ray-Desktop/v1.5.0.1/assets/RayXDesktop-banner.jpg)
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
+
+Pour la **1.6.0 bêta GPU**, ouvre l’artefact de [compilation GitHub Actions](https://github.com/D-Synx/Ray-Desktop/actions/workflows/ray-gpu-beta.yml?query=branch%3Abeta%2F1.6.0-gpu-vulkan), puis extrais le ZIP Windows qu’il contient. Garde `RayXDesktop.GpuPreview.exe` à côté de l’application. [Guide GPU et protocole de mesure](GPU.fr.md)
 
 1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0.1 bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0.1) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.

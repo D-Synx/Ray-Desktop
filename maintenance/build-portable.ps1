@@ -2,7 +2,8 @@ param(
     [ValidatePattern('^[a-fA-F0-9]{40}$')]
     [string]$CodeSigningThumbprint,
     [string]$SignToolPath,
-    [string]$TimestampUrl
+    [string]$TimestampUrl,
+    [string]$GpuHelperPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,8 +33,16 @@ finally {
 & (Join-Path $root 'build.ps1')
 $files = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll') |
     ForEach-Object { Join-Path $root "Raydesktop\$_" }
+if ($GpuHelperPath) {
+    $helper = Get-Item -LiteralPath $GpuHelperPath
+    if ($helper.PSIsContainer -or $helper.Name -cne 'RayXDesktop.GpuPreview.exe') {
+        throw 'GpuHelperPath must point to the built RayXDesktop.GpuPreview.exe.'
+    }
+    $files += $helper.FullName
+    $files += Join-Path $PSScriptRoot 'GPU.fr.md'
+}
 if ($sign) {
-    foreach ($file in $files) {
+    foreach ($file in $files | Where-Object { [IO.Path]::GetExtension($_) -in @('.exe', '.dll') }) {
         & $SignToolPath sign /sha1 $CodeSigningThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $file
         if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $file." }
         & $SignToolPath verify /pa /v $file

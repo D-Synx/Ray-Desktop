@@ -147,7 +147,7 @@ namespace ChildSessionDesktop
                 };
                 clipboardRelayTimer.Start();
             }
-            sessions = new SessionWorkspace(rdp, connectionAccount ?? Environment.UserName);
+            sessions = new SessionWorkspace(rdp, connectionAccount ?? Environment.UserName, preferences.ThumbnailEngine);
             Controls.Add(sessions);
             sessions.LocalViewportChanged += RefreshLocalViewport;
             sessions.SelectionChanged += RefreshSessionTitle;

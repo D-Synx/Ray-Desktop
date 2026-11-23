@@ -16,6 +16,7 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpConnection.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpFailure.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\DesktopPreferences.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\GpuPreview.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\LogPane.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ToolbarControl.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\TooltipForm.cs'),

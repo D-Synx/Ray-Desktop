@@ -29,6 +29,7 @@ namespace ChildSessionDesktop
         private readonly Slot local;
         private readonly List<Slot> slots = new List<Slot>();
         private readonly SessionThumbnails thumbnails = new SessionThumbnails();
+        private readonly GpuPreview previewRenderer;
         private readonly Timer previewTimer;
         private Slot selected, previous, left, right, startupSlot;
         private int userSelection;
@@ -47,8 +48,9 @@ namespace ChildSessionDesktop
         internal Panel ToolbarBand { get { return toolbarBand; } }
         internal string ThumbnailFolder { get { return thumbnails.Folder; } }
 
-        internal SessionWorkspace(ChildSessionControl localDesktop, string localAccount)
+        internal SessionWorkspace(ChildSessionControl localDesktop, string localAccount, PreviewEngine engine)
         {
+            previewRenderer = new GpuPreview(engine);
             Dock = DockStyle.Fill;
             BackColor = Color.FromArgb(13, 19, 29);
             surface = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
@@ -85,9 +87,11 @@ namespace ChildSessionDesktop
             {
                 foreach (Slot slot in slots)
                 {
+                    if (capturingPreview) break;
                     if (slot.PreviewAttempts <= 0 || !slot.View.Visible) continue;
                     slot.PreviewAttempts--;
-                    RefreshPreview(slot);
+                    StartPreview(slot);
+                    break;
                 }
                 UpdatePreviewTimer();
             };
@@ -171,7 +175,7 @@ namespace ChildSessionDesktop
                     if (await remote.ConnectAtStartupAsync())
                     {
                         await Task.Delay(250);
-                        if (!IsDisposed && !Disposing && !remote.IsDisposed) RefreshPreview(slot);
+                        if (!IsDisposed && !Disposing && !remote.IsDisposed) StartPreview(slot);
                     }
                     else await Task.Yield();
                 }
@@ -214,6 +218,8 @@ namespace ChildSessionDesktop
         }
 
         internal void QueueLocalPreview() { QueuePreview(local); }
+        internal void QueueSelectedPreview() { QueuePreview(selected); }
+        internal GpuPreview PreviewRenderer { get { return previewRenderer; } }
 
         private void QueuePreview(Slot slot)
         {
@@ -237,7 +243,7 @@ namespace ChildSessionDesktop
         private void Select(Slot slot)
         {
             if (slot == selected) return;
-            RefreshPreview(selected);
+            StartPreview(selected);
             if (right == null) left = slot;
             else if (slot != left && slot != right)
             {
@@ -253,7 +259,7 @@ namespace ChildSessionDesktop
         {
             if (right != null)
             {
-                RefreshPreview(left == selected ? right : left);
+                StartPreview(left == selected ? right : left);
                 left = selected;
                 right = null;
             }
@@ -305,33 +311,48 @@ namespace ChildSessionDesktop
             if (SelectionChanged != null) SelectionChanged();
         }
 
-        private void RefreshPreview(Slot slot)
+        private async void StartPreview(Slot slot)
         {
-            if (slot == null || capturingPreview) return;
+            if (slot == null || capturingPreview || IsDisposed || Disposing) return;
             Bitmap next = null;
             capturingPreview = true;
             try
             {
-                next = SessionThumbnails.Capture(slot.PreviewSurface);
-                if (next == null) return;
-                thumbnails.Save(slot.ThumbnailId, next);
+                using (Bitmap frame = SessionThumbnails.Capture(slot.PreviewSurface))
+                {
+                    if (frame == null) return;
+                    next = await previewRenderer.ResizeAsync(frame);
+                }
+                if (next == null || IsDisposed || Disposing || !slots.Contains(slot)) return;
+                try { thumbnails.Save(slot.ThumbnailId, next); }
+                catch (IOException ex) { Program.Log("Could not save a session preview: " + ex.GetType().Name); }
+                catch (UnauthorizedAccessException ex) { Program.Log("Could not save a session preview: " + ex.GetType().Name); }
+                slot.PreviewAttempts = 0;
+                var old = slot.Preview;
+                slot.Preview = next;
+                next = null;
+                try { RefreshList(); }
+                finally { if (old != null) old.Dispose(); }
             }
             catch (Exception ex)
             {
                 Program.Log("Session preview unavailable: " + ex.GetType().Name);
             }
-            finally { capturingPreview = false; }
-            if (next == null) return;
-            slot.PreviewAttempts = 0;
-            var old = slot.Preview;
-            slot.Preview = next;
-            RefreshList();
-            if (old != null) old.Dispose();
+            finally
+            {
+                if (next != null) next.Dispose();
+                capturingPreview = false;
+                UpdatePreviewTimer();
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && previewTimer != null) previewTimer.Dispose();
+            if (disposing && !IsDisposed)
+            {
+                if (previewTimer != null) previewTimer.Dispose();
+                previewRenderer.Dispose();
+            }
             base.Dispose(disposing);
             if (!disposing) return;
             foreach (Slot slot in slots)

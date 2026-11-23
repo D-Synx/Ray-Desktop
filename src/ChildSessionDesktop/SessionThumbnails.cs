@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -10,7 +9,7 @@ namespace ChildSessionDesktop
 {
     internal sealed class SessionThumbnails : IDisposable
     {
-        internal const int Width = 160, Height = 90;
+        internal const int Width = GpuPreview.OutputWidth, Height = GpuPreview.OutputHeight;
 
         private const uint ClientOnly = 1;
         private const uint RenderFullContent = 2;
@@ -34,29 +33,16 @@ namespace ChildSessionDesktop
                 || surface.Width < 16 || surface.Height < 16 || (long)surface.Width * surface.Height > 36000000) return null;
             var connection = (MSTSCLib.IMsRdpClient9)surface.GetOcxObject();
             if (connection.Connected != 1) return null;
-            using (var full = new Bitmap(surface.Width, surface.Height, PixelFormat.Format24bppRgb))
+            var full = new Bitmap(surface.Width, surface.Height, PixelFormat.Format32bppRgb);
+            try
             {
-                if ((!Render(surface.Handle, full, ClientOnly | RenderFullContent) || !HasVisibleContent(full))
-                    && (!Render(surface.Handle, full, ClientOnly) || !HasVisibleContent(full))) return null;
-                var thumbnail = new Bitmap(Width, Height, PixelFormat.Format24bppRgb);
-                try
-                {
-                    int width, height, x, y;
-                    Geometry.ComputeLetterbox(Width, Height, full.Width, full.Height, out width, out height, out x, out y);
-                    using (Graphics graphics = Graphics.FromImage(thumbnail))
-                    {
-                        graphics.Clear(Color.FromArgb(10, 15, 22));
-                        graphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
-                        graphics.DrawImage(full, x, y, width, height);
-                    }
-                    return thumbnail;
-                }
-                catch
-                {
-                    thumbnail.Dispose();
-                    throw;
-                }
+                if (Render(surface.Handle, full, ClientOnly | RenderFullContent) && HasVisibleContent(full))
+                    return full;
+                if (Render(surface.Handle, full, ClientOnly) && HasVisibleContent(full)) return full;
             }
+            catch { full.Dispose(); throw; }
+            full.Dispose();
+            return null;
         }
 
         private static bool Render(IntPtr window, Bitmap frame, uint flags)

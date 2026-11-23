@@ -8,6 +8,8 @@ RayXDesktop displays a local Windows Child Session in a separate window. The too
 
 [Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0.1 beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0.1)
 
+The **1.6.0 GPU beta** adds experimental hardware scaling of session thumbnails and GPU diagnostics. Windows ActiveX continues to render the live RDP desktops. [Technical notes, Windows build and benchmark protocol](maintenance/GPU.fr.md)
+
 ## Aperçu de la barre · 1.4.6
 
 **Fichiers** et **Reconnecter** sont accessibles directement dans la nouvelle barre.
