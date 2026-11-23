@@ -8,7 +8,7 @@
 
 Maintenu par **D.Synx** · Issu de [Ray Desktop par raydoomed](https://github.com/raydoomed/Ray-Desktop) · [Licence MIT](LICENSE)
 
-[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Builds Windows de la bêta 1.6.0](https://github.com/D-Synx/Ray-Desktop/actions/workflows/ray-gpu-beta.yml?query=branch%3Abeta%2F1.6.0-gpu-vulkan) · [Guide en français](maintenance/README.fr.md)
+[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-X-Desktop/releases/tag/v1.4.6) · [Builds Windows de la bêta 1.6.0](https://github.com/D-Synx/Ray-X-Desktop/actions/workflows/ray-gpu-beta.yml?query=branch%3Abeta%2F1.6.0-gpu-vulkan) · [Guide en français](maintenance/README.fr.md)
 
 La **bêta 1.6.0** ajoute les miniatures accélérées via Direct3D 11 ou Vulkan, le profil **RDP rapide** et des réglages de résolution pour chaque session. La barre latérale donne accès au bureau local et aux connexions RDP enregistrées. Le contrôle RDP de Windows affiche les bureaux en direct. [Notes techniques et protocole de mesure](maintenance/GPU.fr.md)
 
