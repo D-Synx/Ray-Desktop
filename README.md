@@ -1,10 +1,12 @@
-# RayXDesktop
+# RayˣDesktop
+
+![RayˣDesktop, with a blue and gold X against a galaxy](assets/RayXDesktop-banner.jpg)
 
 **Maintained by D.Synx** · Based on [Ray Desktop by raydoomed](https://github.com/raydoomed/Ray-Desktop) · MIT
 
 RayXDesktop displays a local Windows Child Session in a separate window. The toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. It docks automatically when you open the session list. Use the dock button to keep it above the desktop or switch back to the floating toolbar.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0m beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0m)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0n beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0n)
 
 ## Aperçu de la barre · 1.4.6
 

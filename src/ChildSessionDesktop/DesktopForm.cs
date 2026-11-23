@@ -49,7 +49,7 @@ namespace ChildSessionDesktop
         private int _maxSessW, _maxSessH;
         private Size _fixedMatchClient = Size.Empty;
         private FormBorderStyle prevBorder;
-        private readonly string applicationTitle = "RayXDesktop " + Application.ProductVersion;
+        private readonly string applicationTitle = Application.ProductName + " " + Application.ProductVersion;
         private ToolbarControl toolBar;
         private bool floatingWithSidebar;
         private ContextMenuStrip _displayMenu, _moreMenu, _resMenu;
@@ -111,7 +111,15 @@ namespace ChildSessionDesktop
             Text = applicationTitle;
             BackColor = Color.Black;
             StartPosition = FormStartPosition.CenterScreen;
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            using (Stream iconStream = typeof(DesktopForm).Assembly.GetManifestResourceStream("RayXDesktop.InterfaceIcon"))
+            {
+                if (iconStream != null)
+                {
+                    var interfaceIcon = new Icon(iconStream);
+                    Icon = interfaceIcon;
+                    Disposed += delegate { interfaceIcon.Dispose(); };
+                }
+            }
 
             int screenW = Screen.PrimaryScreen.Bounds.Width;
             int screenH = Screen.PrimaryScreen.Bounds.Height;
@@ -605,8 +613,43 @@ namespace ChildSessionDesktop
 
         private void AboutBox()
         {
-            MessageBox.Show(this, Strings.T("about_body", Application.ProductVersion), Strings.T("menu_about"),
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            using (Stream stream = typeof(DesktopForm).Assembly.GetManifestResourceStream("RayXDesktop.Banner"))
+            using (Image banner = stream == null ? null : Image.FromStream(stream))
+            using (var dialog = new Form
+            {
+                Text = applicationTitle, Icon = this.Icon, ShowInTaskbar = false,
+                StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false, ClientSize = new Size(480, banner == null ? 154 : 314),
+                AutoScaleDimensions = new SizeF(96, 96), AutoScaleMode = AutoScaleMode.Dpi,
+                BackColor = Color.FromArgb(20, 30, 43), ForeColor = Color.WhiteSmoke
+            })
+            {
+                var body = new Label
+                {
+                    Text = Strings.T("about_body"), TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new Padding(16, 8, 16, 8), Dock = DockStyle.Fill
+                };
+                var dismiss = new Button
+                {
+                    Text = "OK", DialogResult = DialogResult.OK, AutoSize = true,
+                    FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 0, 12, 8)
+                };
+                var actions = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft
+                };
+                actions.Controls.Add(dismiss);
+                dialog.AcceptButton = dialog.CancelButton = dismiss;
+                dialog.Controls.Add(body);
+                dialog.Controls.Add(actions);
+                if (banner != null)
+                    dialog.Controls.Add(new PictureBox
+                    {
+                        Image = banner, SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Top, Height = 160,
+                        AccessibleName = Application.ProductName
+                    });
+                dialog.ShowDialog(this);
+            }
         }
 
         private bool ToggleFullscreen()

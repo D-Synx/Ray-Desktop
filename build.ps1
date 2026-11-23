@@ -48,15 +48,18 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\TooltipForm.cs')
 )
 $childManifest = Join-Path $PSScriptRoot 'src\ChildSessionDesktop\app.manifest'
-$icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
+$executableIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_executable.ico'
+$interfaceIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_interface.ico'
+$banner = Join-Path $PSScriptRoot 'assets\RayXDesktop-banner.jpg'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.5.0.9'
-$productVersion = '1.5.0m'
+$version = '1.5.0.10'
+$productVersion = '1.5.0n'
+$productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"$productName`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"$productName`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
     [Text.Encoding]::UTF8)
 $childSources = @($childSources) + @($childAssemblyInfo)
 # setup binary gets the same injected version (P1-9-2 version check as unsigned-helper fallback)
@@ -128,7 +131,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "RDP ActiveX wrapper generation failed with exit code $LASTEXITCODE" }
 
     $childReferences = $references + @(("/r:{0}" -f $interop), ("/r:{0}" -f $axInterop))
-    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) ("/win32icon:{0}" -f $icon) ("/win32manifest:{0}" -f $childManifest) @childReferences @childSources
+    $childResources = @(
+        ("/win32icon:{0}" -f $executableIcon),
+        ("/resource:{0},RayXDesktop.InterfaceIcon,private" -f $interfaceIcon),
+        ("/resource:{0},RayXDesktop.Banner,private" -f $banner),
+        ("/win32manifest:{0}" -f $childManifest)
+    )
+    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) @childResources @childReferences @childSources
     if ($LASTEXITCODE -ne 0) { throw "Child-session GUI build failed with exit code $LASTEXITCODE" }
 
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $graphicsPolicySource $setupAssemblyInfo

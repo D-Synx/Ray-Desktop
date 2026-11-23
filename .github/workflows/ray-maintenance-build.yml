@@ -6,7 +6,7 @@ on:
   push:
     branches: [ray-desktop-maintenance]
     paths:
-      - maintenance/releases/1.5.0m.md
+      - maintenance/releases/1.5.0n.md
 
 permissions:
   contents: read
@@ -22,6 +22,29 @@ jobs:
       - name: Test and package
         shell: powershell
         run: .\maintenance\build-portable.ps1
+      - name: Verify the packaged visual identity
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $path = (Resolve-Path .\Raydesktop\RayXDesktop.exe).Path
+          $expected = 'Ray' + [char]0x02E3 + 'Desktop'
+          $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($path)
+          if ($version.ProductName -cne $expected) { throw 'Unexpected executable product name.' }
+          $assembly = [Reflection.Assembly]::LoadFile($path)
+          $iconStream = $assembly.GetManifestResourceStream('RayXDesktop.InterfaceIcon')
+          $bannerStream = $assembly.GetManifestResourceStream('RayXDesktop.Banner')
+          if ($null -eq $iconStream -or $null -eq $bannerStream) { throw 'Embedded brand assets are missing.' }
+          $icon = [Drawing.Icon]::new($iconStream, 32, 32)
+          $banner = [Drawing.Image]::FromStream($bannerStream)
+          try {
+            if ($icon.Width -ne 32 -or $banner.Width -ne 3 * $banner.Height) { throw 'Invalid brand asset dimensions.' }
+          } finally {
+            $banner.Dispose()
+            $icon.Dispose()
+            $bannerStream.Dispose()
+            $iconStream.Dispose()
+          }
+          Write-Host 'Verified the RayXDesktop product name, interface icon, and banner.'
       - uses: actions/upload-artifact@v4
         with:
           name: RayXDesktop-Windows
@@ -47,5 +70,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.5.0m .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayXDesktop 1.5.0m bêta" --notes-file .\maintenance\releases\1.5.0m.md
-          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0m beta.' }
+          gh release create v1.5.0n .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayˣDesktop 1.5.0n bêta" --notes-file .\maintenance\releases\1.5.0n.md
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0n beta.' }
