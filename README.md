@@ -1,42 +1,22 @@
-## RayXDesktop 1.4.6
+# RayXDesktop
 
-La version maintenue par **D.Synx** affiche une nouvelle barre flottante. **Fichiers** et **Reconnecter** sont accessibles directement.
+<p align="center">
+  <img src="assets/RayXDesktop-banner.jpg" width="960" alt="RayXDesktop, avec un X bleu et doré sur fond de galaxie">
+</p>
+
+**Un bureau Windows dans une fenêtre dédiée.** Ouvre une session secondaire depuis ton bureau Windows.
+
+Maintenu par **D.Synx** · Issu de [Ray Desktop par raydoomed](https://github.com/raydoomed/Ray-Desktop) · [Licence MIT](LICENSE)
+
+[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Découvrir la bêta 1.6.0](https://github.com/D-Synx/Ray-Desktop/tree/beta/1.6.0-gpu-vulkan#readme) · [Lire le guide en français](https://github.com/D-Synx/Ray-Desktop/blob/beta/1.6.0-gpu-vulkan/maintenance/README.fr.md)
+
+## Aperçu de l’interface · version 1.4.6
 
 ![RayXDesktop 1.4.6 — nouvelle barre avec Affichage, Résolution, Fichiers et Reconnecter](assets/RayXDesktop-1.4.6.webp)
 
-[Télécharger la version Windows 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Lire le guide RayXDesktop](https://github.com/D-Synx/Ray-Desktop/tree/ray-desktop-maintenance#readme)
+## Documentation du projet d’origine
 
----
-
-<p align="center">
-  <img src="assets/RayDesktop-preview.png" width="520" alt="Ray Desktop">
-</p>
-
-<h1 align="center">Ray Desktop · A Separate Windows Desktop</h1>
-
-<p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a>
-</p>
-
-<p align="center">
-  <b>Use a separate window to operate another desktop session within your current signed-in Windows, without touching the main desktop.</b>
-</p>
-
-<p align="center">
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#how-it-works">How It Works</a> ·
-  <a href="#build">Build</a> ·
-  <a href="#known-limitations">Known Limitations</a> ·
-  <a href="#license">License</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows%2011-blue" alt="Platform">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
-  <img src="https://img.shields.io/badge/.NET-Framework%204.8-informational" alt=".NET">
-</p>
-
----
+Les sections ci-dessous décrivent le code Ray Desktop de cette branche. Le guide de la bêta couvre les sessions RDP, les profils graphiques et les réglages les plus récents.
 
 **Ray Desktop** is a Windows desktop application: the host program displays the current Windows user's **Child Session** desktop inside a normal window. While you continue using your main desktop normally, it gives you a separate window to operate another desktop session.
 
@@ -108,7 +88,7 @@ The core mechanism is the **Windows 11 native Child Session feature**: the same 
 .
 ├─ assets/                                 # Resource files
 │  ├─ RayDesktop.ico                       # Program icon
-│  ├─ RayDesktop-preview.png               # Brand lockup at the top of the README
+│  ├─ RayXDesktop-banner.jpg               # RayXDesktop banner
 │  └─ screenshot-v1.1.0.jpg                # UI preview image
 ├─ build.ps1                               # Windows local build script
 ├─ LICENSE                                 # MIT license
