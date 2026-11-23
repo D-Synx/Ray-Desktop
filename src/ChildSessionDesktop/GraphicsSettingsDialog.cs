@@ -14,7 +14,7 @@ namespace ChildSessionDesktop
     {
         private static readonly string[] Labels = { "graphics_gpu_label", "graphics_encoder_label", "graphics_codec_label" };
 
-        internal static void Show(IWin32Window owner, bool fluid, int width, int height)
+        internal static void Show(IWin32Window owner, RdpPerformanceProfile profile, int width, int height)
         {
             using (var form = new Form
             {
@@ -96,7 +96,7 @@ namespace ChildSessionDesktop
 
                 layout.Controls.Add(MakeLabel(Strings.T("graphics_host_named", Environment.MachineName)));
                 layout.Controls.Add(MakeLabel(Strings.T("graphics_current",
-                    Strings.T(fluid ? "graphics_fluid" : "graphics_default"), width, height)));
+                    GraphicsOptions.ProfileLabel(profile), width, height)));
                 layout.Controls.Add(table);
                 layout.Controls.Add(note);
                 layout.Controls.Add(MakeLabel(Strings.T("graphics_switch_hint")));

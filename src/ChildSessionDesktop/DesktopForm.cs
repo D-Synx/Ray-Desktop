@@ -105,7 +105,6 @@ namespace ChildSessionDesktop
         {
             dynamicMode = dynamicMode || preferences.DynamicDisplay;
             this.dynamicMode = dynamicMode;
-            fluidGraphics = preferences.FluidGraphics;
             connectionAccount = account;
             connectionPassword = password;
             Text = applicationTitle;
@@ -484,6 +483,12 @@ namespace ChildSessionDesktop
                 if (sw <= 0 || sh <= 0) { sw = 1280; sh = 720; }
                 int fw = (_fixedSessW > 0 && _fixedSessH > 0) ? _fixedSessW : sw;
                 int fh = (_fixedSessW > 0 && _fixedSessH > 0) ? _fixedSessH : sh;
+                if (localPerformance == RdpPerformanceProfile.Fast)
+                {
+                    Size limited = GraphicsOptions.LimitFastSize(fw, fh);
+                    fw = limited.Width;
+                    fh = limited.Height;
+                }
                 fw &= ~1;
                 try
                 {
@@ -533,6 +538,11 @@ namespace ChildSessionDesktop
         {
             try
             {
+                if (localPerformance == RdpPerformanceProfile.Fast)
+                {
+                    lastRequestedDisplaySize = GraphicsOptions.LimitFastSize(rdp.Parent.ClientSize.Width, rdp.Parent.ClientSize.Height);
+                    return;
+                }
                 int w = Math.Max(200, Math.Min(8192, ClientSize.Width));
                 int h = Math.Max(200, Math.Min(8192, ClientSize.Height));
                 lastRequestedDisplaySize = new Size(w & ~1, h);
@@ -848,6 +858,12 @@ namespace ChildSessionDesktop
             int w = pickW, h = pickH;
             if (w == 0) { w = sw; h = sh; }
             if (w <= 0 || h <= 0) return;
+            if (localPerformance == RdpPerformanceProfile.Fast)
+            {
+                Size limited = GraphicsOptions.LimitFastSize(w, h);
+                w = limited.Width;
+                h = limited.Height;
+            }
             w &= ~1;
 
             var result = MessageBox.Show(this,
@@ -863,6 +879,12 @@ namespace ChildSessionDesktop
         {
             try
             {
+                if (localPerformance == RdpPerformanceProfile.Fast)
+                {
+                    Size limited = GraphicsOptions.LimitFastSize(w, h);
+                    w = limited.Width;
+                    h = limited.Height;
+                }
                 var client = (IMsRdpClient9)rdp.GetOcxObject();
                 if (client.Connected != 1)
                 {
@@ -1043,18 +1065,31 @@ namespace ChildSessionDesktop
                     Program.Log("Explicit credentials supplied to the RDP control");
                 }
                 Program.Log("Server set");
-                if (!dynamicMode)
+                RdpPerformanceProfile requestedPerformance = preferences.RdpPerformance;
+                if (requestedPerformance == RdpPerformanceProfile.Fast && localPerformance != RdpPerformanceProfile.Fast)
+                    localSizeBeforeFast = new Size(currentSessW, currentSessH);
+                Size preferred = localSizeBeforeFast ?? new Size(currentSessW, currentSessH);
+                if (requestedPerformance != RdpPerformanceProfile.Fast) localSizeBeforeFast = null;
+                localPerformance = requestedPerformance;
+                if (!dynamicMode || localPerformance == RdpPerformanceProfile.Fast)
                 {
-                    int sw = (currentSessW > 0 && currentSessH > 0) ? currentSessW : Screen.PrimaryScreen.Bounds.Width;
-                    int sh = (currentSessW > 0 && currentSessH > 0) ? currentSessH : Screen.PrimaryScreen.Bounds.Height;
+                    if (dynamicMode) preferred = rdp.Parent.ClientSize;
+                    int sw = preferred.Width;
+                    int sh = preferred.Height;
                     if (sw <= 0 || sh <= 0) { sw = 1280; sh = 720; }
-                    if (fluidGraphics) { sw = Math.Min(sw, 1600); sh = Math.Min(sh, 900); }
+                    if (localPerformance == RdpPerformanceProfile.Fluid) { sw = Math.Min(sw, 1600); sh = Math.Min(sh, 900); }
+                    if (localPerformance == RdpPerformanceProfile.Fast)
+                    {
+                        Size limited = GraphicsOptions.LimitFastSize(sw, sh);
+                        sw = limited.Width;
+                        sh = limited.Height;
+                    }
                     sw &= ~1;
                     sh &= ~1;
                     client.DesktopWidth = sw;
                     client.DesktopHeight = sh;
                     SetSessionResolution(sw, sh);
-                    Program.Log("Requesting child-session desktop at " + sw + "x" + sh + " from the start (fixed)");
+                    Program.Log("Requesting child-session desktop at " + sw + "x" + sh + " from the start");
                 }
                 var extended = (IMsRdpExtendedSettings)ocx;
                 Program.Log("QI IMsRdpExtendedSettings succeeded");
@@ -1063,9 +1098,8 @@ namespace ChildSessionDesktop
                 Program.Log("ConnectToChildSession set true");
                 client.AdvancedSettings9.EnableCredSspSupport = true;
                 client.AdvancedSettings9.SmartSizing = true;
-                localFluidGraphics = fluidGraphics;
-                client.AdvancedSettings9.PerformanceFlags = localFluidGraphics ? GraphicsOptions.FluidPerformanceFlags : defaultPerformanceFlags;
-                Program.Log("RDP performance profile: " + (fluidGraphics ? "fluid" : "default"));
+                client.AdvancedSettings9.PerformanceFlags = GraphicsOptions.PerformanceFlags(localPerformance, defaultPerformanceFlags);
+                Program.Log("RDP performance profile: " + localPerformance);
                 client.AdvancedSettings9.RedirectClipboard = WantsLocalRdpClipboard;
                 localRdpClipboardActive = WantsLocalRdpClipboard;
                 client.AdvancedSettings9.RedirectDrives = true;
@@ -1385,8 +1419,9 @@ namespace ChildSessionDesktop
 
         private void ApplyDisplaySize()
         {
-            if (closing || rdp.IsDisposed || !rdp.IsHandleCreated) return;
+            if (closing || rdp.IsDisposed || !rdp.IsHandleCreated || rdp.Parent == null) return;
             if (!dynamicMode) return;
+            Size requested = LocalDynamicDisplaySize(rdp.Parent.ClientSize);
             try
             {
                 var client = (IMsRdpClient9)rdp.GetOcxObject();
@@ -1400,11 +1435,8 @@ namespace ChildSessionDesktop
                     return;
                 }
 
-                int width = Math.Max(200, Math.Min(localFluidGraphics ? 1600 : 8192, rdp.Parent.ClientSize.Width));
-                int height = Math.Max(200, Math.Min(localFluidGraphics ? 900 : 8192, rdp.Parent.ClientSize.Height));
-                width &= ~1; // RDP display-control requires an even pixel width.
-                var requested = new Size(width, height);
                 if (requested == lastRequestedDisplaySize) return;
+                int width = requested.Width, height = requested.Height;
 
                 float dpiX;
                 float dpiY;
@@ -1427,8 +1459,6 @@ namespace ChildSessionDesktop
             }
             catch (Exception ex)
             {
-                var requested = new Size(Math.Max(200, Math.Min(localFluidGraphics ? 1600 : 8192, rdp.Parent.ClientSize.Width)) & ~1,
-                    Math.Max(200, Math.Min(localFluidGraphics ? 900 : 8192, rdp.Parent.ClientSize.Height)));
                 if (requested != lastFailedDisplaySize)
                 {
                     lastFailedDisplaySize = requested;
@@ -1442,6 +1472,15 @@ namespace ChildSessionDesktop
                 Program.Log("Dynamic display resize failed for " + requested.Width + "x" + requested.Height +
                     "; retrying in " + retryDelay + " ms: " + ex.GetBaseException().Message);
             }
+        }
+
+        private Size LocalDynamicDisplaySize(Size viewport)
+        {
+            if (localPerformance == RdpPerformanceProfile.Fast)
+                return GraphicsOptions.LimitFastSize(viewport.Width, viewport.Height);
+            bool fluid = localPerformance == RdpPerformanceProfile.Fluid;
+            return new Size(Math.Max(200, Math.Min(fluid ? 1600 : 8192, viewport.Width)) & ~1,
+                Math.Max(200, Math.Min(fluid ? 900 : 8192, viewport.Height)));
         }
 
         private static void DisposeTimer(ref Timer timer)

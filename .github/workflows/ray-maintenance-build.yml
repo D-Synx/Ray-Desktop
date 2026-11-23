@@ -39,7 +39,7 @@ jobs:
           if (Compare-Object $expectedFiles $files) { throw 'Unexpected files in the portable ZIP.' }
           $path = Join-Path $extracted 'RayXDesktop.exe'
           $expected = 'Ray' + [char]0x02E3 + 'Desktop'
-          $expectedVersion = '1.6.0-beta'
+          $expectedVersion = '1.6.0-beta.2'
           foreach ($name in @('RayXDesktop.exe', 'EnableChildSessions.exe')) {
             $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $extracted $name))
             if ($metadata.ProductName -cne $expected -or $metadata.ProductVersion -cne $expectedVersion) {

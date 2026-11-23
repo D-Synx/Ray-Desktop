@@ -14,7 +14,9 @@ namespace ChildSessionDesktop
     {
         private readonly SessionWorkspace sessions;
         private Timer disconnectTimer;
-        private bool explicitlyDisconnected, fluidGraphics, localFluidGraphics, hasDefaultPerformanceFlags;
+        private bool explicitlyDisconnected, hasDefaultPerformanceFlags;
+        private RdpPerformanceProfile localPerformance;
+        private Size? localSizeBeforeFast;
         private int defaultPerformanceFlags;
         private bool addingRemote;
 
@@ -68,17 +70,26 @@ namespace ChildSessionDesktop
                     sessions.CloseSelectedView();
                 }
             };
-            var fluid = new ToolStripMenuItem(Strings.T("graphics_fluid")) { Checked = fluidGraphics };
-            fluid.Click += delegate
+            var performance = new ToolStripMenuItem(Strings.T("rdp_performance_title"));
+            foreach (RdpPerformanceProfile profile in Enum.GetValues(typeof(RdpPerformanceProfile)))
             {
-                fluidGraphics = !fluidGraphics;
-                SavePreferences(preferences.SetFluidGraphics(fluidGraphics));
-                MessageBox.Show(this, Strings.T("graphics_applied_on_connect"), Strings.T("graphics_title"));
-            };
-            menu.Items.Add(fluid);
+                RdpPerformanceProfile selectedProfile = profile;
+                var option = new ToolStripMenuItem(GraphicsOptions.ProfileLabel(selectedProfile))
+                {
+                    Checked = preferences.RdpPerformance == selectedProfile
+                };
+                option.Click += delegate
+                {
+                    if (preferences.RdpPerformance == selectedProfile) return;
+                    SavePreferences(preferences.SetRdpPerformance(selectedProfile));
+                    MessageBox.Show(this, Strings.T("graphics_applied_on_connect"), Strings.T("rdp_performance_title"));
+                };
+                performance.DropDownItems.Add(option);
+            }
+            menu.Items.Add(performance);
             menu.Items.Add(Strings.T("graphics_title")).Click += delegate
             {
-                GraphicsSettingsDialog.Show(this, fluidGraphics, currentSessW, currentSessH);
+                GraphicsSettingsDialog.Show(this, preferences.RdpPerformance, currentSessW, currentSessH);
             };
             RemoteDesktop remote = sessions.SelectedRemote;
             if (remote != null)
@@ -257,7 +268,7 @@ namespace ChildSessionDesktop
             var startup = new List<RemoteDesktop>();
             foreach (SavedSession saved in preferences.SavedSessions)
             {
-                var remote = new RemoteDesktop(saved.Endpoint, saved.Account, fluidGraphics, preferences);
+                var remote = new RemoteDesktop(saved.Endpoint, saved.Account, preferences);
                 remote.ShareClipboard = saved.ShareClipboard;
                 sessions.AddRemote(remote, false);
                 if (preferences.ReconnectAllAtStartup || saved.ReconnectAtStartup) startup.Add(remote);
@@ -297,7 +308,7 @@ namespace ChildSessionDesktop
                     password = null;
                     return;
                 }
-                var remote = new RemoteDesktop(endpoint, account, fluidGraphics, preferences);
+                var remote = new RemoteDesktop(endpoint, account, preferences);
                 SavePreferences(preferences.SetSession(endpoint, account, remote.ShareClipboard));
                 sessions.AddRemote(remote);
                 try { remote.Connect(password, rememberPassword: rememberPassword); }

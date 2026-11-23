@@ -59,7 +59,7 @@ namespace ChildSessionDesktop
         }
 
         internal bool LogEdgeEnabled { get; private set; }
-        internal bool FluidGraphics { get; private set; }
+        internal RdpPerformanceProfile RdpPerformance { get; private set; }
         internal bool DynamicDisplay { get; private set; }
         internal bool ToolbarPinned { get; private set; }
         internal PreviewEngine ThumbnailEngine { get; private set; }
@@ -99,9 +99,9 @@ namespace ChildSessionDesktop
             return Save();
         }
 
-        internal bool SetFluidGraphics(bool enabled)
+        internal bool SetRdpPerformance(RdpPerformanceProfile profile)
         {
-            FluidGraphics = enabled;
+            RdpPerformance = profile;
             return Save();
         }
 
@@ -247,6 +247,8 @@ namespace ChildSessionDesktop
         {
             var records = new SortedDictionary<int, Dictionary<string, string>>();
             string section = "";
+            bool legacyFluid = false;
+            RdpPerformanceProfile? performance = null;
             foreach (string raw in lines)
             {
                 string line = raw.Trim();
@@ -264,7 +266,12 @@ namespace ChildSessionDesktop
                 if (string.Equals(section, "General", StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.Equals(key, "ShowLogEdge", StringComparison.OrdinalIgnoreCase)) LogEdgeEnabled = value != "0";
-                    else if (string.Equals(key, "FluidGraphics", StringComparison.OrdinalIgnoreCase)) FluidGraphics = value == "1";
+                    else if (string.Equals(key, "FluidGraphics", StringComparison.OrdinalIgnoreCase)) legacyFluid = value == "1";
+                    else if (string.Equals(key, "RdpPerformance", StringComparison.OrdinalIgnoreCase))
+                    {
+                        RdpPerformanceProfile parsed;
+                        if (Enum.TryParse(value, out parsed) && parsed.ToString() == value) performance = parsed;
+                    }
                     else if (string.Equals(key, "DynamicDisplay", StringComparison.OrdinalIgnoreCase)) DynamicDisplay = value == "1";
                     else if (string.Equals(key, "PinToolbar", StringComparison.OrdinalIgnoreCase)) ToolbarPinned = value == "1";
                     else if (string.Equals(key, "ThumbnailEngine", StringComparison.OrdinalIgnoreCase)) ThumbnailEngine = GpuPreview.ParseEngine(value);
@@ -295,6 +302,7 @@ namespace ChildSessionDesktop
                 }
             }
 
+            RdpPerformance = performance ?? (legacyFluid ? RdpPerformanceProfile.Fluid : RdpPerformanceProfile.Standard);
             foreach (var record in records.Values)
             {
                 string address, account, clipboard;
@@ -354,7 +362,8 @@ namespace ChildSessionDesktop
                 {
                     writer.WriteLine("[General]");
                     writer.WriteLine("ShowLogEdge=" + (LogEdgeEnabled ? "1" : "0"));
-                    writer.WriteLine("FluidGraphics=" + (FluidGraphics ? "1" : "0"));
+                    writer.WriteLine("RdpPerformance=" + RdpPerformance);
+                    writer.WriteLine("FluidGraphics=" + (RdpPerformance == RdpPerformanceProfile.Standard ? "0" : "1"));
                     writer.WriteLine("DynamicDisplay=" + (DynamicDisplay ? "1" : "0"));
                     writer.WriteLine("PinToolbar=" + (ToolbarPinned ? "1" : "0"));
                     writer.WriteLine("ThumbnailEngine=" + ThumbnailEngine);

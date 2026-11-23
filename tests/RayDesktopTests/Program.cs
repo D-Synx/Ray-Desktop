@@ -349,6 +349,15 @@ namespace RayDesktopTests
             Check(Geometry.RemoteDisplaySize(3440, 1440, false) == new Size(2560, 1440), "large remote viewport has a resolution cap");
             Check(Geometry.RemoteDisplaySize(3440, 1440, true) == new Size(1600, 900), "smooth profile caps remote resolution");
             Check(Geometry.RemoteDisplaySize(459, 320, false) == new Size(640, 480), "small remote viewport keeps usable remote resolution");
+            Check(GraphicsOptions.LimitFastSize(1920, 1080) == new Size(1280, 720), "fast RDP caps full HD at 720p");
+            Size wide = GraphicsOptions.LimitFastSize(3440, 1440);
+            Check(wide.Width <= 1280 && wide.Width >= 1278 && wide.Height >= 532 && wide.Height <= 536,
+                "fast RDP approximately preserves the ultrawide aspect ratio");
+            Check(GraphicsOptions.LimitFastSize(400, 300) == new Size(400, 300) &&
+                GraphicsOptions.LimitFastSize(1, 1) == new Size(200, 200), "fast RDP keeps valid small sizes without upscaling");
+            Check(GraphicsOptions.PerformanceFlags(RdpPerformanceProfile.Standard, 0x580) == 0x580 &&
+                GraphicsOptions.PerformanceFlags(RdpPerformanceProfile.Fast, 0x580) == 0x42F,
+                "fast RDP disables extra visual effects while preserving unrelated flags");
         }
 
         private static void TestGraphicsAndRdpDiagnostics()
@@ -400,7 +409,7 @@ namespace RayDesktopTests
                 Check(preferences.SetToolbarPinned(false) && !new DesktopPreferences(path).ToolbarPinned,
                     "unpinning the toolbar clears the saved choice");
                 Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&
-                    preferences.SetFluidGraphics(true) && preferences.SetDynamicDisplay(true),
+                    preferences.SetRdpPerformance(RdpPerformanceProfile.Fluid) && preferences.SetDynamicDisplay(true),
                     "save all view settings and the per-address mode in data.ini");
                 Check(preferences.SetSession(host, @"DOM\Élodie", true) &&
                     preferences.SetSession(sameHost, @"dom\élodie", false) && preferences.SetSession(otherPort, @"DOM\Second", true),
@@ -408,8 +417,15 @@ namespace RayDesktopTests
                 var reopened = new DesktopPreferences(path);
                 var profiles = new System.Collections.Generic.List<SavedSession>(reopened.SavedSessions);
                 Check(reopened.UsesCertificateWarning(sameHost) && !reopened.UsesCertificateWarning(otherPort) &&
-                    !reopened.LogEdgeEnabled && reopened.FluidGraphics && reopened.DynamicDisplay,
+                    !reopened.LogEdgeEnabled && reopened.RdpPerformance == RdpPerformanceProfile.Fluid && reopened.DynamicDisplay,
                     "stored choices survive reopening and are scoped to the address and port");
+                Check(reopened.SetRdpPerformance(RdpPerformanceProfile.Fast) &&
+                    new DesktopPreferences(path).RdpPerformance == RdpPerformanceProfile.Fast,
+                    "the fast RDP profile survives reopening");
+                string legacy = Path.Combine(folder, "legacy.ini");
+                File.WriteAllText(legacy, "[General]\r\nRdpPerformance=invalid\r\nFluidGraphics=1\r\n");
+                Check(new DesktopPreferences(legacy).RdpPerformance == RdpPerformanceProfile.Fluid,
+                    "old FluidGraphics settings are migrated when the new profile is absent or invalid");
                 Check(profiles.Count == 2 && profiles[0].Account == @"dom\élodie" && !profiles[0].ShareClipboard &&
                     profiles[1].Endpoint.Port == 3390 && profiles[1].ShareClipboard, "saved sessions retain order, account, port and clipboard preference");
                 Check(reopened.SetFileTransfer(true, false) && reopened.SetLocalRdpClipboard(true), "save outbound files and the local clipboard independently");

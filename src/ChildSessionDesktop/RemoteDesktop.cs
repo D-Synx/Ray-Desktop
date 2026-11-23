@@ -17,7 +17,9 @@ namespace ChildSessionDesktop
         private readonly Label statusLine, messagePane;
         private readonly Button retryCertificateButton;
         private readonly Timer timer, signInTimer, displayTimer;
-        private readonly bool fluid;
+        private RdpPerformanceProfile activePerformance;
+        private int? defaultPerformanceFlags;
+        private bool? priorBandwidthDetection;
         private readonly DesktopPreferences preferences;
         private bool reconnect, explicitDisconnect, connectQueued;
         private int connectionRequest;
@@ -55,13 +57,12 @@ namespace ChildSessionDesktop
         internal event Action StatusChanged;
         internal event Action DesktopOpened;
 
-        internal RemoteDesktop(RdpEndpoint endpoint, string account, bool fluid, DesktopPreferences preferences)
+        internal RemoteDesktop(RdpEndpoint endpoint, string account, DesktopPreferences preferences)
         {
             Endpoint = endpoint;
             Account = account;
             this.preferences = preferences;
             ShareClipboard = true;
-            this.fluid = fluid;
             Dock = DockStyle.Fill;
             BackColor = Color.FromArgb(13, 19, 29);
             viewport = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
@@ -242,6 +243,7 @@ namespace ChildSessionDesktop
                 int separator = Account.IndexOf('\\');
                 client.Domain = separator < 0 ? "" : Account.Substring(0, separator);
                 client.UserName = separator < 0 ? Account : Account.Substring(separator + 1);
+                activePerformance = preferences.RdpPerformance;
                 Size size = PreferredDisplaySize();
                 client.DesktopWidth = size.Width;
                 client.DesktopHeight = size.Height;
@@ -255,7 +257,9 @@ namespace ChildSessionDesktop
                     : MaintenanceProfile.RequireServerAuthentication;
                 settings.RDPPort = Endpoint.Port;
                 settings.SmartSizing = true;
-                if (fluid) settings.PerformanceFlags = GraphicsOptions.FluidPerformanceFlags;
+                if (!defaultPerformanceFlags.HasValue) defaultPerformanceFlags = settings.PerformanceFlags;
+                settings.PerformanceFlags = GraphicsOptions.PerformanceFlags(activePerformance, defaultPerformanceFlags.Value);
+                ConfigureBandwidthDetection(settings);
                 settings.RedirectClipboard = ShareClipboard;
                 settings.RedirectDrives = false;
                 var credentials = (IMsTscNonScriptable)ocx;
@@ -284,7 +288,8 @@ namespace ChildSessionDesktop
                 lastDisplaySize = Size.Empty;
                 signInTimer.Start();
                 Program.Log("Remote RDP " + Endpoint.Display + " starting at " + size.Width + "x" + size.Height +
-                    "; RedirectClipboard=" + settings.RedirectClipboard + "; AuthenticationLevel=" + settings.AuthenticationLevel);
+                    "; RDP profile=" + activePerformance + "; RedirectClipboard=" + settings.RedirectClipboard +
+                    "; AuthenticationLevel=" + settings.AuthenticationLevel);
                 if (!unattended) view.Select();
                 ((IMsTscAx)ocx).Connect();
             }
@@ -471,9 +476,32 @@ namespace ChildSessionDesktop
             }
         }
 
+        private void ConfigureBandwidthDetection(IMsRdpClientAdvancedSettings8 settings)
+        {
+            try
+            {
+                if (activePerformance == RdpPerformanceProfile.Fast)
+                {
+                    if (!priorBandwidthDetection.HasValue) priorBandwidthDetection = settings.BandwidthDetection;
+                    settings.BandwidthDetection = true;
+                }
+                else if (priorBandwidthDetection.HasValue)
+                {
+                    settings.BandwidthDetection = priorBandwidthDetection.Value;
+                    priorBandwidthDetection = null;
+                }
+            }
+            catch (COMException ex)
+            {
+                Program.Log("RDP bandwidth detection setting unavailable: 0x" + ex.HResult.ToString("X8"));
+            }
+        }
+
         private Size PreferredDisplaySize()
         {
-            return Geometry.RemoteDisplaySize(viewport.ClientSize.Width, viewport.ClientSize.Height, fluid);
+            if (activePerformance == RdpPerformanceProfile.Fast)
+                return GraphicsOptions.LimitFastSize(Math.Max(640, viewport.ClientSize.Width), Math.Max(480, viewport.ClientSize.Height));
+            return Geometry.RemoteDisplaySize(viewport.ClientSize.Width, viewport.ClientSize.Height, activePerformance == RdpPerformanceProfile.Fluid);
         }
 
         private void QueueDisplayUpdate()

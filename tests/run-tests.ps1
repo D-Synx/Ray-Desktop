@@ -23,6 +23,7 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\Shared\RdpGraphicsPolicies.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\GraphicsOptions.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')
 )
