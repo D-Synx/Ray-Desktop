@@ -155,12 +155,12 @@ namespace ChildSessionDesktop
             Select(slot);
         }
 
-        internal async Task ReconnectAtStartupAsync(IEnumerable<RemoteDesktop> remotes)
+        internal async Task<bool> ReconnectAtStartupAsync(IEnumerable<RemoteDesktop> remotes)
         {
             int initialSelection = userSelection;
             foreach (RemoteDesktop remote in remotes)
             {
-                if (IsDisposed || Disposing) return;
+                if (IsDisposed || Disposing) return false;
                 Slot slot = slots.Find(item => item.Remote == remote);
                 if (slot == null) continue;
 
@@ -182,11 +182,10 @@ namespace ChildSessionDesktop
                 }
             }
 
-            if (!IsDisposed && userSelection == initialSelection && selected == local)
-            {
-                Slot ready = slots.Find(slot => slot.Remote != null && slot.Remote.IsReady);
-                if (ready != null) Select(ready);
-            }
+            if (IsDisposed || Disposing) return false;
+            Slot ready = slots.Find(slot => slot.Remote != null && slot.Remote.IsReady);
+            if (ready != null && userSelection == initialSelection && selected == local) Select(ready);
+            return ready != null;
         }
 
         internal void CloseSelectedView()

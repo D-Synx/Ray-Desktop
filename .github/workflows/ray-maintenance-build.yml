@@ -6,7 +6,7 @@ on:
   push:
     branches: [ray-desktop-maintenance]
     paths:
-      - maintenance/releases/1.5.0n.md
+      - maintenance/releases/1.5.0.1.md
 
 permissions:
   contents: read
@@ -22,14 +22,30 @@ jobs:
       - name: Test and package
         shell: powershell
         run: .\maintenance\build-portable.ps1
-      - name: Verify the packaged visual identity
+      - name: Verify the portable ZIP and visual identity
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Drawing
-          $path = (Resolve-Path .\Raydesktop\RayXDesktop.exe).Path
+          $archive = (Resolve-Path .\RayXDesktop-Windows.zip).Path
+          $digest = (Get-Content -LiteralPath "$archive.sha256" -Raw).Trim().Split(' ')[0]
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $digest) {
+            throw 'The portable ZIP does not match its published SHA-256.'
+          }
+          $extracted = Join-Path $env:RUNNER_TEMP 'RayXDesktop-portable-check'
+          Expand-Archive -LiteralPath $archive -DestinationPath $extracted
+          $expectedFiles = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll',
+            'AxInterop.MSTSCLib.dll', 'LICENSE', 'README.fr.md', 'RayXDesktop.bat')
+          $files = @(Get-ChildItem -LiteralPath $extracted -Force | Select-Object -ExpandProperty Name)
+          if (Compare-Object $expectedFiles $files) { throw 'Unexpected files in the portable ZIP.' }
+          $path = Join-Path $extracted 'RayXDesktop.exe'
           $expected = 'Ray' + [char]0x02E3 + 'Desktop'
-          $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($path)
-          if ($version.ProductName -cne $expected) { throw 'Unexpected executable product name.' }
+          $expectedVersion = '1.5.0.1'
+          foreach ($name in @('RayXDesktop.exe', 'EnableChildSessions.exe')) {
+            $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $extracted $name))
+            if ($metadata.ProductName -cne $expected -or $metadata.ProductVersion -cne $expectedVersion) {
+              throw "Unexpected product name or version in $name."
+            }
+          }
           $assembly = [Reflection.Assembly]::LoadFile($path)
           $iconStream = $assembly.GetManifestResourceStream('RayXDesktop.InterfaceIcon')
           $bannerStream = $assembly.GetManifestResourceStream('RayXDesktop.Banner')
@@ -44,7 +60,7 @@ jobs:
             $bannerStream.Dispose()
             $iconStream.Dispose()
           }
-          Write-Host 'Verified the RayXDesktop product name, interface icon, and banner.'
+          Write-Host 'Verified the portable ZIP, SHA-256, version metadata, interface icon and banner.'
       - uses: actions/upload-artifact@v4
         with:
           name: RayXDesktop-Windows
@@ -70,5 +86,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.5.0n .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayˣDesktop 1.5.0n bêta" --notes-file .\maintenance\releases\1.5.0n.md
-          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0n beta.' }
+          gh release create v1.5.0.1 .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayˣDesktop 1.5.0.1 bêta" --notes-file .\maintenance\releases\1.5.0.1.md
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0.1 beta.' }

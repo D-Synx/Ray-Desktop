@@ -66,9 +66,8 @@ namespace ChildSessionDesktop
             menu.Show(new Point(anchor.Left, anchor.Bottom));
         }
 
-        private string GetConnectedChildSid()
+        private string GetConnectedChildSid(out uint session)
         {
-            uint session;
             if (((IMsRdpClient9)rdp.GetOcxObject()).Connected != 1
                 || !Program.WTSGetChildSessionId(out session) || session == uint.MaxValue)
                 throw new InvalidOperationException(Strings.T("files_connect_first"));
@@ -79,6 +78,17 @@ namespace ChildSessionDesktop
             return account.Translate(typeof(System.Security.Principal.SecurityIdentifier)).Value;
         }
 
+        private void ValidateFileTransfer(bool outbound, uint sessionId, string sid, uint clipboardVersion)
+        {
+            if (clipboardVersion != ShellClipboard.GetClipboardSequenceNumber())
+                throw new InvalidOperationException(Strings.T("files_clipboard_changed"));
+            uint currentSession;
+            if (closing || disconnectTimer != null || sessions.SelectedRemote != null ||
+                !string.Equals(sid, GetConnectedChildSid(out currentSession), StringComparison.Ordinal) ||
+                sessionId != currentSession || !ClipboardRestrictions.AllowsFiles(outbound, sid))
+                throw new InvalidOperationException(Strings.T("files_session_changed"));
+        }
+
         private async void TransferClipboardFiles(bool outbound)
         {
             if (FileTransferToggleState(outbound) != true || closing || disconnectTimer != null) return;
@@ -86,7 +96,8 @@ namespace ChildSessionDesktop
             if (toolBar != null) toolBar.Invalidate();
             try
             {
-                string sid = GetConnectedChildSid();
+                uint sessionId;
+                string sid = GetConnectedChildSid(out sessionId);
                 if (!ClipboardRestrictions.AllowsFiles(outbound, sid))
                     throw new InvalidOperationException(Strings.T("files_policy_block"));
                 IDataObject data = Clipboard.GetDataObject();
@@ -110,11 +121,7 @@ namespace ChildSessionDesktop
                     if (dialog.ShowDialog(this) != DialogResult.OK) return;
                     destination = dialog.SelectedPath;
                 }
-                if (clipboardVersion != ShellClipboard.GetClipboardSequenceNumber())
-                    throw new InvalidOperationException(Strings.T("files_clipboard_changed"));
-                if (!string.Equals(sid, GetConnectedChildSid(), StringComparison.Ordinal)
-                    || !ClipboardRestrictions.AllowsFiles(outbound, sid))
-                    throw new InvalidOperationException(Strings.T("files_session_changed"));
+                ValidateFileTransfer(outbound, sessionId, sid, clipboardVersion);
 
                 if (virtualFiles)
                 {
@@ -132,9 +139,7 @@ namespace ChildSessionDesktop
                 var duplicateChoice = MessageBox.Show(this, Strings.T("files_confirm", destination, paths.Count),
                     Strings.T("files_title"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (duplicateChoice == DialogResult.Cancel) return;
-                if (!string.Equals(sid, GetConnectedChildSid(), StringComparison.Ordinal)
-                    || !ClipboardRestrictions.AllowsFiles(outbound, sid))
-                    throw new InvalidOperationException(Strings.T("files_session_changed"));
+                ValidateFileTransfer(outbound, sessionId, sid, clipboardVersion);
                 await RunFileCopy(paths, destination, duplicateChoice == DialogResult.Yes);
             }
             catch (Exception ex)
@@ -227,7 +232,8 @@ namespace ChildSessionDesktop
                 if (sessions.SelectedRemote != null) message = Strings.T("files_local_only");
                 else
                 {
-                    string sid = GetConnectedChildSid();
+                    uint session;
+                    string sid = GetConnectedChildSid(out session);
                     var settings = ((IMsRdpClient9)rdp.GetOcxObject()).AdvancedSettings9;
                     message = Strings.T("files_report",
                         FileTransferDiagnostic(true, sid), FileTransferDiagnostic(false, sid),

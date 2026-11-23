@@ -172,10 +172,14 @@ namespace ChildSessionDesktop
         {
             int index = FindSession(endpoint, account);
             if (index < 0) return false;
+            SavedSession session = sessions[index];
+            string previous = session.ProtectedPassword;
             if (password == null)
             {
-                sessions[index].ProtectedPassword = null;
-                return Save();
+                session.ProtectedPassword = null;
+                if (Save()) return true;
+                session.ProtectedPassword = previous;
+                return false;
             }
             if (password.Length == 0 || password.Length > 1024 || password.IndexOf('\0') >= 0) return false;
 
@@ -183,10 +187,9 @@ namespace ChildSessionDesktop
             try
             {
                 byte[] encrypted = ProtectedData.Protect(plain, PasswordEntropy(endpoint, account), DataProtectionScope.CurrentUser);
-                string previous = sessions[index].ProtectedPassword;
-                sessions[index].ProtectedPassword = Convert.ToBase64String(encrypted);
+                session.ProtectedPassword = Convert.ToBase64String(encrypted);
                 if (Save()) return true;
-                sessions[index].ProtectedPassword = previous;
+                session.ProtectedPassword = previous;
                 return false;
             }
             catch (CryptographicException) { return false; }

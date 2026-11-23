@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Drawing;
 using System.Text;
@@ -262,6 +263,33 @@ namespace RayDesktopTests
                 var recursive = new TransferResult();
                 FileTransfer.Copy(new[] { project }, Path.Combine(project, "Sous-dossier"), true, CancellationToken.None, delegate { }, recursive);
                 Check(recursive.Failures.Count == 1 && recursive.Copied == 0, "transfer refuses a copy into the source tree");
+                string junction = Path.Combine(root, "raccourci");
+                var makeJunction = new ProcessStartInfo("cmd.exe", "/d /c mklink /j \"" + junction + "\" \"" + project + "\"")
+                {
+                    UseShellExecute = false, CreateNoWindow = true
+                };
+                using (var process = Process.Start(makeJunction))
+                {
+                    process.WaitForExit();
+                    Check(process.ExitCode == 0, "create an NTFS junction for the transfer regression");
+                }
+                try
+                {
+                    var linkedSource = new TransferResult();
+                    FileTransfer.Copy(new[] { Path.Combine(junction, "Sous-dossier", "exemple.txt") },
+                        target, false, CancellationToken.None, delegate { }, linkedSource);
+                    Check(linkedSource.Failures.Count == 1 && linkedSource.Copied == 0,
+                        "transfer rejects sources below a junction");
+                    bool rejected = false;
+                    try
+                    {
+                        FileTransfer.Copy(new[] { project }, Path.Combine(junction, "Sous-dossier"),
+                            true, CancellationToken.None, delegate { }, new TransferResult());
+                    }
+                    catch (IOException ex) { rejected = ex.Message == Strings.T("files_reparse"); }
+                    Check(rejected, "transfer rejects a destination inside the source reached through a junction");
+                }
+                finally { if (Directory.Exists(junction)) Directory.Delete(junction); }
                 using (var stop = new CancellationTokenSource())
                 {
                     bool cancelled = false;
@@ -405,6 +433,12 @@ namespace RayDesktopTests
                     withPassword.ReadSessionPassword(otherPort, @"DOM\Second") == null &&
                     withPassword.ReconnectsAtStartup(host, @"DOM\Élodie") && withPassword.ReconnectsAtStartup(otherPort, @"DOM\Second") &&
                     !withPassword.ReconnectAllAtStartup, "DPAPI password and multiple startup choices survive reopening");
+                using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    Check(!withPassword.SetSessionPassword(sameHost, @"dom\élodie", null) &&
+                        withPassword.HasSessionPassword(sameHost, @"dom\élodie"),
+                        "failed removal leaves the saved password available for a second removal attempt");
+                }
                 Check(reopened.SetStartupSession(host, @"DOM\Élodie", false) &&
                     !reopened.ReconnectsAtStartup(host, @"DOM\Élodie") && reopened.ReconnectsAtStartup(otherPort, @"DOM\Second"),
                     "disabling one startup session preserves the other");

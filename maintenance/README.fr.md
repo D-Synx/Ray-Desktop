@@ -1,12 +1,12 @@
-# RayˣDesktop 1.5.0n bêta
+# RayˣDesktop 1.5.0.1 bêta
 
-![RayˣDesktop, avec un X bleu et or sur fond de galaxie](../assets/RayXDesktop-banner.jpg)
+![RayˣDesktop, avec un X bleu et or sur fond de galaxie](https://raw.githubusercontent.com/D-Synx/Ray-Desktop/v1.5.0.1/assets/RayXDesktop-banner.jpg)
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0n bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0n) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0.1 bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0.1) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -129,6 +129,9 @@ Choisis trois profils réellement présents dans le parc, dont un poste avec les
 | Ouvrir puis réduire le journal, masquer sa bande et redémarrer RayXDesktop | Le journal suit les nouvelles lignes quand il est ouvert. La bande masquée ne réapparaît pas au redémarrage et le volet reste accessible dans le menu. |
 | Ajouter deux sessions puis relancer RayXDesktop | Les sessions sont visibles à gauche. Un clic relance la connexion voulue et sa miniature apparaît dès que le bureau fournit une image exploitable. |
 | Enregistrer des mots de passe sur deux postes authentifiés, laisser une troisième session sans identifiants enregistrés, puis redémarrer RayXDesktop | Les deux postes se reconnectent en arrière-plan à mesure que Windows confirme les connexions. La troisième session reste accessible pour une connexion manuelle. |
+| Redémarrer avec seulement des connexions distantes qui demandent une intervention manuelle | Le bureau local s’ouvre si sa carte est toujours sélectionnée. Les connexions distantes restent accessibles à gauche. |
+| Sur un poste pilote, modifier le presse-papiers pendant la confirmation d’un transfert | RayˣDesktop signale que la sélection a changé et interrompt la copie. |
+| Ouvrir la liste des sessions, puis basculer entre les modes ancré et flottant | Le bandeau ancré réserve sa place au-dessus des bureaux. Le titre affiche **RayˣDesktop 1.5.0.1**. |
 | Comparer Standard et Privilégier la fluidité | Mesurer séparément le délai de connexion et la fluidité en session. Relever les stratégies lues sans modifier le registre. |
 | Lancer avec les sessions enfants désactivées, sur un poste déjà dans cet état | RayXDesktop indique le prérequis. Toute activation est réservée à un administrateur autorisé. |
 

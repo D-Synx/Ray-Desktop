@@ -54,8 +54,8 @@ $banner = Join-Path $PSScriptRoot 'assets\RayXDesktop-banner.jpg'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.5.0.10'
-$productVersion = '1.5.0n'
+$version = '1.5.0.1'
+$productVersion = '1.5.0.1'
 $productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
@@ -65,7 +65,7 @@ $childSources = @($childSources) + @($childAssemblyInfo)
 # setup binary gets the same injected version (P1-9-2 version check as unsigned-helper fallback)
 $setupAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopSetupAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($setupAssemblyInfo,
-    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop Setup`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
+    "using System.Reflection;`r`n[assembly: AssemblyTitle(`"$productName Setup`")]`r`n[assembly: AssemblyProduct(`"$productName`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",
     [Text.Encoding]::UTF8)
 
 # ---- AxImp.exe detection: registry-installed SDK roots + RAYDESKTOP_SDK_ROOT override + standard dirs ----
@@ -140,7 +140,7 @@ try {
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) @childResources @childReferences @childSources
     if ($LASTEXITCODE -ne 0) { throw "Child-session GUI build failed with exit code $LASTEXITCODE" }
 
-    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $graphicsPolicySource $setupAssemblyInfo
+    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32icon:{0}" -f $executableIcon) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $graphicsPolicySource $setupAssemblyInfo
     if ($LASTEXITCODE -ne 0) { throw "Child-session setup helper build failed with exit code $LASTEXITCODE" }
 
     Publish-BuildOutput $childTemporary $childTarget

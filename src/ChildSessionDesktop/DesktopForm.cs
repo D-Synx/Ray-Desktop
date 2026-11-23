@@ -192,8 +192,11 @@ namespace ChildSessionDesktop
                 if (startup.Count == 0) BeginInvoke((MethodInvoker)ConnectChildSession);
                 else
                 {
-                    try { await sessions.ReconnectAtStartupAsync(startup); }
+                    bool remoteConnected = false;
+                    try { remoteConnected = await sessions.ReconnectAtStartupAsync(startup); }
                     catch (Exception ex) { Program.Log("Startup RDP reconnection failed: 0x" + ex.HResult.ToString("X8")); }
+                    if (!remoteConnected && !closing && !IsDisposed && !explicitlyDisconnected && sessions.SelectedRemote == null)
+                        ConnectChildSession();
                 }
             };
             FormClosing += OnClosing;

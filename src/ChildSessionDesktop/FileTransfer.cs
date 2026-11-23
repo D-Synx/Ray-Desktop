@@ -20,7 +20,7 @@ namespace ChildSessionDesktop
             CancellationToken cancellation, Action<string> report, TransferResult result)
         {
             destination = Path.GetFullPath(destination);
-            RejectReparse(destination);
+            RejectReparsePath(destination);
             foreach (string path in sources)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -31,6 +31,7 @@ namespace ChildSessionDesktop
                     string name = Path.GetFileName(source);
                     if (string.IsNullOrEmpty(name) || source == Path.GetPathRoot(fullPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
                         throw new IOException(Strings.T("files_invalid_source"));
+                    RejectReparsePath(source);
                     string target = Path.Combine(destination, name);
                     if (Exists(target))
                     {
@@ -79,10 +80,18 @@ namespace ChildSessionDesktop
                 throw new IOException(Strings.T("files_reparse"));
         }
 
+        private static void RejectReparsePath(string path)
+        {
+            string root = Path.GetPathRoot(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            for (string entry = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                !string.Equals(entry, root, StringComparison.OrdinalIgnoreCase);
+                entry = Path.GetDirectoryName(entry).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                RejectReparse(entry);
+        }
+
         private static void CopyEntry(string source, string target, CancellationToken cancellation, Action<string> report)
         {
             cancellation.ThrowIfCancellationRequested();
-            RejectReparse(source);
             report(Path.GetFileName(source));
             // Stage each top-level selection before publishing its final name. Move never overwrites.
             string stage = Path.Combine(Path.GetDirectoryName(target), ".rayx-" + Guid.NewGuid().ToString("N") + ".tmp");

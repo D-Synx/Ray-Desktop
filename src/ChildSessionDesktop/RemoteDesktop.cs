@@ -20,9 +20,11 @@ namespace ChildSessionDesktop
         private readonly bool fluid;
         private readonly DesktopPreferences preferences;
         private bool reconnect, explicitDisconnect, connectQueued;
+        private int connectionRequest;
         private DateTime deadline;
         private string pendingPassword;
         private bool pendingRememberPassword, usedSavedPassword;
+        private bool savedPasswordRejected;
         private string passwordToSave;
         private IMsTscAxEvents_Event events;
         private Phase phase;
@@ -44,7 +46,7 @@ namespace ChildSessionDesktop
         internal bool ShareClipboard { get; set; }
         internal bool AskOnCertificateError { get { return certificateWarningOverride ?? preferences.UsesCertificateWarning(Endpoint); } }
         internal string Status { get; private set; }
-        internal bool CanConnectFromList { get { return phase == Phase.Idle; } }
+        internal bool CanConnectFromList { get { return !connectQueued && (phase == Phase.Idle || phase == Phase.Failed); } }
         internal bool IsReady { get { return phase == Phase.Ready; } }
         internal bool CanEditSavedPassword
         {
@@ -141,13 +143,13 @@ namespace ChildSessionDesktop
         internal async Task<bool> ConnectAtStartupAsync()
         {
             if (IsDisposed || startupAttempt != null || connectQueued || phase != Phase.Idle) return false;
-            if (AskOnCertificateError || !preferences.HasSessionPassword(Endpoint, Account))
+            if (AskOnCertificateError || savedPasswordRejected || !preferences.HasSessionPassword(Endpoint, Account))
             {
                 SetStatus(Phase.Idle, Strings.T("remote_startup_manual"));
                 return false;
             }
 
-            var attempt = new TaskCompletionSource<bool>();
+            var attempt = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             startupAttempt = attempt;
             try
             {
@@ -189,6 +191,7 @@ namespace ChildSessionDesktop
         {
             if (IsDisposed || timer.Enabled || connectQueued || startupAttempt != null) return;
             connectQueued = true;
+            int request = ++connectionRequest;
             try
             {
                 // The split/single view layout must finish before the ActiveX control is activated.
@@ -196,15 +199,15 @@ namespace ChildSessionDesktop
                 {
                     try
                     {
-                        if (IsDisposed || !Visible) return;
+                        if (IsDisposed || !Visible || request != connectionRequest) return;
                         bool remote = await Endpoint.ResolvesRemotelyAsync();
-                        if (IsDisposed) return;
+                        if (IsDisposed || request != connectionRequest) return;
                         if (!remote)
                             Fail(Strings.T("sessions_remote_only"));
                         else StartConnection(password, askOnCertificateErrorForAttempt, rememberPassword);
                     }
-                    catch (Exception ex) { if (!IsDisposed) ShowFailure(ex); }
-                    finally { connectQueued = false; }
+                    catch (Exception ex) { if (!IsDisposed && request == connectionRequest) ShowFailure(ex); }
+                    finally { if (request == connectionRequest) connectQueued = false; }
                 });
             }
             catch (InvalidOperationException ex)
@@ -263,7 +266,7 @@ namespace ChildSessionDesktop
                 {
                     if (password == null)
                     {
-                        password = preferences.ReadSessionPassword(Endpoint, Account);
+                        password = savedPasswordRejected ? null : preferences.ReadSessionPassword(Endpoint, Account);
                         usedSavedPassword = password != null;
                     }
                     else if (rememberPassword) passwordToSave = password;
@@ -302,14 +305,20 @@ namespace ChildSessionDesktop
 
         internal void Disconnect(bool resume, string password = null, bool rememberPassword = false)
         {
-            if (timer.Enabled || connectQueued || IsDisposed) return;
+            if (timer.Enabled || IsDisposed) return;
+            // Invalidate a pending DNS lookup before opening or restarting a connection.
+            if (connectQueued)
+            {
+                connectionRequest++;
+                connectQueued = false;
+            }
             try
             {
                 signInTimer.Stop();
                 if (events == null || ((IMsRdpClient9)view.GetOcxObject()).Connected == 0)
                 {
+                    SetStatus(Phase.Idle, Strings.T("status_not_connected"));
                     if (resume) Connect(password, rememberPassword: rememberPassword);
-                    else SetStatus(Phase.Idle, Strings.T("status_not_connected"));
                     return;
                 }
                 explicitDisconnect = true;
@@ -371,6 +380,7 @@ namespace ChildSessionDesktop
                     Program.Log("Could not save the RDP certificate warning preference for " + Endpoint.Display);
             }
             bool saveFailed = passwordToSave != null && !preferences.SetSessionPassword(Endpoint, Account, passwordToSave);
+            if (passwordToSave != null && !saveFailed) savedPasswordRejected = false;
             passwordToSave = null;
             usedSavedPassword = false;
             if (saveFailed) Program.Log("Could not protect or save the RDP password in data.ini.");
@@ -451,6 +461,7 @@ namespace ChildSessionDesktop
                 if (usedSavedPassword && key == "remote_logon_invalid")
                 {
                     usedSavedPassword = false;
+                    savedPasswordRejected = true;
                     if (!preferences.SetSessionPassword(Endpoint, Account, null))
                         Program.Log("Could not remove the rejected RDP password from data.ini.");
                 }
@@ -486,13 +497,13 @@ namespace ChildSessionDesktop
                 Size size = PreferredDisplaySize();
                 if (phase == Phase.Ready && (force || lastDisplaySize != size))
                 {
-                    lastDisplaySize = size;
                     using (Graphics graphics = view.CreateGraphics())
                     {
                         client.UpdateSessionDisplaySettings((uint)size.Width, (uint)size.Height,
                             Geometry.ToMillimeters(size.Width, graphics.DpiX), Geometry.ToMillimeters(size.Height, graphics.DpiY),
                             0, 100, 100);
                     }
+                    lastDisplaySize = size;
                 }
                 else if (force)
                 {
