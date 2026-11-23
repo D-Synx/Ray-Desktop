@@ -6,7 +6,7 @@
 
 RayXDesktop displays a local Windows Child Session in a separate window. The toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. It docks automatically when you open the session list. Use the dock button to keep it above the desktop or switch back to the floating toolbar.
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0.1 beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0.1)
+[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-X-Desktop/releases/tag/v1.4.6) · [1.5.0.1 beta](https://github.com/D-Synx/Ray-X-Desktop/releases/tag/v1.5.0.1)
 
 ## Aperçu de la barre · 1.4.6
 

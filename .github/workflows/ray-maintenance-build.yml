@@ -70,7 +70,7 @@ jobs:
           if-no-files-found: error
 
   publish-beta:
-    if: github.event_name == 'push' && github.repository == 'D-Synx/Ray-Desktop'
+    if: github.event_name == 'push' && github.repository == 'D-Synx/Ray-X-Desktop'
     needs: portable
     runs-on: windows-2022
     permissions:

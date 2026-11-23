@@ -427,7 +427,7 @@ namespace ChildSessionDesktop
             var itemUpdate = new ToolStripMenuItem(Strings.T("menu_check_update"));
             itemUpdate.Click += delegate
             {
-                try { Process.Start("https://github.com/D-Synx/Ray-Desktop/actions"); }
+                try { Process.Start("https://github.com/D-Synx/Ray-X-Desktop/actions"); }
                 catch (Exception ex) { Program.Log("Could not open update page: " + ex.GetBaseException().Message); }
             };
             AddSessionMenuItems(menu);
