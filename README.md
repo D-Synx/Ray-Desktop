@@ -8,7 +8,7 @@
 
 Maintenu par **D.Synx** · Issu de [Ray Desktop par raydoomed](https://github.com/raydoomed/Ray-Desktop) · [Licence MIT](LICENSE)
 
-[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Découvrir la bêta 1.6.0](https://github.com/D-Synx/Ray-Desktop/tree/beta/1.6.0-gpu-vulkan#readme) · [Lire le guide en français](https://github.com/D-Synx/Ray-Desktop/blob/beta/1.6.0-gpu-vulkan/maintenance/README.fr.md)
+[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-X-Desktop/releases/tag/v1.4.6) · [Découvrir la bêta 1.6.0](https://github.com/D-Synx/Ray-X-Desktop/tree/beta/1.6.0-gpu-vulkan#readme) · [Lire le guide en français](https://github.com/D-Synx/Ray-X-Desktop/blob/beta/1.6.0-gpu-vulkan/maintenance/README.fr.md)
 
 ## Aperçu de l’interface · version 1.4.6
 
