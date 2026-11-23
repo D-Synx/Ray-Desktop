@@ -318,7 +318,7 @@ namespace ChildSessionDesktop
             capturingPreview = true;
             try
             {
-                using (Bitmap frame = SessionThumbnails.Capture(slot.PreviewSurface))
+                using (Bitmap frame = SessionThumbnails.Capture(slot.PreviewSurface, previewRenderer.TriesHardware))
                 {
                     if (frame == null) return;
                     next = await previewRenderer.ResizeAsync(frame);

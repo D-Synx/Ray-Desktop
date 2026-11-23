@@ -28,7 +28,7 @@ New-Item -ItemType Directory -Path $work | Out-Null
 $sources = 'main.cpp','d3d11.cpp','vulkan.cpp' | ForEach-Object { Join-Path $root "src\GpuPreview\$_" }
 Push-Location $work
 try {
-    & cl.exe /nologo /W4 /O2 /EHsc /std:c++17 /MT /D_WIN32_WINNT=0x0A00 "/I$include" @sources d3d11.lib d2d1.lib dxguid.lib /link /DEPENDENTLOADFLAG:0x800
+    & cl.exe /nologo /W4 /O2 /EHsc /std:c++17 /MT /D_WIN32_WINNT=0x0A00 "/I$include" @sources d3d11.lib d2d1.lib dxgi.lib dxguid.lib /link /DEPENDENTLOADFLAG:0x800
     if ($LASTEXITCODE -ne 0) { throw "GPU helper build failed with exit code $LASTEXITCODE." }
     Copy-Item -LiteralPath .\main.exe -Destination $target -Force
     Write-Host "GPU helper: $target"

@@ -6,6 +6,7 @@
 #include <d2d1_1helper.h>
 #include <wrl/client.h>
 #include <cstring>
+#include <cwchar>
 #include <sstream>
 #include "gpu_preview.h"
 
@@ -13,27 +14,35 @@ using Microsoft::WRL::ComPtr;
 
 namespace
 {
-    struct Hardware
+    struct D3DDevice
     {
         ComPtr<ID3D11Device> device;
         DXGI_ADAPTER_DESC1 info{};
         D3D_FEATURE_LEVEL level{};
 
-        bool Open()
+        bool Create(IDXGIAdapter* adapter, D3D_DRIVER_TYPE type, UINT flags)
         {
-            if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
-                nullptr, 0, D3D11_SDK_VERSION, &device, &level, nullptr)) &&
-                FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                    D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, &device, &level, nullptr)))
-                return false;
+            return SUCCEEDED(D3D11CreateDevice(adapter, type, nullptr, flags | D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                nullptr, 0, D3D11_SDK_VERSION, device.ReleaseAndGetAddressOf(), &level, nullptr));
+        }
 
-            ComPtr<IDXGIDevice> dxgi;
-            ComPtr<IDXGIAdapter> adapter;
-            ComPtr<IDXGIAdapter1> adapter1;
-            return SUCCEEDED(device.As(&dxgi)) && SUCCEEDED(dxgi->GetAdapter(&adapter)) &&
-                SUCCEEDED(adapter.As(&adapter1)) && SUCCEEDED(adapter1->GetDesc1(&info)) &&
-                !(info.Flags & DXGI_ADAPTER_FLAG_SOFTWARE);
+        bool OpenHardware()
+        {
+            ComPtr<IDXGIFactory1> factory;
+            if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(factory.GetAddressOf())))) return false;
+            for (UINT index = 0; ; ++index)
+            {
+                ComPtr<IDXGIAdapter1> adapter;
+                if (FAILED(factory->EnumAdapters1(index, &adapter))) return false;
+                if (FAILED(adapter->GetDesc1(&info))) continue;
+                // The primary Microsoft Basic adapter can omit the software flag.
+                if ((info.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) ||
+                    (info.VendorId == 0x1414 && info.DeviceId == 0x008c) ||
+                    _wcsicmp(info.Description, L"Microsoft Basic Render Driver") == 0 ||
+                    _wcsicmp(info.Description, L"Microsoft Basic Display Adapter") == 0) continue;
+                if (Create(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, D3D11_CREATE_DEVICE_VIDEO_SUPPORT) ||
+                    Create(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, 0)) return true;
+            }
         }
     };
 
@@ -46,8 +55,8 @@ namespace
 
 std::string ProbeD3D()
 {
-    Hardware hardware;
-    if (!hardware.Open()) return "Direct3D 11: unavailable (hardware device)\n";
+    D3DDevice hardware;
+    if (!hardware.OpenHardware()) return "Direct3D 11: unavailable (no hardware adapter)\n";
     std::ostringstream report;
     report << "Direct3D 11: " << Utf8(hardware.info.Description) << " | feature level 0x"
         << std::hex << hardware.level << '\n';
@@ -72,15 +81,15 @@ std::string ProbeD3D()
     return report.str();
 }
 
-bool ResizeD3D(const PreviewRequest& r, const Pixels& input, Pixels& output)
+bool ResizeD3D(const PreviewRequest& r, const Pixels& input, Pixels& output, bool warpTest)
 {
-    Hardware hardware;
-    if (!hardware.Open()) return false;
+    D3DDevice renderer;
+    if (!(warpTest ? renderer.Create(nullptr, D3D_DRIVER_TYPE_WARP, 0) : renderer.OpenHardware())) return false;
 
     ComPtr<IDXGIDevice> dxgi;
     ComPtr<ID2D1Device> d2d;
     ComPtr<ID2D1DeviceContext> context;
-    if (FAILED(hardware.device.As(&dxgi)) ||
+    if (FAILED(renderer.device.As(&dxgi)) ||
         FAILED(D2D1CreateDevice(dxgi.Get(), nullptr, &d2d)) ||
         FAILED(d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &context)))
         return false;
@@ -101,7 +110,7 @@ bool ResizeD3D(const PreviewRequest& r, const Pixels& input, Pixels& output)
     context->DrawBitmap(source.Get(), &destination, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR, nullptr);
     const HRESULT result = context->EndDraw();
     context->SetTarget(nullptr);
-    if (FAILED(result) || FAILED(hardware.device->GetDeviceRemovedReason())) return false;
+    if (FAILED(result) || FAILED(renderer.device->GetDeviceRemovedReason())) return false;
 
     bitmapProperties.bitmapOptions = D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
     if (FAILED(context->CreateBitmap(size, nullptr, 0, bitmapProperties, &readback)) ||

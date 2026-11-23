@@ -27,6 +27,10 @@ namespace ChildSessionDesktop
         private double processingMilliseconds;
 
         internal PreviewEngine Preferred { get; private set; }
+        internal bool TriesHardware
+        {
+            get { return !hardwareFailed && (Preferred == PreviewEngine.Direct3D || Preferred == PreviewEngine.Vulkan); }
+        }
 
         internal GpuPreview(PreviewEngine preferred, string helperPath = null)
         {
@@ -82,7 +86,6 @@ namespace ChildSessionDesktop
             PreviewEngine requested = Preferred;
             int configuration = generation;
             CancellationToken cancel = lifetime.Token;
-            bool experimental = requested == PreviewEngine.Direct3D || requested == PreviewEngine.Vulkan;
             int width, height, x, y;
             Geometry.ComputeLetterbox(OutputWidth, OutputHeight, frame.Width, frame.Height, out width, out height, out x, out y);
             width = Math.Max(1, width);
@@ -93,7 +96,7 @@ namespace ChildSessionDesktop
             var watch = Stopwatch.StartNew();
             Bitmap preview = null;
             string reason = null;
-            if (experimental && !hardwareFailed)
+            if (TriesHardware)
             {
                 if ((long)frame.Width * frame.Height > MaximumGpuPixels || frame.Width > 8192 || frame.Height > 8192)
                     reason = "gpu_image_limit";
@@ -129,12 +132,14 @@ namespace ChildSessionDesktop
             }
             if (preview == null)
                 preview = await Task.Run(() => CreateThumbnail(frame, new Rectangle(x, y, width, height), null));
-            if (configuration == generation && !cancel.IsCancellationRequested)
+            if (configuration != generation || cancel.IsCancellationRequested)
             {
-                used = hardwareUsed ? requested : PreviewEngine.Windows;
-                if (hardwareUsed) fallbackReason = null;
-                processingMilliseconds = watch.Elapsed.TotalMilliseconds;
+                preview.Dispose();
+                return null;
             }
+            used = hardwareUsed ? requested : PreviewEngine.Windows;
+            if (hardwareUsed) fallbackReason = null;
+            processingMilliseconds = watch.Elapsed.TotalMilliseconds;
             return preview;
         }
 
@@ -217,8 +222,7 @@ namespace ChildSessionDesktop
                         {
                             if (await Task.WhenAny(connected, Task.Delay(6000, timer.Token)).ConfigureAwait(false) != connected)
                             {
-                                connected.ContinueWith(faulted => GC.KeepAlive(faulted.Exception),
-                                    TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+                                ObserveFailure(connected);
                                 return null;
                             }
                             // The exit status is checked even if the pipe closes after a partial operation.
@@ -246,6 +250,12 @@ namespace ChildSessionDesktop
         {
             using (writer)
                 if (input != null) await writer.BaseStream.WriteAsync(input, 0, input.Length).ConfigureAwait(false);
+        }
+
+        private static void ObserveFailure(Task operation)
+        {
+            operation.ContinueWith(faulted => GC.KeepAlive(faulted.Exception),
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         private static async Task<byte[]> ReadOutputAsync(Stream stream, int limit)

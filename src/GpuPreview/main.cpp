@@ -19,7 +19,7 @@ int main(int argc, char** argv)
             return std::fwrite(report.data(), 1, report.size(), stdout) == report.size() ? 0 : 4;
         }
 
-        if (mode != "d3d11" && mode != "vulkan") return 2;
+        if (mode != "d3d11" && mode != "vulkan" && mode != "d3d11-warp-test") return 2;
         PreviewRequest request{};
         static_assert(sizeof(PreviewRequest) == 16, "Preview protocol header");
         if (std::fread(&request, 1, sizeof(request), stdin) != sizeof(request)) return 2;
@@ -31,8 +31,8 @@ int main(int argc, char** argv)
         Pixels input(size_t(request.width) * request.height * 4);
         if (std::fread(input.data(), 1, input.size(), stdin) != input.size()) return 2;
         Pixels output(size_t(request.outputWidth) * request.outputHeight * 4);
-        const bool completed = mode == "d3d11"
-            ? ResizeD3D(request, input, output) : ResizeVulkan(request, input, output);
+        const bool completed = mode == "vulkan"
+            ? ResizeVulkan(request, input, output) : ResizeD3D(request, input, output, mode == "d3d11-warp-test");
         if (!completed) return 3;
         return std::fwrite(output.data(), 1, output.size(), stdout) == output.size() ? 0 : 4;
     }

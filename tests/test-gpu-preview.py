@@ -27,14 +27,21 @@ def main():
     red = bytes((15, 60, 220, 255))
     row = blue * 24 + red * 24
     request = struct.pack("<4I", 48, 32, 12, 8) + row * 32
-    for mode in ("d3d11", "vulkan"):
+    device_absent = {
+        "d3d11": b"Direct3D 11: unavailable" in probe.stdout,
+        "vulkan": any(value in probe.stdout for value in (
+            b"Vulkan: Windows loader or instance unavailable",
+            b"Vulkan: no integrated/discrete GPU"
+        )),
+    }
+    for mode in ("d3d11-warp-test", "d3d11", "vulkan"):
         bad = run(exe, mode, struct.pack("<4I", 99999, 1, 12, 8))
         assert bad.returncode == 2 and not bad.stdout, (mode, "oversized input")
         short = run(exe, mode, request[:-1])
         assert short.returncode == 2 and not short.stdout, (mode, "truncated input")
         result = run(exe, mode, request)
-        if result.returncode == 3 and not result.stdout and mode not in args.require:
-            print(f"{mode}: SKIP (helper could not initialize or complete scaling on this machine)")
+        if result.returncode == 3 and not result.stdout and device_absent.get(mode) and mode not in args.require:
+            print(f"{mode}: SKIP (no compatible hardware device available)")
             continue
         assert result.returncode == 0, (mode, result.returncode, result.stderr)
         assert len(result.stdout) == 12 * 8 * 4, (mode, len(result.stdout))
@@ -42,7 +49,8 @@ def main():
             offset = (4 * 12 + column) * 4
             for actual, target in zip(result.stdout[offset:offset + 3], expected[:3]):
                 assert abs(actual - target) <= 2, (mode, column, actual, target)
-        print(f"{mode}: hardware scaling and readback verified")
+        print(f"{mode}: scaling and readback verified (" +
+              ("software WARP, test only)" if mode == "d3d11-warp-test" else "hardware)"))
 
 
 if __name__ == "__main__":

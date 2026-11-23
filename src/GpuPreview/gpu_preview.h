@@ -10,7 +10,7 @@ struct PreviewRequest
 
 using Pixels = std::vector<uint8_t>;
 
-bool ResizeD3D(const PreviewRequest& request, const Pixels& input, Pixels& output);
+bool ResizeD3D(const PreviewRequest& request, const Pixels& input, Pixels& output, bool warpTest);
 bool ResizeVulkan(const PreviewRequest& request, const Pixels& input, Pixels& output);
 std::string ProbeD3D();
 std::string ProbeVulkan();

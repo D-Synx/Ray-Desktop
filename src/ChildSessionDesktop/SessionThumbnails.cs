@@ -27,13 +27,14 @@ namespace ChildSessionDesktop
                 "RayDesktop", "Thumbnails", Guid.NewGuid().ToString("N"));
         }
 
-        internal static Bitmap Capture(ChildSessionControl surface)
+        internal static Bitmap Capture(ChildSessionControl surface, bool requestHardware)
         {
             if (!surface.IsHandleCreated || surface.IsDisposed || !surface.Visible
                 || surface.Width < 16 || surface.Height < 16 || (long)surface.Width * surface.Height > 36000000) return null;
             var connection = (MSTSCLib.IMsRdpClient9)surface.GetOcxObject();
             if (connection.Connected != 1) return null;
-            var full = new Bitmap(surface.Width, surface.Height, PixelFormat.Format32bppRgb);
+            var full = new Bitmap(surface.Width, surface.Height,
+                requestHardware ? PixelFormat.Format32bppRgb : PixelFormat.Format24bppRgb);
             try
             {
                 if (Render(surface.Handle, full, ClientOnly | RenderFullContent) && HasVisibleContent(full))

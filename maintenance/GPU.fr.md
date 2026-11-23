@@ -14,10 +14,10 @@ L’API publique de MsRdpClient9 expose notamment les réglages de taille et de 
 | --- | --- | --- |
 | Windows natif | Mise à l’échelle GDI+ de la capture, avec bandes conservant le rapport largeur/hauteur | Référence. Le traitement échappe au coût de lancement du module et aux copies CPU ↔ GPU. |
 | Automatique | Chemin Windows par défaut | L’évaluation sur poste pilote établira si le coût complet d’un autre moteur justifie une sélection automatique. |
-| Direct3D 11 expérimental | Device matériel D3D11, composition Direct2D, mise à l’échelle bilinéaire, lecture d’une bitmap de sortie | Pilote DXGI matériel requis. Pas de WARP. D3D12 apporterait davantage de gestion explicite sans accès nouveau aux surfaces ActiveX. |
+| Direct3D 11 expérimental | Device matériel D3D11, composition Direct2D, mise à l’échelle bilinéaire, lecture d’une bitmap de sortie | Pilote DXGI matériel requis. Microsoft Basic Render/Display et les adaptateurs logiciels sont écartés. D3D12 apporterait davantage de gestion explicite sans accès nouveau aux surfaces ActiveX. |
 | Vulkan expérimental | Envoi BGRA, images GPU, `vkCmdBlitImage` linéaire, copie et lecture en retour | Chargeur système, pilote intégré ou dédié, file graphique et format BGRA compatible requis. Les pilotes CPU et GPU virtuels sont exclus de l’expérience. |
 
-Une capture de la fenêtre est faite avant la mise à l’échelle. Seule cette dernière est déléguée au processus x64. Les pixels passent en mémoire par les flux du processus, et seuls les PNG de miniatures déjà prévus par l’application sont écrits sur disque. Les dimensions GPU sont bornées à 8 192 pixels par axe et environ 16,8 millions de pixels par image. Il y a une miniature en traitement à la fois. L’application conserve les miniatures existantes, la taille dynamique, Smart Sizing, le plein écran et la vue côte à côte. Les pilotes, les moniteurs et la qualité de la capture PrintWindow peuvent influencer le résultat. [Blit Vulkan](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdBlitImage.html) · [Bitmap Direct2D](https://learn.microsoft.com/en-us/windows/win32/api/d2d1_1/ne-d2d1_1-d2d1_bitmap_options)
+Une capture de la fenêtre est faite avant la mise à l’échelle. Seule cette dernière est déléguée au processus x64. Les pixels passent en mémoire par les flux du processus, et seuls les PNG de miniatures déjà prévus par l’application sont écrits sur disque. Les dimensions GPU sont bornées à 8 192 pixels par axe et environ 16,8 millions de pixels par image. Il y a une miniature en traitement à la fois. L’application conserve les miniatures existantes, la taille dynamique, Smart Sizing, le plein écran et la vue côte à côte. Les pilotes, les moniteurs et la qualité de la capture PrintWindow peuvent influencer le résultat. [Blit Vulkan](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdBlitImage.html) · [Bitmap Direct2D](https://learn.microsoft.com/en-us/windows/win32/api/d2d1_1/ne-d2d1_1-d2d1_bitmap_options) · [Adaptateurs DXGI](https://learn.microsoft.com/fr-fr/windows/win32/direct3ddxgi/d3d10-graphics-programming-guide-dxgi)
 
 Une absence de module, un échec de la mise à l’échelle ou un délai d’environ six secondes entraîne un repli Windows. La sélection explicite peut être réappliquée pour réessayer. Le lancement par miniature et les transferts de pixels font partie du coût et peuvent rendre le GPU plus lent à ce format. L’architecture isolée évite de charger un pilote Vulkan dans le processus qui héberge les sessions.
 
@@ -34,13 +34,13 @@ Prérequis. Windows 10 ou 11 x64, .NET Framework 4.8, SDK Windows avec AxImp, Vi
 ```powershell
 git clone https://github.com/KhronosGroup/Vulkan-Headers.git ..\Vulkan-Headers
 git -C ..\Vulkan-Headers checkout 2cd90f9d20df57eac214c148f3aed885372ddcfe
-.\tests\run-tests.ps1
+powershell.exe -NoProfile -File .\tests\run-tests.ps1
 .\maintenance\build-gpu.ps1 -VulkanHeaders ..\Vulkan-Headers
 python .\tests\test-gpu-preview.py .\Raydesktop\RayXDesktop.GpuPreview.exe
 .\maintenance\build-portable.ps1 -GpuHelperPath .\Raydesktop\RayXDesktop.GpuPreview.exe
 ```
 
-Le script de tests retourne un code de sortie. Dans une session PowerShell interactive, exécute-le dans un sous-processus avec `powershell -File .\tests\run-tests.ps1` si nécessaire. GitHub Actions fournit la même compilation sur Windows avec l’archive et son SHA-256.
+GitHub Actions fournit la même compilation sur Windows avec l’archive et son SHA-256. Le test Direct3D WARP utilise explicitement le rendu logiciel pour vérifier les pixels sans carte disponible. Ce mode n’est pas proposé dans l’application et ne compte pas comme test matériel.
 
 ## Protocole reproductible sur poste pilote
 
