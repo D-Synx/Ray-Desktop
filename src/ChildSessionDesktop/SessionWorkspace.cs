@@ -23,6 +23,7 @@ namespace ChildSessionDesktop
 
         private readonly Panel sidebar;
         private readonly Panel surface;
+        private readonly Panel toolbarBand;
         private readonly FlowLayoutPanel list;
         private readonly Button splitButton;
         private readonly Slot local;
@@ -37,11 +38,13 @@ namespace ChildSessionDesktop
         internal event Action LocalConnectRequested;
         internal event Action LocalViewportChanged;
         internal event Action SelectionChanged;
+        internal event Action SidebarChanged;
         internal RemoteDesktop SelectedRemote { get { return selected.Remote; } }
         internal string SelectedName { get { return selected.Name; } }
         internal string SelectedStatus { get { return selected.Status; } }
         internal bool HasRemoteConnections { get { return slots.Count > 1; } }
         internal bool IsExpanded { get { return sidebar.Visible; } }
+        internal Panel ToolbarBand { get { return toolbarBand; } }
         internal string ThumbnailFolder { get { return thumbnails.Folder; } }
 
         internal SessionWorkspace(ChildSessionControl localDesktop, string localAccount)
@@ -53,6 +56,8 @@ namespace ChildSessionDesktop
 
             sidebar = new Panel { Dock = DockStyle.Left, Width = 204, BackColor = Color.FromArgb(23, 34, 50), Visible = false };
             Controls.Add(sidebar);
+            toolbarBand = new Panel { Dock = DockStyle.Top, BackColor = sidebar.BackColor, Visible = false };
+            Controls.Add(toolbarBand);
             list = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
@@ -226,6 +231,7 @@ namespace ChildSessionDesktop
         internal void ToggleSidebar()
         {
             sidebar.Visible = !sidebar.Visible;
+            if (SidebarChanged != null) SidebarChanged();
             Arrange();
         }
 

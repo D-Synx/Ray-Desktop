@@ -61,6 +61,7 @@ namespace ChildSessionDesktop
         internal bool LogEdgeEnabled { get; private set; }
         internal bool FluidGraphics { get; private set; }
         internal bool DynamicDisplay { get; private set; }
+        internal bool ToolbarPinned { get; private set; }
         internal bool ReconnectAllAtStartup { get; private set; }
         private bool SendFilesEnabled { get; set; }
         private bool ReceiveFilesEnabled { get; set; }
@@ -106,6 +107,12 @@ namespace ChildSessionDesktop
         internal bool SetDynamicDisplay(bool enabled)
         {
             DynamicDisplay = enabled;
+            return Save();
+        }
+
+        internal bool SetToolbarPinned(bool enabled)
+        {
+            ToolbarPinned = enabled;
             return Save();
         }
 
@@ -249,6 +256,7 @@ namespace ChildSessionDesktop
                     if (string.Equals(key, "ShowLogEdge", StringComparison.OrdinalIgnoreCase)) LogEdgeEnabled = value != "0";
                     else if (string.Equals(key, "FluidGraphics", StringComparison.OrdinalIgnoreCase)) FluidGraphics = value == "1";
                     else if (string.Equals(key, "DynamicDisplay", StringComparison.OrdinalIgnoreCase)) DynamicDisplay = value == "1";
+                    else if (string.Equals(key, "PinToolbar", StringComparison.OrdinalIgnoreCase)) ToolbarPinned = value == "1";
                     else if (string.Equals(key, "ReconnectAllAtStartup", StringComparison.OrdinalIgnoreCase)) ReconnectAllAtStartup = value != "0";
                     else if (string.Equals(key, "SendFiles", StringComparison.OrdinalIgnoreCase)) SendFilesEnabled = value != "0";
                     else if (string.Equals(key, "ReceiveFiles", StringComparison.OrdinalIgnoreCase)) ReceiveFilesEnabled = value != "0";
@@ -337,6 +345,7 @@ namespace ChildSessionDesktop
                     writer.WriteLine("ShowLogEdge=" + (LogEdgeEnabled ? "1" : "0"));
                     writer.WriteLine("FluidGraphics=" + (FluidGraphics ? "1" : "0"));
                     writer.WriteLine("DynamicDisplay=" + (DynamicDisplay ? "1" : "0"));
+                    writer.WriteLine("PinToolbar=" + (ToolbarPinned ? "1" : "0"));
                     writer.WriteLine("ReconnectAllAtStartup=" + (ReconnectAllAtStartup ? "1" : "0"));
                     writer.WriteLine("SendFiles=" + (SendFilesEnabled ? "1" : "0"));
                     writer.WriteLine("ReceiveFiles=" + (ReceiveFilesEnabled ? "1" : "0"));

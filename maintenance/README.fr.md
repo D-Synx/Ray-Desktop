@@ -1,10 +1,10 @@
-# RayXDesktop 1.5.0l bêta
+# RayXDesktop 1.5.0m bêta
 
 **Version maintenue par D.Synx.** Projet Ray Desktop d’origine par [raydoomed](https://github.com/raydoomed/Ray-Desktop), sous licence MIT.
 
 ## Démarrer
 
-1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0l bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0l) et extrais son contenu dans un dossier.
+1. Télécharge **RayXDesktop-Windows.zip** dans la rubrique **Assets** de la [version 1.5.0m bêta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0m) et extrais son contenu dans un dossier.
 2. Garde **RayXDesktop.bat**, **RayXDesktop.exe**, **EnableChildSessions.exe** et les deux DLL dans ce dossier.
 3. Dans **RayXDesktop.bat**, remplace **.\Admin** par le nom du compte autorisé si nécessaire. Le préfixe **.\** désigne un compte local du PC. Garde les guillemets autour de l’argument.
 4. Double-clique sur **RayXDesktop.bat**, puis saisis le mot de passe dans la fenêtre RayXDesktop. Pour utiliser le compte Windows déjà connecté, ouvre directement **RayXDesktop.exe**.
@@ -23,6 +23,8 @@ L’interface utilise le français sur les systèmes en français et l’anglais
 
 ## Utiliser la barre
 
+- **Plus → Afficher les sessions** centre les commandes dans un bandeau horizontal au-dessus du bureau. Le bouton **Ancrer la barre en haut** permet de garder ce bandeau même quand la liste est fermée. Clique sur le même bouton pour repasser en barre flottante.
+- Le titre de la fenêtre affiche la version de l’application. Elle est aussi accessible dans **Plus → À propos**.
 - **Affichage**, **Résolution** et **Plein écran** règlent le bureau.
 - **Fichiers** affiche **Envoyer vers RayXDesktop** et **Récupérer depuis RayXDesktop**. Dans l’Explorateur de la session source, sélectionne les fichiers ou dossiers et fais **Ctrl+C**. Choisis le sens, puis le dossier de destination. Le transfert local applique les droits des comptes Windows et les restrictions détectées. Les copies gérées par Windows affichent les options et la progression de l’Explorateur. La récupération nécessite que Windows transmette la sélection de la session enfant. Si le presse-papiers ne la reçoit pas, consulte **Diagnostic des transferts**.
 - À côté de **Fichiers**, la flèche **→** active ou désactive l’envoi vers la session locale de RayXDesktop et la flèche **←** fait de même pour la récupération. Ces réglages s’appliquent aux transferts gérés par RayXDesktop.

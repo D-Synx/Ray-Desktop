@@ -304,10 +304,11 @@ namespace ChildSessionDesktop
 
         private void RefreshSessionTitle()
         {
-            string title = sessions.SelectedRemote == null
-                ? sessions.SelectedStatus
-                : sessions.SelectedName + " · " + sessions.SelectedStatus;
-            title += " — RayXDesktop";
+            string status = sessions.SelectedStatus;
+            int lineEnd = status.IndexOf('\n');
+            if (lineEnd >= 0) status = status.Substring(0, lineEnd).TrimEnd();
+            string title = applicationTitle + " — "
+                + (sessions.SelectedRemote == null ? status : sessions.SelectedName + " · " + status);
             if (Text != title) Text = title;
             if (toolBar != null) toolBar.Invalidate();
         }

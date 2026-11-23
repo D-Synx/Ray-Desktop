@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Text;
 using System.Security.Cryptography;
 using System.Threading;
+using System.Windows.Forms;
 using ChildSessionDesktop;
 using RayXDesktop.Configuration;
 
@@ -366,6 +367,10 @@ namespace RayDesktopTests
                     "new users see the log edge and all saved sessions use strict server authentication at startup");
                 Check(preferences.AllowsFileTransfer(true) && preferences.AllowsFileTransfer(false)
                     && !preferences.LocalRdpClipboard.HasValue, "new settings preserve the previous file and clipboard behavior");
+                Check(!preferences.ToolbarPinned && preferences.SetToolbarPinned(true)
+                    && new DesktopPreferences(path).ToolbarPinned, "pinning the toolbar remains enabled after reopening");
+                Check(preferences.SetToolbarPinned(false) && !new DesktopPreferences(path).ToolbarPinned,
+                    "unpinning the toolbar clears the saved choice");
                 Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&
                     preferences.SetFluidGraphics(true) && preferences.SetDynamicDisplay(true),
                     "save all view settings and the per-address mode in data.ini");
@@ -441,6 +446,54 @@ namespace RayDesktopTests
             finally { File.Delete(path); }
         }
 
+        private static void TestToolbarPlacement()
+        {
+            using (var host = new Form { ClientSize = new Size(960, 540) })
+            {
+                var viewport = new Panel { Dock = DockStyle.Fill };
+                var sidebar = new Panel { Dock = DockStyle.Left, Width = 204 };
+                var band = new Panel { Dock = DockStyle.Top, Visible = false };
+                host.Controls.Add(viewport);
+                host.Controls.Add(sidebar);
+                host.Controls.Add(band);
+                using (var toolbar = new ToolbarControl(host, band))
+                {
+                    toolbar.ToggleDock = delegate { toolbar.SetDocked(!toolbar.IsDocked); };
+                    host.Show();
+                    toolbar.SetDocked(true);
+                    Check(toolbar.IsDocked && band.Visible && Math.Abs(toolbar.Left * 2 + toolbar.Width - band.Width) <= 1
+                        && viewport.Top == band.Bottom && sidebar.Top == band.Bottom,
+                        "docked toolbar centers in the band above both the desktop and session list");
+                    host.ClientSize = new Size(320, 440);
+                    AccessibleObject buttons = toolbar.AccessibilityObject;
+                    Rectangle toolbarBounds = toolbar.RectangleToScreen(toolbar.ClientRectangle);
+                    bool allFit = toolbar.Width <= band.Width;
+                    AccessibleObject undock = null;
+                    for (int i = 0; i < buttons.GetChildCount(); i++)
+                    {
+                        var button = buttons.GetChild(i);
+                        allFit &= toolbarBounds.Contains(button.Bounds);
+                        if (button.Name == Strings.T("toolbar_float")) undock = button;
+                    }
+                    Check(allFit, "every toolbar button fits at the minimum window width");
+                    if (undock != null) undock.DoDefaultAction();
+                    Check(undock != null && !toolbar.IsDocked && !band.Visible && viewport.Top == 0
+                        && toolbar.FindForm().Owner == host, "the toolbar button undocks and returns the space to the desktop");
+                    buttons = toolbar.AccessibilityObject;
+                    AccessibleObject dock = null;
+                    for (int i = 0; i < buttons.GetChildCount(); i++)
+                    {
+                        var button = buttons.GetChild(i);
+                        if (button.Name == Strings.T("toolbar_dock")) dock = button;
+                    }
+                    if (dock != null) dock.DoDefaultAction();
+                    Check(dock != null && toolbar.IsDocked && viewport.Top == band.Bottom,
+                        "the same toolbar docks again from the floating window");
+                }
+            }
+        }
+
+        [STAThread]
         private static int Main()
         {
             TestToMillimeters();
@@ -454,6 +507,7 @@ namespace RayDesktopTests
             TestRemoteDisplaySizing();
             TestGraphicsAndRdpDiagnostics();
             TestDesktopPreferences();
+            TestToolbarPlacement();
             TestLogTail();
             Console.WriteLine("RayDesktopTests: " + _passed + " passed, " + _failed + " failed.");
             return _failed == 0 ? 0 : 1;

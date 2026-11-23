@@ -49,7 +49,9 @@ namespace ChildSessionDesktop
         private int _maxSessW, _maxSessH;
         private Size _fixedMatchClient = Size.Empty;
         private FormBorderStyle prevBorder;
-        private ToolbarForm toolBar;
+        private readonly string applicationTitle = "RayXDesktop " + Application.ProductVersion;
+        private ToolbarControl toolBar;
+        private bool floatingWithSidebar;
         private ContextMenuStrip _displayMenu, _moreMenu, _resMenu;
         private Timer reconnectTimer;
         private readonly ReconnectPolicy reconnectPolicy = new ReconnectPolicy();
@@ -106,7 +108,7 @@ namespace ChildSessionDesktop
             fluidGraphics = preferences.FluidGraphics;
             connectionAccount = account;
             connectionPassword = password;
-            Text = "RayXDesktop";
+            Text = applicationTitle;
             BackColor = Color.Black;
             StartPosition = FormStartPosition.CenterScreen;
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
@@ -141,6 +143,11 @@ namespace ChildSessionDesktop
             Controls.Add(sessions);
             sessions.LocalViewportChanged += RefreshLocalViewport;
             sessions.SelectionChanged += RefreshSessionTitle;
+            sessions.SidebarChanged += delegate
+            {
+                floatingWithSidebar = false;
+                UpdateToolbarPlacement();
+            };
             sessions.AddRequested += AddRemote;
             sessions.LocalConnectRequested += ConnectChildSession;
 
@@ -223,13 +230,13 @@ namespace ChildSessionDesktop
             }
             if (dynamicMode) SetDynamicLayout();
             else ApplyLetterbox();
-            if (toolBar != null) toolBar.FollowHost(this);
+            if (toolBar != null) toolBar.FollowHost();
         }
 
         protected override void OnMove(EventArgs e)
         {
             base.OnMove(e);
-            if (toolBar != null) toolBar.FollowHost(this);
+            if (toolBar != null) toolBar.FollowHost();
             AutoFollowScreen();
         }
 
@@ -287,7 +294,8 @@ namespace ChildSessionDesktop
                 if (dynamicMode) QueueDisplayResize(true);
             }
 
-            if (!dynamicMode && m.Msg == WM_SIZING && aspect > 0 && (sessions == null || !sessions.IsExpanded))
+            if (!dynamicMode && m.Msg == WM_SIZING && aspect > 0
+                && (sessions == null || !sessions.IsExpanded) && (toolBar == null || !toolBar.IsDocked))
             {
                 RECT r = (RECT)Marshal.PtrToStructure(m.LParam, typeof(RECT));
                 int bw = Width - ClientSize.Width;
@@ -498,7 +506,7 @@ namespace ChildSessionDesktop
                     catch (Exception ex) { Program.Log("Resolution readback failed: " + ex.GetBaseException().Message); }
                     _resChangePending = false;
                     MatchWindowToSession(currentSessW, currentSessH);
-                    if (toolBar != null) toolBar.FollowHost(this);
+                    if (toolBar != null) toolBar.FollowHost();
                 };
                 lateResizeTimer.Start();
             }
@@ -506,7 +514,7 @@ namespace ChildSessionDesktop
             {
                 toolBar.IsDynamicMode = mode;
                 toolBar.Invalidate();
-                toolBar.FollowHost(this);
+                toolBar.FollowHost();
             }
         }
 
@@ -634,7 +642,7 @@ namespace ChildSessionDesktop
         private void CreateToolbar()
         {
             if (toolBar != null) return;
-            toolBar = new ToolbarForm();
+            toolBar = new ToolbarControl(this, sessions.ToolbarBand);
             toolBar.ToggleFullscreen = ToggleFullscreen;
             toolBar.ShowResMenu = ShowResMenuAt;
             toolBar.ShowDisplayModeMenu = ShowDisplayModeMenuAt;
@@ -645,9 +653,24 @@ namespace ChildSessionDesktop
             toolBar.ToggleFileTransfer = ToggleFileTransfer;
             toolBar.RdpClipboardState = WantsSelectedRdpClipboard;
             toolBar.ToggleRdpClipboard = delegate { SetSelectedRdpClipboard(!WantsSelectedRdpClipboard()); };
+            toolBar.ToggleDock = ToggleToolbarDock;
             toolBar.IsDynamicMode = dynamicMode;
-            toolBar.FollowHost(this);
-            toolBar.Show(this);
+            UpdateToolbarPlacement();
+        }
+
+        private void UpdateToolbarPlacement()
+        {
+            if (toolBar != null)
+                toolBar.SetDocked(preferences.ToolbarPinned || (sessions.IsExpanded && !floatingWithSidebar));
+        }
+
+        private void ToggleToolbarDock()
+        {
+            bool pin = !toolBar.IsDocked;
+            floatingWithSidebar = !pin && sessions.IsExpanded;
+            bool saved = preferences.SetToolbarPinned(pin);
+            UpdateToolbarPlacement();
+            SavePreferences(saved);
         }
 
         private static ContextMenuStrip MakeToolbarMenu()
@@ -832,7 +855,7 @@ namespace ChildSessionDesktop
                     _resChangePending = false;
                     MatchWindowToSession(currentSessW, currentSessH);
                     if (dynamicMode) HoldCurrentDisplaySize();
-                    if (toolBar != null) toolBar.FollowHost(this);
+                    if (toolBar != null) toolBar.FollowHost();
                 };
                 lateResizeTimer.Start();
             }
@@ -848,7 +871,8 @@ namespace ChildSessionDesktop
 
         private void MatchWindowToSession(int sessW, int sessH)
         {
-            if (sessions != null && (sessions.IsExpanded || (logPane != null && logPane.IsOpen)))
+            if ((sessions != null && sessions.IsExpanded) || (toolBar != null && toolBar.IsDocked)
+                || (logPane != null && logPane.IsOpen))
             {
                 RefreshLocalViewport();
                 return;
@@ -883,7 +907,7 @@ namespace ChildSessionDesktop
                 + "; scale " + s.ToString("0.000") + " aspect=" + aspect.ToString("0.0000"));
             if (dynamicMode) SetDynamicLayout();
             else ApplyLetterbox();
-            if (toolBar != null) toolBar.FollowHost(this);
+            if (toolBar != null) toolBar.FollowHost();
         }
 
         private void ConnectChildSession()
@@ -1170,7 +1194,7 @@ namespace ChildSessionDesktop
                 if (rdp.Size.Width > 2 && rdp.Size.Height > 2)
                     rdp.Size = new Size(rdp.Size.Width - 1, rdp.Size.Height - 1);
                 ApplyLetterbox();
-                if (toolBar != null) toolBar.FollowHost(this);
+                if (toolBar != null) toolBar.FollowHost();
             }
             catch (Exception ex) { Program.Log("OnRemoteDesktopSizeChange handler: " + ex); }
         }

@@ -44,7 +44,7 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ReconnectPolicy.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ChildSessionControl.cs'),
-    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ToolbarForm.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ToolbarControl.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\TooltipForm.cs')
 )
 $childManifest = Join-Path $PSScriptRoot 'src\ChildSessionDesktop\app.manifest'
@@ -52,8 +52,8 @@ $icon = Join-Path $PSScriptRoot 'assets\RayDesktop.ico'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.5.0.8'
-$productVersion = '1.5.0l'
+$version = '1.5.0.9'
+$productVersion = '1.5.0m'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
     "using System.Reflection;`r`n[assembly: AssemblyTitle(`"RayXDesktop`")]`r`n[assembly: AssemblyCompany(`"D.Synx`")]`r`n[assembly: AssemblyProduct(`"RayXDesktop`")]`r`n[assembly: AssemblyVersion(`"$version`")]`r`n[assembly: AssemblyFileVersion(`"$version`")]`r`n[assembly: AssemblyInformationalVersion(`"$productVersion`")]`r`n",

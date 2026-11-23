@@ -5,14 +5,14 @@ using System.Windows.Forms;
 
 namespace ChildSessionDesktop
 {
-    internal sealed class ToolbarForm : Form
+    internal sealed class ToolbarControl : Control
     {
-        private enum Tool { Move, Display, Resolution, Fullscreen, Files, SendFiles, ReceiveFiles, RdpClipboard, Reconnect, More, Collapse, Close }
+        private enum Tool { Move, Display, Resolution, Fullscreen, Files, SendFiles, ReceiveFiles, RdpClipboard, Reconnect, More, Dock, Collapse, Close }
 
         private static readonly Tool[] Tools = {
             Tool.Move, Tool.Display, Tool.Resolution, Tool.Fullscreen,
             Tool.Files, Tool.SendFiles, Tool.ReceiveFiles, Tool.RdpClipboard,
-            Tool.Reconnect, Tool.More, Tool.Collapse, Tool.Close
+            Tool.Reconnect, Tool.More, Tool.Dock, Tool.Collapse, Tool.Close
         };
 
         private static readonly Color Surface = Color.FromArgb(20, 30, 43);
@@ -27,7 +27,9 @@ namespace ChildSessionDesktop
         private readonly Font labelFont;
         private readonly bool french = Strings.IsFrench;
 
-        private Form host;
+        private readonly Form host;
+        private readonly Panel band;
+        private readonly Form floatingWindow;
         private Point? hostOffset;
         private int hover = -1, pressed = -1, focused = -1;
         private Point dragOrigin;
@@ -46,34 +48,46 @@ namespace ChildSessionDesktop
         internal Func<bool> RdpClipboardState;
         internal Action ToggleRdpClipboard;
         internal Action ReconnectSession;
+        internal Action ToggleDock;
         internal bool IsDynamicMode;
         internal bool Fullscreen;
+        internal bool IsDocked { get { return Parent == band; } }
 
-        internal ToolbarForm()
+        internal ToolbarControl(Form host, Panel band)
         {
-            FormBorderStyle = FormBorderStyle.None;
-            StartPosition = FormStartPosition.Manual;
-            ShowInTaskbar = false;
-            AutoScaleMode = AutoScaleMode.None;
-            BackColor = Surface;
+            this.host = host;
+            this.band = band;
+            floatingWindow = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None, StartPosition = FormStartPosition.Manual,
+                ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.None, BackColor = Surface, Owner = host
+            };
+            TabStop = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
-                ControlStyles.OptimizedDoubleBuffer, true);
-            using (var graphics = Graphics.FromHwnd(IntPtr.Zero))
-                scale = Math.Max(1f, graphics.DpiX / 96f);
+                ControlStyles.OptimizedDoubleBuffer | ControlStyles.Selectable, true);
+            scale = Math.Max(1f, host.DeviceDpi / 96f);
             labelFont = new Font("Segoe UI", 12, FontStyle.Bold, GraphicsUnit.Pixel);
             tooltip = new TooltipForm();
-            RebuildLayout();
+            band.ClientSizeChanged += OnBandSizeChanged;
+            host.DpiChanged += OnHostDpiChanged;
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing && !IsDisposed)
             {
+                band.ClientSizeChanged -= OnBandSizeChanged;
+                host.DpiChanged -= OnHostDpiChanged;
                 tooltip.Dispose();
                 labelFont.Dispose();
-                var oldRegion = Region;
-                Region = null;
-                if (oldRegion != null) oldRegion.Dispose();
+                if (!floatingWindow.Disposing && !floatingWindow.IsDisposed)
+                {
+                    if (Parent == floatingWindow) floatingWindow.Controls.Remove(this);
+                    var outline = floatingWindow.Region;
+                    floatingWindow.Region = null;
+                    if (outline != null) outline.Dispose();
+                    floatingWindow.Dispose();
+                }
             }
             base.Dispose(disposing);
         }
@@ -109,6 +123,7 @@ namespace ChildSessionDesktop
                 case Tool.RdpClipboard: return ToggleName(tool, "files_toggle_clipboard");
                 case Tool.Reconnect: return Strings.T("menu_reconnect");
                 case Tool.More: return french ? "Plus d’options" : Strings.T("btn_more");
+                case Tool.Dock: return Strings.T(IsDocked ? "toolbar_float" : "toolbar_dock");
                 case Tool.Collapse: return french ? "Réduire la barre" : Strings.T("tip_collapse");
                 case Tool.Close: return french ? "Fermer la session" : Strings.T("btn_exit");
                 default: return "";
@@ -144,28 +159,42 @@ namespace ChildSessionDesktop
 
         private void RebuildLayout()
         {
+            int first = IsDocked ? 1 : 0;
+            int count = Tools.Length - first;
             int normalWidth = 2 * PaddingSize + 16;
-            foreach (Tool tool in Tools) normalWidth += StandardButtonWidth(tool) + 2;
+            for (int i = first; i < Tools.Length; i++) normalWidth += StandardButtonWidth(Tools[i]) + 2;
             compact = Px(normalWidth) > hostWidth;
-            int iconWidth = 35;
-            if (compact)
-                iconWidth = Math.Max(16, Math.Min(iconWidth, ((int)(hostWidth / scale) - 2 * PaddingSize) / Tools.Length - 2));
+            int available = (int)(hostWidth / scale) - 2 * PaddingSize;
+            int perRow = compact ? Math.Max(1, Math.Min(count, available / 22)) : count;
+            int iconWidth = compact ? Math.Max(20, Math.Min(35, available / perRow - 2)) : 35;
+            int rows = (count + perRow - 1) / perRow;
+            buttons[0] = Rectangle.Empty;
             int x = PaddingSize;
-            for (int i = 0; i < Tools.Length; i++)
+            for (int i = first; i < Tools.Length; i++)
             {
+                int row = (i - first) / perRow;
+                if (compact && (i - first) % perRow == 0)
+                    x = PaddingSize + Math.Max(0, perRow - (Tools.Length - i)) * (iconWidth + 2) / 2;
                 Tool tool = Tools[i];
                 if (!compact && (tool == Tool.Files || tool == Tool.Close)) x += 8;
                 int width = compact ? iconWidth : StandardButtonWidth(tool);
-                buttons[i] = Rectangle.FromLTRB(Px(x), Px(6), Px(x + width), Px(42));
+                int y = row * (BarHeight - PaddingSize);
+                buttons[i] = Rectangle.FromLTRB(Px(x), Px(y + 6), Px(x + width), Px(y + 42));
                 x += width + 2;
             }
 
-            Size = collapsed ? new Size(Px(BadgeSize), Px(BadgeSize)) : new Size(Px(x + PaddingSize), Px(BarHeight));
-            using (var path = Shape(new RectangleF(0, 0, Width, Height), Px(collapsed ? 14 : 12)))
+            int barWidth = compact ? 2 * PaddingSize + perRow * (iconWidth + 2) : normalWidth;
+            Size = collapsed ? new Size(Px(BadgeSize), Px(BadgeSize))
+                : new Size(Px(barWidth), Px(BarHeight + (rows - 1) * (BarHeight - PaddingSize)));
+            if (!IsDocked)
             {
-                var previous = Region;
-                Region = new Region(path);
-                if (previous != null) previous.Dispose();
+                floatingWindow.ClientSize = Size;
+                using (var path = Shape(new RectangleF(0, 0, Width, Height), Px(collapsed ? 14 : 12)))
+                {
+                    var previous = floatingWindow.Region;
+                    floatingWindow.Region = new Region(path);
+                    if (previous != null) previous.Dispose();
+                }
             }
             Invalidate();
         }
@@ -178,48 +207,88 @@ namespace ChildSessionDesktop
             Invalidate();
         }
 
-        internal void FollowHost(Form newHost)
+        internal void SetDocked(bool docked)
         {
-            host = newHost;
-            Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
-            if (bounds.Width > 0 && bounds.Width != hostWidth)
+            if (Parent != null && IsDocked == docked) return;
+            bool restoreFocus = Focused;
+            hover = pressed = focused = -1;
+            moving = moved = false;
+            Capture = false;
+            Cursor = Cursors.Default;
+            tooltip.HideAway();
+            if (docked)
             {
-                hostWidth = bounds.Width;
+                floatingWindow.Hide();
+                band.Controls.Add(this);
+                BackColor = band.BackColor;
+                RefreshLayout();
+                band.Visible = true;
+            }
+            else
+            {
+                band.Visible = false;
+                floatingWindow.Controls.Add(this);
+                Location = Point.Empty;
+                BackColor = Surface;
+                floatingWindow.Opacity = collapsed ? BadgeOpacity : 1;
+                RefreshLayout();
+                floatingWindow.Show();
+            }
+            if (restoreFocus) Focus();
+        }
+
+        private void RefreshLayout()
+        {
+            hostWidth = Math.Max(1, IsDocked ? band.ClientSize.Width : host.ClientSize.Width);
+            RebuildLayout();
+            FollowHost();
+        }
+
+        private void OnBandSizeChanged(object sender, EventArgs e)
+        {
+            if (IsDocked) FollowHost();
+        }
+
+        private void OnHostDpiChanged(object sender, DpiChangedEventArgs e)
+        {
+            scale = Math.Max(1f, e.DeviceDpiNew / 96f);
+            tooltip.HideAway();
+            RefreshLayout();
+        }
+
+        internal void FollowHost()
+        {
+            int width = IsDocked ? band.ClientSize.Width : host.ClientSize.Width;
+            if (width > 0 && width != hostWidth)
+            {
+                hostWidth = width;
                 RebuildLayout();
             }
-            Point offset = !Fullscreen && host.WindowState != FormWindowState.Maximized && hostOffset.HasValue
-                ? hostOffset.Value : new Point((bounds.Width - Width) / 2, Px(14));
-            MoveInsideHost(new Point(bounds.X + offset.X, bounds.Y + offset.Y));
-            if (tooltip.Visible && hover >= 0 && !collapsed)
-                tooltip.Reposition(RectangleToScreen(buttons[hover]));
+            if (IsDocked)
+            {
+                band.Height = Height + Px(8);
+                Location = new Point(Math.Max(0, (band.ClientSize.Width - Width) / 2), Px(4));
+            }
+            else
+            {
+                Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
+                Point offset = !Fullscreen && host.WindowState != FormWindowState.Maximized && hostOffset.HasValue
+                    ? hostOffset.Value : new Point((bounds.Width - Width) / 2, Px(14));
+                MoveInsideHost(new Point(bounds.X + offset.X, bounds.Y + offset.Y));
+            }
+            if (tooltip.Visible)
+            {
+                if (collapsed) tooltip.Reposition(RectangleToScreen(ClientRectangle));
+                else if (hover >= 0) tooltip.Reposition(RectangleToScreen(buttons[hover]));
+            }
         }
 
         private void MoveInsideHost(Point location)
         {
-            if (host != null)
-            {
-                Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
-                location.X = Math.Max(bounds.Left, Math.Min(location.X, bounds.Right - Width));
-                location.Y = Math.Max(bounds.Top, Math.Min(location.Y, bounds.Bottom - Height));
-            }
-            if (Location != location) Location = location;
-        }
-
-        protected override void WndProc(ref Message message)
-        {
-            const int dpiChanged = 0x02E0;
-            if (message.Msg == dpiChanged)
-            {
-                int dpi = (ushort)(message.WParam.ToInt64() & 0xFFFF);
-                if (dpi > 0)
-                {
-                    scale = Math.Max(1f, dpi / 96f);
-                    tooltip.HideAway();
-                    RebuildLayout();
-                    if (host != null) FollowHost(host);
-                }
-            }
-            base.WndProc(ref message);
+            Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
+            location.X = Math.Max(bounds.Left, Math.Min(location.X, bounds.Right - Width));
+            location.Y = Math.Max(bounds.Top, Math.Min(location.Y, bounds.Bottom - Height));
+            if (floatingWindow.Location != location) floatingWindow.Location = location;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -238,7 +307,7 @@ namespace ChildSessionDesktop
                 PaintIcon(graphics, Tool.Display, Width / 2f, Height / 2f, Accent);
                 return;
             }
-            for (int i = 0; i < Tools.Length; i++)
+            for (int i = IsDocked ? 1 : 0; i < Tools.Length; i++)
                 PaintButton(graphics, i);
         }
 
@@ -247,7 +316,7 @@ namespace ChildSessionDesktop
             Tool tool = Tools[index];
             Rectangle bounds = buttons[index];
             bool highlighted = index == hover || index == focused;
-            Color text = tool == Tool.Files ? Accent : Foreground;
+            Color text = tool == Tool.Files || (tool == Tool.Dock && IsDocked) ? Accent : Foreground;
             Color fill = Color.Empty;
             bool toggle = IsToggle(tool);
             bool? enabled = toggle ? ToggleState(tool) : null;
@@ -358,6 +427,13 @@ namespace ChildSessionDesktop
                     case Tool.More:
                         for (int i = -1; i <= 1; i++) g.FillEllipse(brush, i * 5 - 1.4f, -1.4f, 2.8f, 2.8f);
                         break;
+                    case Tool.Dock:
+                        g.DrawRectangle(pen, -8, -7, 16, 14);
+                        g.DrawLine(pen, -8, -3, 8, -3);
+                        int arrow = IsDocked ? 1 : -1;
+                        g.DrawLine(pen, 0, 2 - arrow * 3, 0, 2 + arrow * 3);
+                        g.DrawLines(pen, new[] { new Point(-2, 2 + arrow), new Point(0, 2 + arrow * 3), new Point(2, 2 + arrow) });
+                        break;
                     case Tool.Collapse:
                         g.DrawLines(pen, new[] { new Point(-6, 2), new Point(0, -4), new Point(6, 2) });
                         break;
@@ -384,19 +460,18 @@ namespace ChildSessionDesktop
 
         private void SetCollapsed(bool value)
         {
-            int center = Left + Width / 2;
+            int previousWidth = Width;
             collapsed = value;
-            Opacity = value ? BadgeOpacity : 1;
+            if (!IsDocked) floatingWindow.Opacity = value ? BadgeOpacity : 1;
             hover = pressed = focused = -1;
             tooltip.HideAway();
             RebuildLayout();
-            if (host == null) return;
-            if (hostOffset.HasValue)
+            if (!IsDocked && hostOffset.HasValue)
             {
-                Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
-                hostOffset = new Point(center - Width / 2 - bounds.Left, hostOffset.Value.Y);
+                Point offset = hostOffset.Value;
+                hostOffset = new Point(offset.X + (previousWidth - Width) / 2, offset.Y);
             }
-            FollowHost(host);
+            FollowHost();
             AccessibilityNotifyClients(AccessibleEvents.Reorder, -1);
         }
 
@@ -404,13 +479,14 @@ namespace ChildSessionDesktop
         {
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
+            Focus();
             pressed = HitTest(e.Location);
-            moving = collapsed || (pressed >= 0 && Tools[pressed] == Tool.Move);
+            moving = !IsDocked && (collapsed || (pressed >= 0 && Tools[pressed] == Tool.Move));
             moved = false;
-            dragOrigin = Location;
+            dragOrigin = floatingWindow.Location;
             cursorOrigin = Control.MousePosition;
             tooltip.HideAway();
-            Capture = moving || pressed >= 0;
+            Capture = collapsed || pressed >= 0;
             Invalidate();
         }
 
@@ -439,9 +515,9 @@ namespace ChildSessionDesktop
         {
             base.OnMouseEnter(e);
             if (!collapsed) return;
-            Opacity = 1;
+            if (!IsDocked) floatingWindow.Opacity = 1;
             Cursor = Cursors.Hand;
-            if (!moving) tooltip.ShowFor(Bounds, ExpandName);
+            if (!moving) tooltip.ShowFor(RectangleToScreen(ClientRectangle), ExpandName);
         }
 
         protected override void OnMouseLeave(EventArgs e)
@@ -449,7 +525,7 @@ namespace ChildSessionDesktop
             base.OnMouseLeave(e);
             hover = -1;
             tooltip.HideAway();
-            if (collapsed) Opacity = BadgeOpacity;
+            if (collapsed && !IsDocked) floatingWindow.Opacity = BadgeOpacity;
             Invalidate();
         }
 
@@ -457,12 +533,12 @@ namespace ChildSessionDesktop
         {
             base.OnMouseUp(e);
             if (e.Button != MouseButtons.Left) return;
-            bool expand = collapsed && moving && !moved && ClientRectangle.Contains(e.Location);
+            bool expand = collapsed && Capture && !moved && ClientRectangle.Contains(e.Location);
             int activated = !moved && pressed == HitTest(e.Location) ? pressed : -1;
-            if (moved && host != null)
+            if (moved && !IsDocked)
             {
                 Rectangle bounds = host.RectangleToScreen(host.ClientRectangle);
-                hostOffset = new Point(Left - bounds.Left, Top - bounds.Top);
+                hostOffset = new Point(floatingWindow.Left - bounds.Left, floatingWindow.Top - bounds.Top);
             }
             moving = false;
             pressed = -1;
@@ -506,8 +582,9 @@ namespace ChildSessionDesktop
                 case Tool.Files: if (ShowFilesMenu != null) ShowFilesMenu(anchor); break;
                 case Tool.Reconnect: if (ReconnectSession != null) ReconnectSession(); break;
                 case Tool.More: if (ShowMoreMenu != null) ShowMoreMenu(anchor); break;
+                case Tool.Dock: if (ToggleDock != null) ToggleDock(); break;
                 case Tool.Collapse: SetCollapsed(true); break;
-                case Tool.Close: if (host != null) host.Close(); break;
+                case Tool.Close: host.Close(); break;
             }
         }
 
@@ -554,8 +631,8 @@ namespace ChildSessionDesktop
 
         private sealed class ToolbarAccessibility : ControlAccessibleObject
         {
-            private readonly ToolbarForm toolbar;
-            public ToolbarAccessibility(ToolbarForm owner) : base(owner) { toolbar = owner; }
+            private readonly ToolbarControl toolbar;
+            public ToolbarAccessibility(ToolbarControl owner) : base(owner) { toolbar = owner; }
             public override AccessibleRole Role { get { return AccessibleRole.ToolBar; } }
             public override string Name { get { return "RayXDesktop"; } }
             public override int GetChildCount() { return toolbar.collapsed ? 1 : Tools.Length - 1; }
@@ -567,9 +644,9 @@ namespace ChildSessionDesktop
 
         private sealed class ToolbarButtonAccessibility : AccessibleObject
         {
-            private readonly ToolbarForm toolbar;
+            private readonly ToolbarControl toolbar;
             private readonly int index;
-            public ToolbarButtonAccessibility(ToolbarForm owner, int index) { toolbar = owner; this.index = index; }
+            public ToolbarButtonAccessibility(ToolbarControl owner, int index) { toolbar = owner; this.index = index; }
             public override string Name { get { return index < 0 ? toolbar.ExpandName : toolbar.ToolName(Tools[index]); } }
             public override AccessibleRole Role { get { return index >= 0 && IsToggle(Tools[index])
                 ? AccessibleRole.CheckButton : AccessibleRole.PushButton; } }
@@ -584,7 +661,7 @@ namespace ChildSessionDesktop
                     return value.Value ? state | AccessibleStates.Checked : state;
                 }
             }
-            public override Rectangle Bounds { get { return index < 0 ? toolbar.Bounds : toolbar.RectangleToScreen(toolbar.buttons[index]); } }
+            public override Rectangle Bounds { get { return toolbar.RectangleToScreen(index < 0 ? toolbar.ClientRectangle : toolbar.buttons[index]); } }
             public override void DoDefaultAction()
             {
                 if (index < 0) toolbar.SetCollapsed(false);
