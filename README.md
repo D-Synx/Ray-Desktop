@@ -1,25 +1,25 @@
-# RayˣDesktop
+# RayXDesktop
 
-![RayˣDesktop, with a blue and gold X against a galaxy](assets/RayXDesktop-banner.jpg)
+<p align="center">
+  <img src="assets/RayXDesktop-banner.jpg" width="960" alt="RayXDesktop, avec un X bleu et doré sur fond de galaxie">
+</p>
 
-**Maintained by D.Synx** · Based on [Ray Desktop by raydoomed](https://github.com/raydoomed/Ray-Desktop) · MIT
+**Un bureau Windows dans une fenêtre dédiée.** Ouvre une session secondaire depuis ton bureau Windows.
 
-RayXDesktop displays a local Windows Child Session in a separate window. The toolbar lets you change the display mode and resolution, switch to fullscreen, transfer selected files, reconnect and close the session. It docks automatically when you open the session list. Use the dock button to keep it above the desktop or switch back to the floating toolbar.
+Maintenu par **D.Synx** · Issu de [Ray Desktop par raydoomed](https://github.com/raydoomed/Ray-Desktop) · [Licence MIT](LICENSE)
 
-[Guide en français](maintenance/README.fr.md) · [Stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [1.5.0.1 beta](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.5.0.1)
+[Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-Desktop/releases/tag/v1.4.6) · [Builds Windows de la bêta 1.6.0](https://github.com/D-Synx/Ray-Desktop/actions/workflows/ray-gpu-beta.yml?query=branch%3Abeta%2F1.6.0-gpu-vulkan) · [Guide en français](maintenance/README.fr.md)
 
-The **1.6.0 GPU beta** adds experimental hardware scaling of session thumbnails and GPU diagnostics. Windows ActiveX continues to render the live RDP desktops. [Technical notes, Windows build and benchmark protocol](maintenance/GPU.fr.md)
+La **bêta 1.6.0** ajoute les miniatures accélérées via Direct3D 11 ou Vulkan, le profil **RDP rapide** et des réglages de résolution pour chaque session. La barre latérale donne accès au bureau local et aux connexions RDP enregistrées. Le contrôle RDP de Windows affiche les bureaux en direct. [Notes techniques et protocole de mesure](maintenance/GPU.fr.md)
 
-## Aperçu de la barre · 1.4.6
-
-**Fichiers** et **Reconnecter** sont accessibles directement dans la nouvelle barre.
+## Aperçu de l’interface · version 1.4.6
 
 ![RayXDesktop 1.4.6 — nouvelle barre avec Affichage, Résolution, Fichiers et Reconnecter](assets/RayXDesktop-1.4.6.webp)
 
 ## Run
 
-1. Download **RayXDesktop-Windows.zip** from the beta release Assets and extract it.
-2. Keep both EXEs, both DLLs, and **RayXDesktop.bat** in the same folder.
+1. Open a successful Windows beta build using the link above. Download its artifact and extract **RayXDesktop-Windows.zip** from it. For the stable version, use the ZIP in the release assets.
+2. Keep the files from the portable ZIP together, including **RayXDesktop.bat** and the GPU helper in the beta.
 3. Run **RayXDesktop.exe** for the current Windows account. To connect with another authorized account, set the account name in **RayXDesktop.bat**. RayXDesktop prompts for that account’s password when it connects.
 4. If Child Sessions are disabled, an authorized administrator can run **EnableChildSessions.exe --enable-child-sessions**. A Windows sign-out and sign-in may be required after first activation.
 
@@ -32,7 +32,7 @@ The interface uses French on French Windows installations and English elsewhere.
 - Copy and paste text in either direction with **Ctrl+C** and **Ctrl+V** in an embedded remote session, subject to Windows clipboard policies. Use the clipboard icon to toggle native RDP redirection for the selected session, then reconnect.
 - Copy a file or folder in Explorer, then choose **Files → Send to RayXDesktop** or **Files → Retrieve from RayXDesktop**. Pick a destination folder. Standard Windows permissions and clipboard policy apply. A copy from the child session requires Windows to deliver the file selection to the main session.
 - Use the two arrows beside **Files** to turn each direction of local RayXDesktop file transfer on or off independently. A filled indicator shows an enabled option. Native clipboard redirection follows the selected session’s clipboard setting and Windows policy.
-- Choose **More → Prefer smooth display** to reduce visual effects and display resolution on the next local connection or new remote connection. **RDP graphics and codec** shows the effective GPU, H.264 hardware encoder and AVC 4:4:4 policies. Use its switches to change the local policy on the machine hosting the remote desktop, with confirmation and Windows administrator approval.
+- Choose **More → Live RDP performance** to apply Standard, Prefer smooth display or Fast RDP on the next connection. The **Resolution** menu can restore the starting size, request the current screen’s resolution or return to the active profile’s automatic sizing. **RDP graphics and codec** shows the effective GPU, H.264 hardware encoder and AVC 4:4:4 policies. Use its switches to change the local policy on the machine hosting the remote desktop, with confirmation and Windows administrator approval.
 
 If an embedded desktop stays blank, select its card and read its connection status. Use **More → Refresh remote display** after Windows has signed in. **Open this address in Windows Remote Desktop** provides a comparison using the same account and a fresh Windows credentials prompt. **Copy remote connection diagnostics** captures the client disconnect code, the extended code and the sign-in stage.
 
