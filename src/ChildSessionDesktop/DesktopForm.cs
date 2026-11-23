@@ -38,6 +38,8 @@ namespace ChildSessionDesktop
         private int _fixedSessW, _fixedSessH;
         private double aspect;
         private int currentSessW, currentSessH;
+        private readonly Size initialSessionResolution;
+        private Size? localResolutionOverride;
         private bool _resChangePending;
         private bool _lastMaximized;
         private int _lbLastW = -1, _lbLastH = -1;
@@ -45,7 +47,6 @@ namespace ChildSessionDesktop
         private bool fullscreen;
         private Rectangle prevBounds;
         private Rectangle _trackedScreen = Rectangle.Empty;
-        private bool _followScreenRes = true;
         private int _maxSessW, _maxSessH;
         private Size _fixedMatchClient = Size.Empty;
         private FormBorderStyle prevBorder;
@@ -123,6 +124,7 @@ namespace ChildSessionDesktop
             int screenW = Screen.PrimaryScreen.Bounds.Width;
             int screenH = Screen.PrimaryScreen.Bounds.Height;
             if (screenW <= 0 || screenH <= 0) { screenW = 1280; screenH = 720; }
+            initialSessionResolution = new Size(screenW, screenH);
             SetSessionResolution(screenW, screenH);
             if (!dynamicMode) { _fixedSessW = screenW; _fixedSessH = screenH; }
             int initialW = (int)(screenW * 0.9);
@@ -232,9 +234,10 @@ namespace ChildSessionDesktop
                     _maxSessW = currentSessW; _maxSessH = currentSessH;
                     if (dynamicMode) QueueDisplayResize(true);
                 }
-                else if (wasMax && _maxSessW > 0)
+                else if (wasMax && _maxSessW > 0 && !localResolutionOverride.HasValue)
                 {
-                    ApplySessionResolution(_maxSessW, _maxSessH, false);
+                    Size size = GraphicsOptions.DisplaySize(new Size(_maxSessW, _maxSessH), localPerformance);
+                    ApplySessionResolution(size.Width, size.Height, false);
                 }
                 if (toolBar != null) toolBar.ResetToTopCenter();
             }
@@ -261,24 +264,23 @@ namespace ChildSessionDesktop
             {
                 _trackedScreen = scr;
                 Program.Log("AutoFollow: screen=" + scr.Width + "x" + scr.Height +
-                            " follow=" + _followScreenRes + " sess=" + currentSessW + "x" + currentSessH);
-                if (_followScreenRes && rdp != null)
+                            " automatic=" + !localResolutionOverride.HasValue + " sess=" + currentSessW + "x" + currentSessH);
+                if (!localResolutionOverride.HasValue && rdp != null)
                 {
                     try
                     {
                         var client = (IMsRdpClient9)rdp.GetOcxObject();
                         if (client.Connected == 1)
                         {
-                            int w = scr.Width & ~1;
-                            ApplySessionResolution(w, scr.Height, false);
+                            Size size = GraphicsOptions.DisplaySize(scr.Size, localPerformance);
+                            ApplySessionResolution(size.Width, size.Height, false);
                         }
                     }
                     catch (Exception ex) { Program.Log("AutoFollowScreen apply failed: " + ex.GetBaseException().Message); }
                 }
-                else if (!_followScreenRes && rdp != null)
+                else if (rdp != null)
                 {
                     MatchWindowToSession(currentSessW, currentSessH);
-                    HoldCurrentDisplaySize();
                 }
             }
         }
@@ -379,6 +381,7 @@ namespace ChildSessionDesktop
         private void SetDynamicLayout()
         {
             if (rdp == null || rdp.IsDisposed || rdp.Parent == null) return;
+            if (localResolutionOverride.HasValue) { ApplyLetterbox(); return; }
             rdp.Bounds = rdp.Parent.ClientRectangle;
         }
 
@@ -483,13 +486,9 @@ namespace ChildSessionDesktop
                 if (sw <= 0 || sh <= 0) { sw = 1280; sh = 720; }
                 int fw = (_fixedSessW > 0 && _fixedSessH > 0) ? _fixedSessW : sw;
                 int fh = (_fixedSessW > 0 && _fixedSessH > 0) ? _fixedSessH : sh;
-                if (localPerformance == RdpPerformanceProfile.Fast)
-                {
-                    Size limited = GraphicsOptions.LimitFastSize(fw, fh);
-                    fw = limited.Width;
-                    fh = limited.Height;
-                }
-                fw &= ~1;
+                Size fixedSize = GraphicsOptions.DisplaySize(new Size(fw, fh), localPerformance, localResolutionOverride);
+                fw = fixedSize.Width;
+                fh = fixedSize.Height;
                 try
                 {
                     var client = (IMsRdpClient9)rdp.GetOcxObject();
@@ -532,22 +531,6 @@ namespace ChildSessionDesktop
                 toolBar.Invalidate();
                 toolBar.FollowHost();
             }
-        }
-
-        private void HoldCurrentDisplaySize()
-        {
-            try
-            {
-                if (localPerformance == RdpPerformanceProfile.Fast)
-                {
-                    lastRequestedDisplaySize = GraphicsOptions.LimitFastSize(rdp.Parent.ClientSize.Width, rdp.Parent.ClientSize.Height);
-                    return;
-                }
-                int w = Math.Max(200, Math.Min(8192, ClientSize.Width));
-                int h = Math.Max(200, Math.Min(8192, ClientSize.Height));
-                lastRequestedDisplaySize = new Size(w & ~1, h);
-            }
-            catch (Exception ex) { Program.Log("HoldCurrentDisplaySize failed: " + ex.GetBaseException().Message); }
         }
 
         private string GetChildSessionDesktop()
@@ -823,75 +806,87 @@ namespace ChildSessionDesktop
             var menu = MenuInstance(ref _resMenu);
             menu.ShowImageMargin = false;
             menu.ShowCheckMargin = true;
-            int sw = Screen.FromControl(this).Bounds.Width;
-            int sh = Screen.FromControl(this).Bounds.Height;
-            Program.Log("ResMenu open: sess=" + currentSessW + "x" + currentSessH +
-                        " screen=" + sw + "x" + sh + " follow=" + _followScreenRes);
-            var itemScreen = new ToolStripMenuItem(Strings.T("res_your_screen", sw, sh));
-            itemScreen.Click += delegate { ApplyResolutionPick(0, 0); };
-            itemScreen.Checked = (currentSessW == (sw & ~1) && currentSessH == sh);
-            menu.Items.Add(itemScreen);
-            int[,] presets = {
-                {3840, 2160}, {2560, 1440}, {2560, 1080}, {1920, 1080}, {1366, 768}, {1280, 720}
+            RemoteDesktop remote = sessions.SelectedRemote;
+            Size? manual = remote == null ? localResolutionOverride : remote.ResolutionOverride;
+            Size initial = remote == null ? initialSessionResolution : remote.InitialResolution;
+            Screen screen = Screen.FromControl(this);
+            Size maximum = GraphicsOptions.DisplaySize(screen.Bounds.Size, RdpPerformanceProfile.Standard);
+            bool available = remote == null || remote.IsReady;
+            menu.Items.Add(new ToolStripMenuItem(initial.IsEmpty ? Strings.T("res_initial_pending")
+                : Strings.T("res_initial", initial.Width, initial.Height),
+                null, delegate { ApplyResolutionPick(remote, initial, FormWindowState.Normal); })
+                { Enabled = available });
+            menu.Items.Add(new ToolStripMenuItem(Strings.T("res_maximum", maximum.Width, maximum.Height),
+                null, delegate { ApplyResolutionPick(remote, maximum, FormWindowState.Maximized); })
+                { Enabled = available });
+            menu.Items.Add(new ToolStripMenuItem(Strings.T("res_automatic"), null,
+                delegate { ApplyResolutionPick(remote, null); }) { Checked = !manual.HasValue, Enabled = available });
+            menu.Items.Add(new ToolStripSeparator());
+            Size[] presets = {
+                new Size(3840, 2160), new Size(2560, 1440), new Size(2560, 1080),
+                new Size(1920, 1080), new Size(1366, 768), new Size(1280, 720)
             };
-            for (int i = 0; i < presets.GetLength(0); i++)
+            foreach (Size size in presets)
             {
-                int w = presets[i, 0], h = presets[i, 1];
-                if (w == sw && h == sh) continue;
-                var item = new ToolStripMenuItem(w + " × " + h);
-                item.Click += delegate { ApplyResolutionPick(w, h); };
-                item.Checked = (currentSessW == w && currentSessH == h);
-                menu.Items.Add(item);
+                menu.Items.Add(new ToolStripMenuItem(size.Width + " × " + size.Height, null,
+                    delegate { ApplyResolutionPick(remote, size); }) { Checked = manual == size, Enabled = available });
             }
             Point pos = new Point(anchor.Left, anchor.Bottom);
-            var wa = Screen.FromControl(this).WorkingArea;
+            var wa = screen.WorkingArea;
             pos.X = Math.Max(wa.Left, Math.Min(pos.X, wa.Right - 140));
             pos.Y = Math.Max(wa.Top, Math.Min(pos.Y, wa.Bottom - 60));
             menu.Show(pos);
             return true;
         }
 
-        private void ApplyResolutionPick(int pickW, int pickH)
+        private void ApplyResolutionPick(RemoteDesktop remote, Size? manual, FormWindowState? windowState = null)
         {
-            int sw = Screen.FromControl(this).Bounds.Width;
-            int sh = Screen.FromControl(this).Bounds.Height;
-            int w = pickW, h = pickH;
-            if (w == 0) { w = sw; h = sh; }
-            if (w <= 0 || h <= 0) return;
-            if (localPerformance == RdpPerformanceProfile.Fast)
+            if (manual.HasValue)
             {
-                Size limited = GraphicsOptions.LimitFastSize(w, h);
-                w = limited.Width;
-                h = limited.Height;
+                manual = GraphicsOptions.DisplaySize(Size.Empty, RdpPerformanceProfile.Standard, manual);
+                var result = MessageBox.Show(this,
+                    Strings.T("res_confirm_body", manual.Value.Width, manual.Value.Height),
+                    Strings.T("res_confirm_title"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+                if (result != DialogResult.OK) return;
             }
-            w &= ~1;
 
-            var result = MessageBox.Show(this,
-                Strings.T("res_confirm_body", w, h),
-                Strings.T("res_confirm_title"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-            if (result != DialogResult.OK) return;
+            if (remote != null)
+            {
+                if (!remote.ApplyResolution(manual))
+                {
+                    MessageBox.Show(this, Strings.T("res_remote_fail"), Strings.T("res_confirm_title"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            else
+            {
+                Size automatic = dynamicMode && rdp.Parent != null
+                    ? rdp.Parent.ClientSize : Screen.FromControl(this).Bounds.Size;
+                Size target = GraphicsOptions.DisplaySize(automatic, localPerformance, manual);
+                Size? previous = localResolutionOverride;
+                localResolutionOverride = manual;
+                if (!ApplySessionResolution(target.Width, target.Height, true))
+                {
+                    localResolutionOverride = previous;
+                    return;
+                }
+            }
 
-            _followScreenRes = (pickW == 0);
-            ApplySessionResolution(w, h, true);
+            if (!fullscreen && windowState.HasValue) WindowState = windowState.Value;
         }
 
-        private void ApplySessionResolution(int w, int h, bool confirmUi)
+        private bool ApplySessionResolution(int w, int h, bool confirmUi)
         {
             try
             {
-                if (localPerformance == RdpPerformanceProfile.Fast)
-                {
-                    Size limited = GraphicsOptions.LimitFastSize(w, h);
-                    w = limited.Width;
-                    h = limited.Height;
-                }
                 var client = (IMsRdpClient9)rdp.GetOcxObject();
                 if (client.Connected != 1)
                 {
                     if (confirmUi)
                         MessageBox.Show(this, Strings.T("res_not_connected"), Strings.T("res_confirm_title"),
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return false;
                 }
                 float dpi = 96f;
                 try { using (var gr = rdp.CreateGraphics()) dpi = gr.DpiX; } catch (Exception ex) { Program.Log("Could not read RDP DPI from graphics: " + ex.GetBaseException().Message); }
@@ -899,11 +894,11 @@ namespace ChildSessionDesktop
                 uint ph = Geometry.ToMillimeters(h, dpi);
                 client.UpdateSessionDisplaySettings((uint)w, (uint)h, pw, ph, 0, 100, 100);
                 Program.Log("Resolution menu: session set to " + w + "x" + h);
+                lastRequestedDisplaySize = new Size(w, h);
                 _resChangePending = true;
                 SetSessionResolution(w, h);
                 if (toolBar != null) toolBar.ResetToTopCenter();
                 MatchWindowToSession(w, h);
-                if (dynamicMode) HoldCurrentDisplaySize();
                 DisposeTimer(ref lateResizeTimer);
                 lateResizeTimer = new Timer { Interval = 900 };
                 lateResizeTimer.Tick += delegate
@@ -922,10 +917,10 @@ namespace ChildSessionDesktop
                     catch (Exception ex) { Program.Log("Resolution menu readback failed: " + ex.GetBaseException().Message); }
                     _resChangePending = false;
                     MatchWindowToSession(currentSessW, currentSessH);
-                    if (dynamicMode) HoldCurrentDisplaySize();
                     if (toolBar != null) toolBar.FollowHost();
                 };
                 lateResizeTimer.Start();
+                return true;
             }
             catch (Exception ex)
             {
@@ -934,6 +929,7 @@ namespace ChildSessionDesktop
                 if (confirmUi)
                     MessageBox.Show(this, Strings.T("res_fail") + ex.GetBaseException().Message,
                         Strings.T("res_confirm_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
         }
 
@@ -947,7 +943,7 @@ namespace ChildSessionDesktop
             }
             if (Handle == IntPtr.Zero || IsDisposed) return;
             if (sessW <= 0 || sessH <= 0) return;
-            if (fullscreen) { ApplyLetterbox(); return; }
+            if (fullscreen || WindowState == FormWindowState.Maximized) { RefreshLocalViewport(); return; }
             MinimumSize = new Size(320, (int)(320 / aspect + 0.5));
             var area = Screen.FromControl(this).WorkingArea;
             if (area.Width <= 0 || area.Height <= 0) area = Screen.FromControl(this).Bounds;
@@ -1071,21 +1067,13 @@ namespace ChildSessionDesktop
                 Size preferred = localSizeBeforeFast ?? new Size(currentSessW, currentSessH);
                 if (requestedPerformance != RdpPerformanceProfile.Fast) localSizeBeforeFast = null;
                 localPerformance = requestedPerformance;
-                if (!dynamicMode || localPerformance == RdpPerformanceProfile.Fast)
+                if (localResolutionOverride.HasValue || !dynamicMode || localPerformance == RdpPerformanceProfile.Fast)
                 {
                     if (dynamicMode) preferred = rdp.Parent.ClientSize;
-                    int sw = preferred.Width;
-                    int sh = preferred.Height;
-                    if (sw <= 0 || sh <= 0) { sw = 1280; sh = 720; }
-                    if (localPerformance == RdpPerformanceProfile.Fluid) { sw = Math.Min(sw, 1600); sh = Math.Min(sh, 900); }
-                    if (localPerformance == RdpPerformanceProfile.Fast)
-                    {
-                        Size limited = GraphicsOptions.LimitFastSize(sw, sh);
-                        sw = limited.Width;
-                        sh = limited.Height;
-                    }
-                    sw &= ~1;
-                    sh &= ~1;
+                    if (preferred.Width <= 0 || preferred.Height <= 0) preferred = initialSessionResolution;
+                    Size requested = GraphicsOptions.DisplaySize(preferred, localPerformance, localResolutionOverride);
+                    int sw = requested.Width;
+                    int sh = requested.Height;
                     client.DesktopWidth = sw;
                     client.DesktopHeight = sh;
                     SetSessionResolution(sw, sh);
@@ -1392,7 +1380,7 @@ namespace ChildSessionDesktop
 
         private void QueueDisplayResize(bool windowSizeChanged = false)
         {
-            if (closing || displayResizeTimer == null || rdp.IsDisposed) return;
+            if (closing || displayResizeTimer == null || rdp.IsDisposed || localResolutionOverride.HasValue) return;
             if (windowSizeChanged)
             {
                 resizeRetryCount = 0;
@@ -1420,7 +1408,7 @@ namespace ChildSessionDesktop
         private void ApplyDisplaySize()
         {
             if (closing || rdp.IsDisposed || !rdp.IsHandleCreated || rdp.Parent == null) return;
-            if (!dynamicMode) return;
+            if (!dynamicMode || localResolutionOverride.HasValue) return;
             Size requested = LocalDynamicDisplaySize(rdp.Parent.ClientSize);
             try
             {
@@ -1476,11 +1464,7 @@ namespace ChildSessionDesktop
 
         private Size LocalDynamicDisplaySize(Size viewport)
         {
-            if (localPerformance == RdpPerformanceProfile.Fast)
-                return GraphicsOptions.LimitFastSize(viewport.Width, viewport.Height);
-            bool fluid = localPerformance == RdpPerformanceProfile.Fluid;
-            return new Size(Math.Max(200, Math.Min(fluid ? 1600 : 8192, viewport.Width)) & ~1,
-                Math.Max(200, Math.Min(fluid ? 900 : 8192, viewport.Height)));
+            return GraphicsOptions.DisplaySize(viewport, localPerformance);
         }
 
         private static void DisposeTimer(ref Timer timer)

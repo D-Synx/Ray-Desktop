@@ -50,6 +50,8 @@ namespace ChildSessionDesktop
         internal string Status { get; private set; }
         internal bool CanConnectFromList { get { return !connectQueued && (phase == Phase.Idle || phase == Phase.Failed); } }
         internal bool IsReady { get { return phase == Phase.Ready; } }
+        internal Size InitialResolution { get; private set; }
+        internal Size? ResolutionOverride { get; private set; }
         internal bool CanEditSavedPassword
         {
             get { return startupAttempt == null && !connectQueued && phase != Phase.Connecting && phase != Phase.SigningIn && phase != Phase.Stopping; }
@@ -244,6 +246,8 @@ namespace ChildSessionDesktop
                 client.Domain = separator < 0 ? "" : Account.Substring(0, separator);
                 client.UserName = separator < 0 ? Account : Account.Substring(separator + 1);
                 activePerformance = preferences.RdpPerformance;
+                if (InitialResolution.IsEmpty)
+                    InitialResolution = Geometry.RemoteDisplaySize(viewport.ClientSize.Width, viewport.ClientSize.Height, false);
                 Size size = PreferredDisplaySize();
                 client.DesktopWidth = size.Width;
                 client.DesktopHeight = size.Height;
@@ -499,6 +503,7 @@ namespace ChildSessionDesktop
 
         private Size PreferredDisplaySize()
         {
+            if (ResolutionOverride.HasValue) return ResolutionOverride.Value;
             if (activePerformance == RdpPerformanceProfile.Fast)
                 return GraphicsOptions.LimitFastSize(Math.Max(640, viewport.ClientSize.Width), Math.Max(480, viewport.ClientSize.Height));
             return Geometry.RemoteDisplaySize(viewport.ClientSize.Width, viewport.ClientSize.Height, activePerformance == RdpPerformanceProfile.Fluid);
@@ -514,13 +519,23 @@ namespace ChildSessionDesktop
 
         internal void RefreshDisplay() { UpdateDisplay(true); }
 
-        private void UpdateDisplay(bool force)
+        internal bool ApplyResolution(Size? manual)
         {
-            if (IsDisposed || !view.IsHandleCreated || !Visible) return;
+            if (!IsReady) return false;
+            Size? previous = ResolutionOverride;
+            ResolutionOverride = manual;
+            if (UpdateDisplay(true)) return true;
+            ResolutionOverride = previous;
+            return false;
+        }
+
+        private bool UpdateDisplay(bool force)
+        {
+            if (IsDisposed || !view.IsHandleCreated || !Visible) return false;
             try
             {
                 var client = (IMsRdpClient9)view.GetOcxObject();
-                if (client.Connected != 1) return;
+                if (client.Connected != 1) return false;
                 viewport.PerformLayout();
                 Size size = PreferredDisplaySize();
                 if (phase == Phase.Ready && (force || lastDisplaySize != size))
@@ -537,10 +552,12 @@ namespace ChildSessionDesktop
                 {
                     client.SyncSessionDisplaySettings();
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 Program.Log("Remote RDP " + Endpoint.Display + " display synchronization: 0x" + ex.HResult.ToString("X8"));
+                return false;
             }
             finally
             {

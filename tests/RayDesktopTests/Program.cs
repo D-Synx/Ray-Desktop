@@ -355,6 +355,18 @@ namespace RayDesktopTests
                 "fast RDP approximately preserves the ultrawide aspect ratio");
             Check(GraphicsOptions.LimitFastSize(400, 300) == new Size(400, 300) &&
                 GraphicsOptions.LimitFastSize(1, 1) == new Size(200, 200), "fast RDP keeps valid small sizes without upscaling");
+            Size automatic = new Size(1920, 1080);
+            Size initial = new Size(3440, 1440);
+            Size maximum = new Size(3840, 2160);
+            Check(GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Fast, initial) == initial &&
+                GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Fast, maximum) == maximum,
+                "manual starting and maximum resolutions override the fast profile cap");
+            Check(GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Fast) == new Size(1280, 720) &&
+                GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Standard) == automatic,
+                "returning to automatic size applies the active profile again");
+            Check(GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Fluid, new Size(3441, 1440)) == initial &&
+                GraphicsOptions.DisplaySize(automatic, RdpPerformanceProfile.Standard, new Size(9000, 100)) == new Size(8192, 200),
+                "manual sizes bypass the fluid cap and normalize invalid dimensions");
             Check(GraphicsOptions.PerformanceFlags(RdpPerformanceProfile.Standard, 0x580) == 0x580 &&
                 GraphicsOptions.PerformanceFlags(RdpPerformanceProfile.Fast, 0x580) == 0x42F,
                 "fast RDP disables extra visual effects while preserving unrelated flags");

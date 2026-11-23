@@ -43,5 +43,16 @@ namespace ChildSessionDesktop
             double ratio = Math.Min(1.0, Math.Min(1280.0 / width, 720.0 / height));
             return new Size(Math.Max(200, (int)(width * ratio) & ~1), Math.Max(200, (int)(height * ratio) & ~1));
         }
+
+        internal static Size DisplaySize(Size automatic, RdpPerformanceProfile profile, Size? manual = null)
+        {
+            if (!manual.HasValue && profile == RdpPerformanceProfile.Fast)
+                return LimitFastSize(automatic.Width, automatic.Height);
+
+            Size target = manual ?? automatic;
+            bool fluid = !manual.HasValue && profile == RdpPerformanceProfile.Fluid;
+            return new Size(Math.Max(200, Math.Min(fluid ? 1600 : 8192, target.Width)) & ~1,
+                Math.Max(200, Math.Min(fluid ? 900 : 8192, target.Height)));
+        }
     }
 }

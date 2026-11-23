@@ -56,8 +56,8 @@ $banner = Join-Path $PSScriptRoot 'assets\RayXDesktop-banner.jpg'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.6.0.1'
-$productVersion = '1.6.0-beta.2'
+$version = '1.6.0.2'
+$productVersion = '1.6.0-beta.3'
 $productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
