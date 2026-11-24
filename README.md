@@ -1,10 +1,14 @@
 # Ray‑X‑Desktop
 
+**Français** · [English](README.en.md)
+
 <p align="center">
   <img src="assets/RayXDesktop-banner.jpg" width="960" alt="Logo Ray‑X‑Desktop, avec un X bleu et doré sur fond de galaxie">
 </p>
 
 **Ouvre un bureau Windows dans une fenêtre dédiée et continue à travailler sur ton bureau principal.** Ray‑X‑Desktop utilise les sessions enfants de Windows pour le bureau local. Les versions bêta regroupent aussi les connexions Bureau à distance (RDP) dans l’application.
+
+Ray‑X‑Desktop est un fork de [Ray Desktop, créé par raydoomed](https://github.com/raydoomed/Ray-Desktop). D.Synx poursuit le développement de cette version sous [licence MIT](LICENSE).
 
 [Télécharger la version stable 1.4.6](https://github.com/D-Synx/Ray-X-Desktop/releases/tag/v1.4.6) · [Tester la bêta 1.6.0](https://github.com/D-Synx/Ray-X-Desktop/actions/workflows/ray-gpu-beta.yml?query=branch%3Abeta%2F1.6.0-gpu-vulkan) · [Guide en français](https://github.com/D-Synx/Ray-X-Desktop/blob/beta/1.6.0-gpu-vulkan/maintenance/README.fr.md)
 
@@ -40,5 +44,3 @@ La **bêta 3** est disponible pour les essais sous Windows. Dans la compilation 
 2. Lance `RayXDesktop.exe` pour ouvrir la session locale. Le guide explique les prérequis Windows, l’activation des sessions enfants et les options de connexion à un compte autorisé.
 
 [Guide Windows et compilation](https://github.com/D-Synx/Ray-X-Desktop/blob/beta/1.6.0-gpu-vulkan/maintenance/README.fr.md) · [Documentation technique du projet d’origine](https://github.com/D-Synx/Ray-X-Desktop/blob/f0409cb35b09de843d9709c2f5d26d506c0ef88c/README.md)
-
-Maintenu par **D.Synx** · Issu de [Ray Desktop par raydoomed](https://github.com/raydoomed/Ray-Desktop) · [Licence MIT](LICENSE)
