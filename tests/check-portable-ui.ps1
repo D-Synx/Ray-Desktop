@@ -40,6 +40,7 @@ try {
 
     $type.GetMethod('ToggleSidebar', $instance).Invoke($workspace, @())
     $header = $type.GetField('header', $instance).GetValue($workspace)
+    $sidebar = $type.GetField('sidebar', $instance).GetValue($workspace)
     $list = $type.GetField('list', $instance).GetValue($workspace)
     $band = $type.GetField('toolbarBand', $instance).GetValue($workspace)
     $setDpi = $type.GetMethod('SetSidebarDpi', $instance)
@@ -58,8 +59,10 @@ try {
     $window.ClientSize = [Drawing.Size]::new(1600, 1000)
     $setDpi.Invoke($workspace, @(240))
     [Windows.Forms.Application]::DoEvents()
-    if (-not $header.Visible -or $header.Height -ne 160 -or $list.Controls[0].Height -ne 135) {
-        throw 'The workspace did not resize the session header and cards at 250% scaling.'
+    # The runner's screen can constrain the requested window size, triggering compact mode.
+    $expanded = $sidebar.ClientSize.Height -ge (3 * 105 + 160 + 135 + 90)
+    if ($header.Visible -ne $expanded -or $header.Height -ne 160 -or $list.Controls[0].Height -ne 135) {
+        throw "Unexpected 250% layout: sidebar $($sidebar.ClientSize.Height), header $($header.Height) visible $($header.Visible), card $($list.Controls[0].Height)."
     }
     Write-Host 'Verified both sets of embedded packs and the real portable workspace at normal, compact and simulated high DPI sizes.'
 }
