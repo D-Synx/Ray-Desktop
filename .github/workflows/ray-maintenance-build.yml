@@ -1,0 +1,109 @@
+name: RayXDesktop Windows
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [ray-desktop-maintenance]
+    paths:
+      - maintenance/releases/1.5.0.1.md
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run core regression tests
+        shell: powershell
+        run: .\tests\run-tests.ps1
+      - name: Detect the portable packaging script
+        id: packaging
+        shell: powershell
+        run: |
+          $available = (Test-Path -LiteralPath '.\maintenance\build-portable.ps1').ToString().ToLowerInvariant()
+          "available=$available" >> $env:GITHUB_OUTPUT
+      - name: Build and verify the Windows application
+        if: steps.packaging.outputs.available == 'false'
+        shell: powershell
+        run: |
+          .\build.ps1
+          $expectedFiles = @('Raydesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll')
+          foreach ($name in $expectedFiles) {
+            $file = Get-Item -LiteralPath (Join-Path .\Raydesktop $name) -ErrorAction Stop
+            if ($file.Length -eq 0) { throw "Empty build output: $name" }
+          }
+      - name: Test and package
+        if: steps.packaging.outputs.available == 'true'
+        shell: powershell
+        run: .\maintenance\build-portable.ps1
+      - name: Verify the portable ZIP and visual identity
+        if: steps.packaging.outputs.available == 'true'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $archive = (Resolve-Path .\RayXDesktop-Windows.zip).Path
+          $digest = (Get-Content -LiteralPath "$archive.sha256" -Raw).Trim().Split(' ')[0]
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $digest) {
+            throw 'The portable ZIP does not match its published SHA-256.'
+          }
+          $extracted = Join-Path $env:RUNNER_TEMP 'RayXDesktop-portable-check'
+          Expand-Archive -LiteralPath $archive -DestinationPath $extracted
+          $expectedFiles = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll',
+            'AxInterop.MSTSCLib.dll', 'LICENSE', 'README.fr.md', 'RayXDesktop.bat')
+          $files = @(Get-ChildItem -LiteralPath $extracted -Force | Select-Object -ExpandProperty Name)
+          if (Compare-Object $expectedFiles $files) { throw 'Unexpected files in the portable ZIP.' }
+          $path = Join-Path $extracted 'RayXDesktop.exe'
+          $expected = 'Ray' + [char]0x02E3 + 'Desktop'
+          $expectedVersion = '1.6.0-beta.3'
+          foreach ($name in @('RayXDesktop.exe', 'EnableChildSessions.exe')) {
+            $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $extracted $name))
+            if ($metadata.ProductName -cne $expected -or $metadata.ProductVersion -cne $expectedVersion) {
+              throw "Unexpected product name or version in $name."
+            }
+          }
+          $assembly = [Reflection.Assembly]::LoadFile($path)
+          $iconStream = $assembly.GetManifestResourceStream('RayXDesktop.InterfaceIcon')
+          $bannerStream = $assembly.GetManifestResourceStream('RayXDesktop.Banner')
+          if ($null -eq $iconStream -or $null -eq $bannerStream) { throw 'Embedded brand assets are missing.' }
+          $icon = [Drawing.Icon]::new($iconStream, 32, 32)
+          $banner = [Drawing.Image]::FromStream($bannerStream)
+          try {
+            if ($icon.Width -ne 32 -or $banner.Width -ne 3 * $banner.Height) { throw 'Invalid brand asset dimensions.' }
+          } finally {
+            $banner.Dispose()
+            $icon.Dispose()
+            $bannerStream.Dispose()
+            $iconStream.Dispose()
+          }
+          Write-Host 'Verified the portable ZIP, SHA-256, version metadata, interface icon and banner.'
+      - uses: actions/upload-artifact@v4
+        if: steps.packaging.outputs.available == 'true'
+        with:
+          name: RayXDesktop-Windows
+          path: |
+            RayXDesktop-Windows.zip
+            RayXDesktop-Windows.zip.sha256
+          if-no-files-found: error
+
+  publish-beta:
+    if: github.event_name == 'push' && github.repository == 'D-Synx/Ray-X-Desktop'
+    needs: portable
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: RayXDesktop-Windows
+          path: release-assets
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.5.0.1 .\release-assets\RayXDesktop-Windows.zip .\release-assets\RayXDesktop-Windows.zip.sha256 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --prerelease --title "RayˣDesktop 1.5.0.1 bêta" --notes-file .\maintenance\releases\1.5.0.1.md
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish RayXDesktop 1.5.0.1 beta.' }
