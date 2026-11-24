@@ -25,7 +25,6 @@ namespace ChildSessionDesktop
         private readonly Rectangle[] buttons = new Rectangle[Tools.Length];
         private readonly TooltipForm tooltip;
         private readonly Font labelFont;
-        private readonly bool french = Strings.IsFrench;
 
         private readonly Form host;
         private readonly Panel band;
@@ -98,9 +97,9 @@ namespace ChildSessionDesktop
         {
             switch (tool)
             {
-                case Tool.Display: return french ? "Affichage" : Strings.T("btn_display");
-                case Tool.Resolution: return french ? "Résolution" : Strings.T("btn_resolution");
-                case Tool.Files: return french ? "Fichiers" : "Files";
+                case Tool.Display: return Strings.T("btn_display");
+                case Tool.Resolution: return Strings.T("btn_resolution");
+                case Tool.Files: return Strings.T("btn_files");
                 default: return "";
             }
         }
@@ -109,23 +108,21 @@ namespace ChildSessionDesktop
         {
             switch (tool)
             {
-                case Tool.Move: return french ? "Déplacer la barre" : Strings.T("btn_drag");
+                case Tool.Move: return Strings.T("btn_drag");
                 case Tool.Display:
-                    if (french) return IsDynamicMode ? "Affichage dynamique" : "Affichage fixe";
                     return Strings.T(IsDynamicMode ? "tip_display_dynamic" : "tip_display_fixed");
                 case Tool.Resolution: return TextLabel(tool);
                 case Tool.Fullscreen:
-                    if (french) return Fullscreen ? "Quitter le plein écran" : "Plein écran";
-                    return Fullscreen ? "Exit full screen" : Strings.T("btn_fullscreen");
-                case Tool.Files: return french ? "Transférer les fichiers copiés" : "Transfer copied files";
+                    return Strings.T(Fullscreen ? "tip_exit_fullscreen" : "btn_fullscreen");
+                case Tool.Files: return Strings.T("tip_files");
                 case Tool.SendFiles: return ToggleName(tool, "files_toggle_send");
                 case Tool.ReceiveFiles: return ToggleName(tool, "files_toggle_receive");
                 case Tool.RdpClipboard: return ToggleName(tool, "files_toggle_clipboard");
                 case Tool.Reconnect: return Strings.T("menu_reconnect");
-                case Tool.More: return french ? "Plus d’options" : Strings.T("btn_more");
+                case Tool.More: return Strings.T("btn_more");
                 case Tool.Dock: return Strings.T(IsDocked ? "toolbar_float" : "toolbar_dock");
-                case Tool.Collapse: return french ? "Réduire la barre" : Strings.T("tip_collapse");
-                case Tool.Close: return french ? "Fermer la session" : Strings.T("btn_exit");
+                case Tool.Collapse: return Strings.T("tip_collapse");
+                case Tool.Close: return Strings.T("btn_exit");
                 default: return "";
             }
         }
@@ -148,7 +145,7 @@ namespace ChildSessionDesktop
                 : value.Value ? "policy_enabled" : "policy_disabled");
         }
 
-        private string ExpandName { get { return french ? "Afficher la barre" : Strings.T("tip_expand"); } }
+        private string ExpandName { get { return Strings.T("tip_expand"); } }
 
         private static int StandardButtonWidth(Tool tool)
         {

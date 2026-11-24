@@ -15,8 +15,16 @@ namespace ChildSessionDesktop
         {
             account = null;
             password = null;
-            foreach (string argument in args)
+            for (int i = 0; i < args.Length; i++)
             {
+                string argument = args[i];
+                if (argument.Equals("--lang", StringComparison.OrdinalIgnoreCase)
+                    && i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    i++;
+                    continue;
+                }
+
                 if (argument.StartsWith("--account=", StringComparison.OrdinalIgnoreCase) && account == null)
                     account = argument.Substring("--account=".Length);
                 else if ((argument.StartsWith("--password:", StringComparison.OrdinalIgnoreCase)

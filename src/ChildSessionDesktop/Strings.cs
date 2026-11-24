@@ -1,453 +1,123 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
+using System.Security;
+using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace ChildSessionDesktop
 {
     internal static class Strings
     {
+        private static readonly Regex LanguageTag = new Regex(
+            @"\A[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*\z", RegexOptions.CultureInvariant);
+        private static readonly Dictionary<string, string> English = ReadEmbedded("en");
+        private static readonly Dictionary<string, string> French = ReadEmbedded("fr");
+        private static Dictionary<string, string> active = English;
+
         internal static bool IsFrench { get; private set; }
 
-        public static void SetLanguage(string lang)
+        public static void SetLanguage(string language, string directory = null)
         {
-            IsFrench = string.IsNullOrEmpty(lang)
-                ? CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fr"
-                : string.Equals(lang, "fr", StringComparison.OrdinalIgnoreCase);
+            string tag = string.IsNullOrWhiteSpace(language) ? CultureInfo.CurrentUICulture.Name : language.Trim();
+            if (tag.Length > 64 || !LanguageTag.IsMatch(tag)) tag = "en";
+
+            directory = directory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "languages");
+            string[] parts = tag.ToLowerInvariant().Split('-');
+            IsFrench = parts[0] == "fr";
+
+            var translations = new Dictionary<string, string>(English, StringComparer.Ordinal);
+            Overlay(translations, ReadFile(directory, "en"));
+            if (IsFrench) Overlay(translations, French);
+
+            string culture = parts[0];
+            if (culture != "en") Overlay(translations, ReadFile(directory, culture));
+            for (int i = 1; i < parts.Length; i++)
+            {
+                culture += "-" + parts[i];
+                Overlay(translations, ReadFile(directory, culture));
+            }
+            active = translations;
         }
 
-        private static readonly Dictionary<string, string> en = new Dictionary<string, string>
+        private static void Overlay(Dictionary<string, string> target, Dictionary<string, string> source)
         {
-            { "err_title", "RayXDesktop error" },
-            { "startup_fail_title", "RayXDesktop failed to start" },
-            { "msg_already_running", "RayXDesktop is already running." },
-            { "msg_account_usage", @"Usage: RayXDesktop.exe --account=DOMAIN\User" },
-            { "credentials_title", "Sign in to RayXDesktop" },
-            { "credentials_account", "Account: {0}" },
-            { "credentials_password", "Password" },
-            { "credentials_connect", "Connect" },
-            { "credentials_cancel", "Cancel" },
-            { "status_credentials_cancelled", "Sign-in canceled. Use Reconnect to try again." },
-            { "menu_fixed", "Fixed resolution" },
-            { "menu_dynamic", "Dynamic resolution" },
-            { "menu_about", "About" },
-            { "menu_open_log", "Open log folder" },
-            { "log_title", "Activity log" },
-            { "log_show", "Open activity log" },
-            { "log_collapse", "Collapse activity log" },
-            { "log_show_edge", "Show activity log edge" },
-            { "log_empty", "No activity recorded yet." },
-            { "log_unavailable", "The activity log is temporarily unavailable." },
-            { "menu_check_update", "View Windows builds…" },
-            { "about_body", "Maintained by D.Synx\n\nWindows Child Sessions, remote desktops and maintenance tools.\nBased on Ray Desktop by raydoomed (MIT)." },
-            { "res_initial", "Starting size ({0} × {1})" },
-            { "res_initial_pending", "Starting size" },
-            { "res_maximum", "Maximum on this screen ({0} × {1})" },
-            { "res_automatic", "Automatic size (RDP profile)" },
-            { "res_remote_fail", "Windows could not apply this resolution to the selected session. Check the log for details." },
-            { "res_confirm_title", "Change resolution" },
-            { "res_confirm_body", "Change the virtual desktop to {0} × {1} now?\n\n• Programs already open in the virtual desktop are kept, not closed\n• But any running fullscreen game may exit" },
-            { "close_confirm_title", "Close virtual desktop" },
-            { "close_confirm_body", "Disconnect the open views and close RayXDesktop? Windows will keep the sessions running according to the host policy." },
-            { "res_not_connected", "Not connected yet; cannot change resolution." },
-            { "res_fail", "Failed to change resolution: " },
-            { "sessions_show", "Show sessions" },
-            { "sessions_hide", "Hide sessions" },
-            { "sessions_add", "Add an RDP connection…" },
-            { "sessions_local", "Local · {0}" },
-            { "sessions_split", "Side by side" },
-            { "sessions_single", "Single view" },
-            { "rdp_target", "Connect to {0}" },
-            { "rdp_password_optional", "Password (optional, Windows prompts if blank)" },
-            { "rdp_import", "Import .rdp…" },
-            { "rdp_file_filter", "Remote Desktop files (*.rdp)|*.rdp" },
-            { "rdp_protected_ready", "This file supplies a Windows-protected password for the displayed account and address." },
-            { "rdp_protected_unavailable", "Windows could not open the protected password with this Windows profile. Enter it in the Windows prompt." },
-            { "rdp_import_invalid", "This .rdp file has a missing or invalid address or a duplicate connection setting." },
-            { "rdp_import_direct_only", "This .rdp file requires a gateway, a connection broker, or RemoteApp. Import a direct desktop connection." },
-            { "rdp_import_unreadable", "Could not read this .rdp file." },
-            { "sessions_thumbnail_folder", "Open the session previews folder" },
-            { "sessions_remote_host", "IP address or computer name (optional with HOST\\User)" },
-            { "sessions_remote_account", "Windows account (HOST\\User or DOMAIN\\User)" },
-            { "sessions_remote_only", "Choose a different computer for an RDP connection. Use the local session for this PC." },
-            { "sessions_disconnect", "Disconnect" },
-            { "sessions_logoff", "Sign out of the local session…" },
-            { "sessions_close_view", "Remove saved session" },
-            { "preferences_save_failed", "RayXDesktop could not save data.ini. Extract the program to a folder where you can write files." },
-            { "sessions_confirm_logoff", "Sign out {0}? Open applications will close. Save your work first." },
-            { "sessions_no_local", "Windows could not identify the current local child session." },
-            { "sessions_logoff_requested", "Local session sign-out requested" },
-            { "sessions_connecting", "Connecting…" },
-            { "sessions_disconnect_wait", "Disconnecting…" },
-            { "sessions_disconnect_timeout", "Windows did not confirm the disconnection. Try Reconnect again." },
-            { "sessions_disconnect_failed", "Could not disconnect. Check the log for details." },
-            { "graphics_fluid", "Prefer smooth display" },
-            { "rdp_performance_title", "Live RDP performance" },
-            { "rdp_performance_fast", "Fast RDP (automatic size up to 1280 × 720)" },
-            { "graphics_default", "Standard" },
-            { "graphics_current", "Profile for new connections: {0} · Local desktop: {1} × {2}" },
-            { "graphics_gpu_label", "Use the host’s hardware graphics adapter" },
-            { "graphics_encoder_label", "Use hardware H.264/AVC encoding" },
-            { "graphics_codec_label", "Prioritize H.264/AVC 4:4:4" },
-            { "graphics_policy_diagnostic", "Windows negotiates the codec with the client. For direct RDP, event 170 in RemoteDesktopServices-RdpCoreTS / Operational can indicate use of hardware AVC encoding." },
-            { "graphics_edit_windows", "Open Local Group Policy…" },
-            { "graphics_events", "Event Viewer" },
-            { "graphics_refresh_values", "Read values again" },
-            { "graphics_close", "Close" },
-            { "graphics_console_missing", "This edition of Windows does not provide the requested management console." },
-            { "remote_signing_in", "RDP link established · Waiting for Windows sign-in" },
-            { "remote_login_complete", "Windows session open" },
-            { "remote_waiting_long", "Windows has not confirmed sign-in yet. Check the credentials prompt or open the same address with Windows Remote Desktop." },
-            { "remote_setup_error", "Could not start the embedded RDP connection (0x{0:X8})." },
-            { "remote_select_to_connect", "Select this view before connecting." },
-            { "remote_refresh_display", "Refresh remote display" },
-            { "remote_share_clipboard", "Share clipboard (next connection)" },
-            { "remote_ask_on_certificate_error", "Ask me about certificate errors (next connection)" },
-            { "remote_remember_password", "Save this password on this PC" },
-            { "remote_edit_password", "Save or update password…" },
-            { "remote_forget_password", "Forget saved password" },
-            { "remote_reconnect_at_startup", "Reconnect at startup" },
-            { "remote_reconnect_all_at_startup", "Reconnect all sessions at startup" },
-            { "remote_startup_manual", "Connect manually · Windows needs your credentials or certificate review" },
-            { "remote_startup_timeout", "Startup connection timed out. Use Reconnect to try again." },
-            { "remote_password_requires_certificate", "Windows asks for credentials when certificate warning mode is enabled." },
-            { "remote_password_save_failed", "Could not save the protected password" },
-            { "remote_ask_on_certificate_error_hint", "Windows prompts for credentials and lets you decide whether to continue if it cannot verify the server." },
-            { "remote_retry_certificate", "Retry with certificate warning" },
-            { "remote_retry_certificate_hint", "Windows did not report the cause. If you recognize this host, retry with the Windows certificate warning. RayXDesktop remembers this mode for this address after a successful sign-in." },
-            { "remote_open_windows", "Open this address in Windows Remote Desktop…" },
-            { "graphics_policy", "RDP setting" },
-            { "graphics_effective", "Applied by Windows" },
-            { "graphics_local_choice", "Local policy" },
-            { "graphics_host_named", "This panel configures {0}. To configure another RDP host, run RayXDesktop on that host. Domain or device-management policies can override local choices." },
-            { "graphics_switch_hint", "Each switch cycles through Enabled, Disabled and Not configured. Click Apply locally to confirm and request administrator approval." },
-            { "graphics_local_unreadable", "Local policy could not be read with the current permissions. Use the switches to specify only the values you want to change." },
-            { "graphics_keep", "Keep current" },
-            { "graphics_apply", "Apply locally" },
-            { "graphics_recommended", "Recommended settings" },
-            { "graphics_confirm_apply", "Apply these RDP graphics changes to {0}? Confirm only if this PC is authorized for the changes.{1}" },
-            { "graphics_saved", "The local policy was saved. Windows applies policy in its normal order. Read the values again after policy refresh, then reconnect to test." },
-            { "graphics_saved_refresh_failed", "The local policy was saved. Windows could not start a policy refresh. Read the values again after the next refresh." },
-            { "graphics_helper_failed", "The configuration helper returned code {0}." },
-            { "graphics_helper_missing", "Keep EnableChildSessions.exe from the same release next to RayXDesktop.exe." },
-            { "remote_copy_diagnostic", "Copy remote connection diagnostics" },
-            { "remote_code_unavailable", "unavailable" },
-            { "remote_stage_signed_in", "after Windows sign-in" },
-            { "remote_stage_before_login", "before Windows sign-in was confirmed" },
-            { "remote_disconnect_fields", "Extended code: {0} · {1}" },
-            { "remote_logon_code", "Windows sign-in code: 0x{0:X8}" },
-            { "remote_logon_invalid", "Windows rejected the sign-in credentials." },
-            { "remote_logon_denied", "Windows denied sign-in for this account." },
-            { "remote_logon_expired", "Windows requires a password change before sign-in." },
-            { "remote_licensing_interrupted", "The server’s extended RDP code indicates an interrupted licensing exchange." },
-            { "remote_ended_after_login", "Windows signed in before the link closed. Compare with the same account in Windows Remote Desktop." },
-            { "remote_ended_early", "Windows did not report the cause. Try this address in Windows Remote Desktop. If it reports a certificate error, check with IT that the client trusts the issuing authority and that the address matches the certificate." },
-            { "remote_ended_early_ip", "Windows did not report the cause. Try this address in Windows Remote Desktop. If it reports a certificate error, use the name on the certificate and have IT check that the client trusts its issuing authority." },
-            { "graphics_title", "RDP graphics and codec" },
-            { "gpu_title", "Graphics acceleration" },
-            { "gpu_auto", "Automatic (recommended)" },
-            { "gpu_native", "Windows native" },
-            { "gpu_d3d", "Direct3D 11 (experimental)" },
-            { "gpu_vk", "Vulkan (experimental)" },
-            { "gpu_refresh_preview", "Refresh the selected thumbnail" },
-            { "gpu_probe", "GPU information and diagnostics" },
-            { "gpu_scope", "Applies to thumbnail scaling. Windows ActiveX renders and decodes the live RDP desktop. Automatic uses Windows for thumbnails while GPU performance is being evaluated." },
-            { "gpu_selected", "Thumbnail preference: {0}" },
-            { "gpu_used", "Last thumbnail: {0} · {1:F1} ms to process (after capture)" },
-            { "gpu_no_preview", "Thumbnail engine in use: waiting for a thumbnail." },
-            { "gpu_no_helper", "GPU preview helper unavailable. Thumbnails use Windows." },
-            { "gpu_fallback", "GPU preview unavailable or timed out. Windows is used until you apply the engine again." },
-            { "gpu_image_limit", "The captured size exceeds the limits of the GPU helper. Windows handled this thumbnail." },
-            { "gpu_unmeasured", "Live RDP frame rate, decoder in use and process GPU load are unavailable here. Codec entries below describe capabilities only." },
-            { "gpu_testing", "Querying Windows and the graphics drivers…" },
-            { "gpu_probe_failed", "Graphics diagnostic unavailable or timed out." },
-            { "gpu_driver", "Windows adapter: {0} · driver {1}" },
-            { "gpu_no_drivers", "Windows adapter and driver inventory unavailable." },
-            { "graphics_applied_on_connect", "Reconnect the session to apply the selected performance profile." },
-            { "policy_enabled", "Enabled" },
-            { "policy_disabled", "Disabled" },
-            { "policy_unconfigured", "Not configured" },
-            { "policy_unreadable", "Could not read policy" },
-            { "policy_allowed", "No restriction found" },
-            { "policy_blocked", "Restricted" },
-            { "files_title", "File transfer" },
-            { "files_send", "Send to RayXDesktop…" },
-            { "files_receive", "Retrieve from RayXDesktop…" },
-            { "files_status", "Transfer diagnostics" },
-            { "files_connect_first", "Connect the local RayXDesktop session first." },
-            { "files_policy_block", "A Windows policy restricts file transfers in this direction." },
-            { "files_copy_host", "Copy files or folders in the main session’s Explorer first." },
-            { "files_copy_child", "Use Copy in the RayXDesktop Explorer, then retry. Check clipboard redirection if the selection does not arrive." },
-            { "files_clipboard_changed", "The clipboard changed. Copy the selection again and retry." },
-            { "files_session_changed", "The connection or its transfer permissions changed. Retry from the active local session." },
-            { "files_shell_unavailable", "Windows could not start the paste operation. Open the destination in Explorer to paste there?" },
-            { "files_confirm", "Copy {1} item(s) to {0}?\n\nYes: keep both in case of a duplicate.\nNo: skip duplicates." },
-            { "files_progress", "Preparing copy…" },
-            { "files_done", "Transfer finished. {0} copied, {1} skipped, {2} failed." },
-            { "files_cancelled", "Transfer canceled. {0} copied, {1} skipped, {2} failed." },
-            { "files_invalid_source", "Select a file or folder instead of a drive root." },
-            { "files_recursive", "A folder cannot be copied into itself." },
-            { "files_duplicate_limit", "Windows could not find an available name for this copy." },
-            { "files_reparse", "Windows links and junctions are not copied by this command." },
-            { "files_local_only", "The Files menu transfers items between the main session and the local RayXDesktop session." },
-            { "files_report", "Files to RayXDesktop: {0}\nFiles from RayXDesktop: {1}\nNative RDP clipboard requested: {2}\nNative RDP clipboard for the next connection: {3}\n\nWindows checks each file and destination." },
-            { "files_direction_status", "RayXDesktop: {0} · Windows: {1}" },
-            { "files_toggle_send", "Files to RayXDesktop" },
-            { "files_toggle_receive", "Files from RayXDesktop" },
-            { "files_toggle_clipboard", "Native RDP clipboard (next connection)" },
-            { "files_toggle_unavailable", "Unavailable" },
-            { "toolbar_dock", "Dock the toolbar at the top" },
-            { "toolbar_float", "Switch to the floating toolbar" },
-            { "status_connected", "Connected" },
-            { "status_connecting", "Connecting to the local Child Session…" },
-            { "status_connecting_win", "Connecting to the local Windows Child Session…" },
-            { "status_waiting", "Waiting for Windows to create the Child Session…" },
-            { "status_not_connected", "Not connected" },
-            { "status_timeout", "Connection timed out. Make sure Child Sessions are enabled on this computer, then sign out and back in." },
-            { "status_disabled_missing_helper", "Child Sessions are not enabled on this computer; the elevation helper EnableChildSessions.exe is missing." },
-            { "status_requesting", "Requesting administrator to enable Child Sessions. Sign out and back in after enabling; if a credentials prompt appears, cancel it and do not enter an empty password." },
-            { "status_elevation_canceled", "Administrator authorization was canceled; Child Sessions are still not enabled." },
-            { "status_launch_helper_fail", "Could not launch the elevation helper: " },
-            { "status_disconnected_local", "The RDP connection was disconnected locally (0x00000001); this is a status code, not an error code." },
-            { "menu_reconnect", "Reconnect" },
-            { "status_reconnect_failed", "Auto-reconnect failed several times; use the Reconnect button to retry." },
-            { "status_disconnected", "Child Session disconnected, error code 0x{0:X8}" },
-            { "status_disconnected_acct", " (account restricted). Check the Windows account status and sign-in policy; if you just enabled Child Sessions, sign out and back in and try again." },
-            { "status_fatal", "Fatal RDP error 0x{0:X8}" },
-            { "status_logon_error", "Child Session logon error 0x{0:X8}" },
-            { "status_continuing", "Windows is continuing to build the Child Session…" },
-            { "status_state", "RDP control state: " },
-            { "status_read_fail", "Failed to read connection state: " },
-            { "msg_connect_fail", "Connection failed: " },
-            { "msg_check_fail", "Could not check the Windows Child Session state, system error code {0}. Make sure this Windows version supports remote desktop Child Sessions." },
-            { "btn_fullscreen", "Fullscreen" }, { "btn_display", "Display" }, { "btn_resolution", "Resolution" },
-            { "btn_exit", "Exit" }, { "btn_more", "More" }, { "btn_collapse", "Collapse" }, { "btn_drag", "Drag" },
-            { "tip_display_dynamic", "Display · Dynamic" }, { "tip_display_fixed", "Display · Fixed" },
-            { "tip_expand", "Expand" }, { "tip_collapse", "Collapse" },
-        };
+            if (source == null) return;
+            foreach (var entry in source) target[entry.Key] = entry.Value;
+        }
 
-        private static readonly Dictionary<string, string> fr = new Dictionary<string, string>
+        private static Dictionary<string, string> ReadEmbedded(string language)
         {
-            { "err_title", "Erreur RayXDesktop" },
-            { "startup_fail_title", "Échec du démarrage de RayXDesktop" },
-            { "msg_already_running", "RayXDesktop est déjà ouvert." },
-            { "msg_account_usage", @"Usage : RayXDesktop.exe --account=DOMAINE\Utilisateur" },
-            { "credentials_title", "Connexion à RayXDesktop" },
-            { "credentials_account", "Compte : {0}" },
-            { "credentials_password", "Mot de passe" },
-            { "credentials_connect", "Se connecter" },
-            { "credentials_cancel", "Annuler" },
-            { "status_credentials_cancelled", "Connexion annulée. Utilise Reconnecter pour réessayer." },
-            { "menu_fixed", "Résolution fixe" },
-            { "menu_dynamic", "Résolution dynamique" },
-            { "menu_about", "À propos" },
-            { "menu_open_log", "Ouvrir le dossier des journaux" },
-            { "log_title", "Journal d’activité" },
-            { "log_show", "Ouvrir le journal d’activité" },
-            { "log_collapse", "Réduire le journal d’activité" },
-            { "log_show_edge", "Afficher la bande du journal" },
-            { "log_empty", "Aucune activité enregistrée pour le moment." },
-            { "log_unavailable", "Le journal d’activité est momentanément inaccessible." },
-            { "menu_check_update", "Voir les builds Windows…" },
-            { "menu_reconnect", "Reconnecter" },
-            { "about_body", "Maintenu par D.Synx\n\nSessions enfants Windows, bureaux distants et outils de maintenance.\nBasé sur Ray Desktop de raydoomed (MIT)." },
-            { "res_initial", "Taille de départ ({0} × {1})" },
-            { "res_initial_pending", "Taille de départ" },
-            { "res_maximum", "Maximum de l’écran ({0} × {1})" },
-            { "res_automatic", "Taille automatique (profil RDP)" },
-            { "res_remote_fail", "Windows n’a pas pu appliquer cette résolution à la session sélectionnée. Consulte le journal pour le détail." },
-            { "res_confirm_title", "Changer la résolution" },
-            { "res_confirm_body", "Appliquer la résolution {0} × {1} au bureau ?" },
-            { "close_confirm_title", "Fermer le bureau" },
-            { "close_confirm_body", "Déconnecter les vues ouvertes et fermer RayXDesktop ? Les applications restent dans leurs sessions selon la stratégie Windows du poste." },
-            { "res_not_connected", "Connecte le bureau avant de changer la résolution." },
-            { "res_fail", "Impossible de changer la résolution : " },
-            { "sessions_show", "Afficher les sessions" },
-            { "sessions_hide", "Masquer les sessions" },
-            { "sessions_add", "Ajouter une connexion RDP…" },
-            { "sessions_local", "Local · {0}" },
-            { "sessions_split", "Côte à côte" },
-            { "sessions_single", "Vue unique" },
-            { "rdp_target", "Connexion vers {0}" },
-            { "rdp_password_optional", "Mot de passe (facultatif, Windows le demande si vide)" },
-            { "rdp_import", "Importer un .rdp…" },
-            { "rdp_file_filter", "Fichiers Bureau à distance (*.rdp)|*.rdp" },
-            { "rdp_protected_ready", "Ce fichier contient un mot de passe protégé par Windows pour le compte et l’adresse affichés." },
-            { "rdp_protected_unavailable", "Windows n’a pas pu lire le mot de passe protégé avec ce profil. Saisis-le dans la fenêtre Windows." },
-            { "rdp_import_invalid", "L’adresse du fichier .rdp manque ou est invalide, ou un réglage de connexion figure en double." },
-            { "rdp_import_direct_only", "Ce fichier .rdp utilise une passerelle, un courtier de connexions ou RemoteApp. Importe un profil de bureau direct." },
-            { "rdp_import_unreadable", "Impossible de lire ce fichier .rdp." },
-            { "sessions_thumbnail_folder", "Ouvrir le dossier des miniatures" },
-            { "sessions_remote_host", "Adresse IP ou nom du poste (facultatif avec NOMPC\\session)" },
-            { "sessions_remote_account", "Compte Windows (NOMPC\\session ou DOMAINE\\session)" },
-            { "sessions_remote_only", "Choisis un autre poste pour la connexion RDP. Pour ce PC, utilise la session locale." },
-            { "sessions_disconnect", "Déconnecter" },
-            { "sessions_logoff", "Fermer la session locale…" },
-            { "sessions_close_view", "Retirer la session enregistrée" },
-            { "preferences_save_failed", "RayXDesktop n’a pas pu enregistrer data.ini. Extrais le programme dans un dossier où tu peux écrire." },
-            { "sessions_confirm_logoff", "Fermer la session de {0} ? Les applications ouvertes seront fermées. Enregistre ton travail avant de continuer." },
-            { "sessions_no_local", "Windows n’a pas pu identifier la session enfant locale." },
-            { "sessions_logoff_requested", "Fermeture de la session locale demandée" },
-            { "sessions_connecting", "Connexion…" },
-            { "sessions_disconnect_wait", "Déconnexion…" },
-            { "sessions_disconnect_timeout", "Windows n’a pas confirmé la déconnexion. Réessaie avec Reconnecter." },
-            { "sessions_disconnect_failed", "Impossible de déconnecter. Consulte le journal pour le détail." },
-            { "graphics_fluid", "Privilégier la fluidité" },
-            { "rdp_performance_title", "Performances RDP" },
-            { "rdp_performance_fast", "RDP rapide (taille automatique jusqu’à 1 280 × 720)" },
-            { "graphics_default", "Standard" },
-            { "graphics_current", "Profil des nouvelles connexions : {0} · Bureau local : {1} × {2}" },
-            { "graphics_gpu_label", "Utiliser la carte graphique matérielle du poste hôte" },
-            { "graphics_encoder_label", "Utiliser l’encodage matériel H.264/AVC" },
-            { "graphics_codec_label", "Donner la priorité à H.264/AVC 4:4:4" },
-            { "graphics_policy_diagnostic", "Windows négocie le codec avec le client. En RDP direct, l’événement 170 dans RemoteDesktopServices-RdpCoreTS / Operational permet de vérifier l’utilisation de l’encodeur matériel AVC." },
-            { "graphics_edit_windows", "Ouvrir la stratégie locale…" },
-            { "graphics_events", "Observateur d’événements" },
-            { "graphics_refresh_values", "Relire les valeurs" },
-            { "graphics_close", "Fermer" },
-            { "graphics_console_missing", "Cette édition de Windows ne fournit pas la console demandée." },
-            { "remote_signing_in", "Liaison RDP établie · En attente de l’ouverture de session Windows" },
-            { "remote_login_complete", "Session Windows ouverte" },
-            { "remote_waiting_long", "Windows n’a pas encore confirmé l’ouverture de session. Vérifie l’invite d’identification ou ouvre la même adresse avec Bureau à distance Windows." },
-            { "remote_setup_error", "Impossible de lancer la connexion RDP intégrée (0x{0:X8})." },
-            { "remote_select_to_connect", "Sélectionne cette vue avant de la connecter." },
-            { "remote_refresh_display", "Actualiser l’affichage distant" },
-            { "remote_share_clipboard", "Partager le presse-papiers (prochaine connexion)" },
-            { "remote_ask_on_certificate_error", "Me demander en cas d’erreur de certificat (prochaine connexion)" },
-            { "remote_remember_password", "Enregistrer ce mot de passe sur ce PC" },
-            { "remote_edit_password", "Enregistrer ou modifier le mot de passe…" },
-            { "remote_forget_password", "Oublier le mot de passe enregistré" },
-            { "remote_reconnect_at_startup", "Reconnecter au démarrage" },
-            { "remote_reconnect_all_at_startup", "Reconnecter toutes les sessions au démarrage" },
-            { "remote_startup_manual", "Connexion manuelle · Identifiants ou certificat à vérifier" },
-            { "remote_startup_timeout", "Délai de connexion au démarrage dépassé. Utilise Reconnecter pour réessayer." },
-            { "remote_password_requires_certificate", "Windows demande les identifiants lorsque le mode avec avertissement de certificat est activé." },
-            { "remote_password_save_failed", "Échec de l’enregistrement du mot de passe chiffré" },
-            { "remote_ask_on_certificate_error_hint", "Windows demande les identifiants et te laisse décider si tu poursuis lorsqu’il ne peut pas vérifier le poste distant." },
-            { "remote_retry_certificate", "Réessayer avec l’avertissement de certificat" },
-            { "remote_retry_certificate_hint", "Windows n’a pas indiqué la cause. Si tu reconnais ce poste, réessaie avec l’avertissement de certificat Windows. RayXDesktop mémorise ce mode pour cette adresse après une connexion réussie." },
-            { "remote_open_windows", "Ouvrir cette adresse avec Bureau à distance Windows…" },
-            { "graphics_policy", "Réglage RDP" },
-            { "graphics_effective", "Appliqué par Windows" },
-            { "graphics_local_choice", "Stratégie locale" },
-            { "graphics_host_named", "Ce panneau configure {0}. Pour régler un autre hôte RDP, ouvre RayXDesktop sur cet hôte. Une stratégie du domaine ou de gestion du parc peut primer sur le choix local." },
-            { "graphics_switch_hint", "Chaque interrupteur alterne entre Activé, Désactivé et Non configuré. Clique sur Appliquer sur ce PC pour vérifier les changements et les valider comme administrateur." },
-            { "graphics_local_unreadable", "Impossible de lire la stratégie locale avec les droits actuels. Utilise les interrupteurs pour indiquer les seules valeurs à modifier." },
-            { "graphics_keep", "Conserver" },
-            { "graphics_apply", "Appliquer sur ce PC" },
-            { "graphics_recommended", "Réglages conseillés" },
-            { "graphics_confirm_apply", "Appliquer ces réglages graphiques RDP sur {0} ? Confirme uniquement si cette modification est autorisée sur ce poste.{1}" },
-            { "graphics_saved", "La stratégie locale a été enregistrée. Windows applique les stratégies dans leur ordre habituel. Relis les valeurs après actualisation des stratégies, puis reconnecte-toi pour tester." },
-            { "graphics_saved_refresh_failed", "La stratégie locale a été enregistrée. Windows n’a pas pu lancer l’actualisation. Relis les valeurs après la prochaine actualisation des stratégies." },
-            { "graphics_helper_failed", "L’utilitaire de configuration a renvoyé le code {0}." },
-            { "graphics_helper_missing", "Place EnableChildSessions.exe de la même version à côté de RayXDesktop.exe." },
-            { "remote_copy_diagnostic", "Copier le diagnostic de connexion distante" },
-            { "remote_code_unavailable", "indisponible" },
-            { "remote_stage_signed_in", "après ouverture de session Windows" },
-            { "remote_stage_before_login", "avant confirmation de l’ouverture de session Windows" },
-            { "remote_disconnect_fields", "Code étendu : {0} · {1}" },
-            { "remote_logon_code", "Code d’ouverture de session Windows : 0x{0:X8}" },
-            { "remote_logon_invalid", "Windows a refusé les informations d’ouverture de session." },
-            { "remote_logon_denied", "Windows a refusé à ce compte l’ouverture de session." },
-            { "remote_logon_expired", "Windows demande de changer le mot de passe avant l’ouverture de session." },
-            { "remote_licensing_interrupted", "Le code RDP étendu du serveur signale une interruption de l’échange de licence." },
-            { "remote_ended_after_login", "Windows avait ouvert la session quand la liaison s’est fermée. Compare avec le même compte dans Bureau à distance Windows." },
-            { "remote_ended_early", "Windows n’a pas indiqué la cause. Essaie cette adresse dans Bureau à distance Windows. S’il signale une erreur de certificat, fais vérifier par le service informatique que l’adresse correspond au certificat et que le client fait confiance à son autorité." },
-            { "remote_ended_early_ip", "Windows n’a pas indiqué la cause. Essaie cette adresse dans Bureau à distance Windows. S’il signale une erreur de certificat, utilise le nom indiqué sur le certificat et fais vérifier par le service informatique que le client fait confiance à son autorité." },
-            { "graphics_title", "Graphismes et codec RDP" },
-            { "gpu_title", "Accélération graphique" },
-            { "gpu_auto", "Automatique (recommandé)" },
-            { "gpu_native", "Windows natif" },
-            { "gpu_d3d", "Direct3D 11 (expérimental)" },
-            { "gpu_vk", "Vulkan (expérimental)" },
-            { "gpu_refresh_preview", "Actualiser la miniature sélectionnée" },
-            { "gpu_probe", "Informations GPU et diagnostic" },
-            { "gpu_scope", "Ce réglage agit sur la mise à l’échelle des miniatures. Le contrôle Windows ActiveX affiche et décode le bureau RDP en direct. Le mode automatique utilise Windows pour les miniatures pendant l’évaluation des performances GPU." },
-            { "gpu_selected", "Préférence des miniatures : {0}" },
-            { "gpu_used", "Dernière miniature : {0} · {1:F1} ms de traitement (après capture)" },
-            { "gpu_no_preview", "Moteur utilisé pour les miniatures : en attente d’un aperçu." },
-            { "gpu_no_helper", "Module GPU indisponible. Windows traite les miniatures." },
-            { "gpu_fallback", "Échec ou délai dépassé du module GPU. Windows prend le relais jusqu’à la prochaine application du réglage." },
-            { "gpu_image_limit", "La taille de la capture dépasse les limites du module GPU. Windows a traité cette miniature." },
-            { "gpu_unmeasured", "La fréquence du flux RDP, le décodeur utilisé et la charge GPU du processus sont indisponibles ici. Les codecs ci-dessous indiquent les capacités déclarées." },
-            { "gpu_testing", "Interrogation de Windows et des pilotes graphiques…" },
-            { "gpu_probe_failed", "Diagnostic graphique indisponible ou délai dépassé." },
-            { "gpu_driver", "Adaptateur Windows : {0} · pilote {1}" },
-            { "gpu_no_drivers", "Inventaire Windows des adaptateurs et pilotes indisponible." },
-            { "graphics_applied_on_connect", "Reconnecte la session pour appliquer le profil choisi." },
-            { "policy_enabled", "Activé" },
-            { "policy_disabled", "Désactivé" },
-            { "policy_unconfigured", "Non configuré" },
-            { "policy_unreadable", "Lecture impossible" },
-            { "policy_allowed", "Aucune restriction détectée" },
-            { "policy_blocked", "Bloqué" },
-            { "files_title", "Transfert de fichiers" },
-            { "files_send", "Envoyer vers RayXDesktop…" },
-            { "files_receive", "Récupérer depuis RayXDesktop…" },
-            { "files_status", "Diagnostic des transferts" },
-            { "files_connect_first", "Connecte d’abord le bureau local dans RayXDesktop." },
-            { "files_policy_block", "Une stratégie Windows bloque le transfert de fichiers dans ce sens." },
-            { "files_copy_host", "Copie d’abord les fichiers ou dossiers dans l’Explorateur de la session principale." },
-            { "files_copy_child", "Utilise Copier dans l’Explorateur de RayXDesktop, puis réessaie. Vérifie la redirection du presse-papiers si la sélection n’arrive pas." },
-            { "files_clipboard_changed", "Le presse-papiers a changé. Recopie la sélection et réessaie." },
-            { "files_session_changed", "La connexion ou ses autorisations de transfert ont changé. Réessaie depuis la session locale active." },
-            { "files_shell_unavailable", "Windows n’a pas pu démarrer le collage. Ouvrir le dossier de destination dans l’Explorateur pour y coller ?" },
-            { "files_confirm", "Copier {1} élément(s) vers {0} ?\n\nOui : conserver les deux en cas de doublon.\nNon : ignorer les doublons." },
-            { "files_progress", "Préparation de la copie…" },
-            { "files_done", "Transfert terminé. {0} copié(s), {1} ignoré(s), {2} échec(s)." },
-            { "files_cancelled", "Transfert annulé. {0} copié(s), {1} ignoré(s), {2} échec(s)." },
-            { "files_invalid_source", "Sélectionne un fichier ou un dossier dans le lecteur." },
-            { "files_recursive", "Impossible de copier un dossier à l’intérieur de lui-même." },
-            { "files_duplicate_limit", "Impossible de trouver un nom disponible pour cette copie." },
-            { "files_reparse", "La copie de liens et de jonctions Windows est indisponible avec cette commande." },
-            { "files_local_only", "Le menu Fichiers relie la session principale et la session locale de RayXDesktop." },
-            { "files_report", "Fichiers vers RayXDesktop : {0}\nFichiers depuis RayXDesktop : {1}\nPresse-papiers RDP natif demandé : {2}\nPresse-papiers RDP natif à la prochaine connexion : {3}\n\nWindows vérifie chaque fichier et chaque destination." },
-            { "files_direction_status", "RayXDesktop : {0} · Windows : {1}" },
-            { "files_toggle_send", "Fichiers vers RayXDesktop" },
-            { "files_toggle_receive", "Fichiers depuis RayXDesktop" },
-            { "files_toggle_clipboard", "Presse-papiers RDP natif (prochaine connexion)" },
-            { "files_toggle_unavailable", "Indisponible" },
-            { "toolbar_dock", "Ancrer la barre en haut" },
-            { "toolbar_float", "Repasser en barre flottante" },
-            { "status_connected", "Connecté" },
-            { "status_connecting", "Connexion au bureau local…" },
-            { "status_connecting_win", "Connexion à la session enfant Windows…" },
-            { "status_waiting", "En attente de la session Windows…" },
-            { "status_not_connected", "Déconnecté" },
-            { "status_timeout", "Le délai de connexion a expiré. Vérifie que les sessions enfants sont activées." },
-            { "status_disconnected_local", "Connexion RDP fermée localement." },
-            { "status_reconnect_failed", "La reconnexion a échoué. Utilise le bouton Reconnecter." },
-            { "status_disconnected", "Session déconnectée (0x{0:X8})" },
-            { "status_disconnected_acct", " Vérifie les autorisations du compte Windows." },
-            { "status_fatal", "Erreur RDP (0x{0:X8})" },
-            { "status_logon_error", "Erreur de connexion Windows (0x{0:X8})" },
-            { "status_continuing", "Windows termine l’ouverture de la session…" },
-            { "status_state", "État RDP : " },
-            { "status_read_fail", "Impossible de lire l’état de connexion : " },
-            { "msg_connect_fail", "Échec de la connexion : " },
-            { "msg_check_fail", "Impossible de vérifier les sessions enfants Windows (erreur {0})." },
-            { "btn_fullscreen", "Plein écran" },
-            { "btn_display", "Affichage" },
-            { "btn_resolution", "Résolution" },
-            { "btn_exit", "Fermer la session" },
-            { "btn_more", "Plus d’options" },
-            { "btn_collapse", "Réduire" },
-            { "btn_drag", "Déplacer la barre" },
-            { "tip_display_dynamic", "Affichage dynamique" },
-            { "tip_display_fixed", "Affichage fixe" },
-            { "tip_expand", "Afficher la barre" },
-            { "tip_collapse", "Réduire la barre" },
-        };
+            using (var stream = typeof(Strings).Assembly.GetManifestResourceStream("RayXDesktop.Language." + language))
+                return stream == null ? new Dictionary<string, string>(StringComparer.Ordinal) : ReadXml(stream);
+        }
+
+        private static Dictionary<string, string> ReadFile(string directory, string language)
+        {
+            string path = Path.Combine(directory, language + ".xml");
+            try
+            {
+                using (var stream = File.OpenRead(path))
+                    return ReadXml(stream);
+            }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
+            catch (IOException ex) { Warn(language, ex); }
+            catch (UnauthorizedAccessException ex) { Warn(language, ex); }
+            catch (XmlException ex) { Warn(language, ex); }
+            catch (SecurityException ex) { Warn(language, ex); }
+            return null;
+        }
+
+        private static void Warn(string language, Exception ex)
+        {
+            Trace.TraceWarning("Cannot read language pack {0}: {1}", language, ex.Message);
+        }
+
+        private static Dictionary<string, string> ReadXml(Stream stream)
+        {
+            using (var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersInDocument = 1024 * 1024
+            }))
+            {
+                var root = XDocument.Load(reader, LoadOptions.PreserveWhitespace).Root;
+                if (root == null || root.Name != "translations")
+                    throw new XmlException("Expected a translations element.");
+
+                var translations = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var element in root.Elements("text"))
+                {
+                    string key = (string)element.Attribute("key");
+                    if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(element.Value)) continue;
+                    if (translations.ContainsKey(key))
+                        throw new XmlException("Duplicate translation key: " + key);
+                    translations.Add(key, element.Value);
+                }
+                return translations;
+            }
+        }
 
         public static string T(string key)
         {
-            string s;
-            if (IsFrench && fr.TryGetValue(key, out s)) return s;
-            return en.TryGetValue(key, out s) ? s : key;
+            string value;
+            return active.TryGetValue(key, out value) ? value : key;
         }
 
         public static string T(string key, params object[] args)
         {
-            return string.Format(T(key), args);
+            try { return string.Format(T(key), args); }
+            catch (FormatException)
+            {
+                string standard;
+                if (IsFrench && French.TryGetValue(key, out standard)) return string.Format(standard, args);
+                return English.TryGetValue(key, out standard) ? string.Format(standard, args) : key;
+            }
         }
     }
 }

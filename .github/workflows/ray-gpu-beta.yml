@@ -39,17 +39,21 @@ jobs:
           $extracted = Join-Path $env:RUNNER_TEMP 'RayXDesktop-gpu-beta'
           Expand-Archive -LiteralPath $archive -DestinationPath $extracted -Force
           $expected = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'AxInterop.MSTSCLib.dll',
-            'MSTSCLib.dll', 'RayXDesktop.GpuPreview.exe', 'RayXDesktop.bat', 'README.fr.md', 'GPU.fr.md', 'LICENSE')
+            'MSTSCLib.dll', 'RayXDesktop.GpuPreview.exe', 'RayXDesktop.bat', 'README.fr.md', 'GPU.fr.md', 'LICENSE', 'languages')
           $files = @(Get-ChildItem -LiteralPath $extracted -Force | Select-Object -ExpandProperty Name)
           if (Compare-Object $expected $files) { throw 'Unexpected portable archive contents.' }
+          foreach ($language in @('en', 'fr')) {
+            $pack = Join-Path $extracted "languages\$language.xml"
+            if (-not (Test-Path -LiteralPath $pack -PathType Leaf)) { throw "Missing language pack $language." }
+          }
           $program = Join-Path $extracted 'RayXDesktop.exe'
-          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($program).ProductVersion -ne '1.6.0-beta.3') {
+          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($program).ProductVersion -ne '1.6.0-beta.4') {
             throw 'Unexpected beta executable version.'
           }
           Write-Host 'Verified GPU beta archive, SHA-256, contents and product version.'
       - uses: actions/upload-artifact@v4
         with:
-          name: RayXDesktop-1.6.0-beta.3-Windows
+          name: RayXDesktop-1.6.0-beta.4-Windows
           path: |
             RayXDesktop-Windows.zip
             RayXDesktop-Windows.zip.sha256

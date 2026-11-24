@@ -8,7 +8,7 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 }
 
 $output = Join-Path $PSScriptRoot 'Raydesktop'
-$references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Security.dll', '/r:System.Management.dll')
+$references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Security.dll', '/r:System.Management.dll', '/r:System.Xml.Linq.dll')
 function Publish-BuildOutput([string]$temporary, [string]$target) {
     [IO.File]::Copy($temporary, $target, $true)
     [IO.File]::Delete($temporary)
@@ -53,11 +53,12 @@ $childManifest = Join-Path $PSScriptRoot 'src\ChildSessionDesktop\app.manifest'
 $executableIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_executable.ico'
 $interfaceIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_interface.ico'
 $banner = Join-Path $PSScriptRoot 'assets\RayXDesktop-banner.jpg'
+$languageSource = Join-Path $PSScriptRoot 'languages'
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.6.0.2'
-$productVersion = '1.6.0-beta.3'
+$version = '1.6.0.3'
+$productVersion = '1.6.0-beta.4'
 $productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
@@ -137,6 +138,8 @@ try {
         ("/win32icon:{0}" -f $executableIcon),
         ("/resource:{0},RayXDesktop.InterfaceIcon,private" -f $interfaceIcon),
         ("/resource:{0},RayXDesktop.Banner,private" -f $banner),
+        ("/resource:{0},RayXDesktop.Language.en,private" -f (Join-Path $languageSource 'en.xml')),
+        ("/resource:{0},RayXDesktop.Language.fr,private" -f (Join-Path $languageSource 'fr.xml')),
         ("/win32manifest:{0}" -f $childManifest)
     )
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) @childResources @childReferences @childSources
@@ -149,6 +152,11 @@ try {
     Publish-BuildOutput $setupTemporary $setupTarget
     Copy-Item -LiteralPath $interop -Destination (Join-Path $output 'MSTSCLib.dll') -Force
     Copy-Item -LiteralPath $axInterop -Destination (Join-Path $output 'AxInterop.MSTSCLib.dll') -Force
+    $languageOutput = Join-Path $output 'languages'
+    New-Item -ItemType Directory -Force -Path $languageOutput | Out-Null
+    Get-ChildItem -LiteralPath $languageSource -File -Filter '*.xml' | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $languageOutput -Force
+    }
     Write-Host 'Built RayXDesktop.exe, EnableChildSessions.exe, and the two RDP interop dependencies.'
 }
 finally {

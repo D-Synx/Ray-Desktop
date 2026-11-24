@@ -49,6 +49,7 @@ if ($sign) {
         if ($LASTEXITCODE -ne 0) { throw "Authenticode verification failed for $file." }
     }
 }
+$files += Join-Path $root 'languages'
 $files += Join-Path $root 'LICENSE'
 $files += Join-Path $PSScriptRoot 'README.fr.md'
 $files += Join-Path $PSScriptRoot 'RayXDesktop.bat'

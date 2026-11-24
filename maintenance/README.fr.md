@@ -17,7 +17,13 @@ Le BAT trouve l’EXE à côté de lui, même si la lettre de la clé USB change
 
 Windows doit prendre en charge les sessions enfants. Si la fonctionnalité est désactivée, un administrateur autorisé peut lancer **EnableChildSessions.exe --enable-child-sessions**. Une déconnexion de Windows suivie d’une reconnexion peut être nécessaire après la première activation.
 
-L’interface utilise le français sur les systèmes en français et l’anglais ailleurs. Les arguments **--lang=fr** et **--lang=en** forcent la langue. **--dynamic** utilise la taille de la fenêtre pour l’affichage.
+### Langues de l’interface
+
+Le dossier `languages`, à côté de `RayXDesktop.exe`, contient `fr.xml` et `en.xml`. RayXDesktop utilise la langue d’affichage de Windows au démarrage. Pour forcer une langue, lance l’application avec `--lang=fr` ou `--lang=en`.
+
+Pour ajouter une langue, copie `en.xml` sous un nouveau nom, par exemple `es.xml`, puis traduis le texte de chaque élément `<text>`. Garde les valeurs de `key` et les paramètres comme `{0}` ou `{0:X8}`. Enregistre en UTF-8, relance avec `--lang=es` et vérifie l’interface. Les variantes comme `fr-ca.xml` complètent le fichier de la langue de base. Les textes manquants sont complétés par la langue de base ou par l’anglais. Le français et l’anglais fournis restent disponibles si leurs fichiers externes sont absents ou illisibles.
+
+**--dynamic** utilise la taille de la fenêtre pour l’affichage.
 
 ## Options de connexion existantes
 

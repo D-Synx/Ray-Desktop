@@ -226,6 +226,10 @@ namespace RayDesktopTests
             Check(ConnectionArguments.IsCredentialOption(localAccount), "account-only shortcut selects explicit sign-in");
             Check(ConnectionArguments.TryParse(new[] { localAccount, "--lang=fr", "--dynamic" }, out account, out password)
                 && account == @".\Administrateur" && password == null, "account only asks for password");
+            Check(ConnectionArguments.TryParse(new[] { localAccount, "--lang", "fr-ca" }, out account, out password)
+                && account == @".\Administrateur" && password == null, "separate language arguments work with a local account");
+            Check(!ConnectionArguments.TryParse(new[] { localAccount, "--lang", "--dynamic" }, out account, out password),
+                "missing language does not consume another option");
             Check(ConnectionArguments.TryParse(new[] { @"--account=LYCEE\Agent", "--password:Ex%ample!" }, out account, out password)
                 && account == @"LYCEE\Agent" && password == "Ex%ample!", "legacy arguments preserve password characters");
             Check(!ConnectionArguments.TryParse(new[] { "--password=example" }, out account, out password), "password needs an account");
@@ -234,6 +238,46 @@ namespace RayDesktopTests
             Check(!ConnectionArguments.TryParse(new[] { localAccount, "--password:one", "--password=two" }, out account, out password), "duplicate password is invalid");
             Check(!ConnectionArguments.TryParse(new[] { "--account=Administrateur" }, out account, out password), "unqualified account is invalid");
             Check(!ConnectionArguments.TryParse(new[] { localAccount, "--maintenance-host=example.org" }, out account, out password), "mixed connection modes are invalid");
+        }
+
+        private static void TestLanguagePacks()
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "RayLanguageTest-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            try
+            {
+                Strings.SetLanguage("fr-CA", folder);
+                Check(Strings.T("btn_files") == "Fichiers", "embedded French works without an external pack");
+                Check(Strings.T("msg_account_usage").EndsWith(@"DOMAINE\Utilisateur"), "translation preserves Windows paths");
+                Check(Strings.T("files_confirm", "Dossier", 2).Contains("\n\n"), "translation preserves dialog line breaks");
+
+                File.WriteAllText(Path.Combine(folder, "es.xml"),
+                    "<translations><text key=\"btn_files\">Archivos</text><text key=\"btn_more\">Más</text></translations>");
+                File.WriteAllText(Path.Combine(folder, "es-mx.xml"),
+                    "<translations><text key=\"btn_more\">Opciones</text></translations>");
+                Strings.SetLanguage("ES-MX", folder);
+                Check(Strings.T("btn_more") == "Opciones" && Strings.T("btn_files") == "Archivos",
+                    "external translations use the specific locale and then its parent");
+                Check(Strings.T("btn_display") == "Display", "missing translations fall back to English");
+
+                string frenchPack = Path.Combine(folder, "fr.xml");
+                File.WriteAllText(frenchPack,
+                    "<translations><text key=\"btn_files\">Mes fichiers</text><text key=\"status_disconnected\">{99}</text></translations>");
+                Strings.SetLanguage("fr", folder);
+                Check(Strings.T("btn_files") == "Mes fichiers", "external French replaces an embedded string");
+                Check(Strings.T("status_disconnected", 10).Contains("0000000A"), "invalid format uses the embedded text");
+                File.WriteAllText(frenchPack, "<!DOCTYPE translations [<!ENTITY word 'bad'>]><translations/>");
+                Strings.SetLanguage("fr", folder);
+                Check(Strings.T("btn_files") == "Fichiers", "unreadable or unsafe XML leaves the bundled translation");
+
+                Strings.SetLanguage(@"..\fr", folder);
+                Check(Strings.T("btn_files") == "Files", "language parameters cannot escape the pack directory");
+            }
+            finally
+            {
+                Strings.SetLanguage("en", folder);
+                Directory.Delete(folder, true);
+            }
         }
 
         private static void TestFileTransfer()
@@ -588,6 +632,7 @@ namespace RayDesktopTests
             TestClipboardParse();
             TestReconnectPolicy();
             TestConnectionArguments();
+            TestLanguagePacks();
             TestFileTransfer();
             TestRemoteConnections();
             TestRemoteDisplaySizing();
