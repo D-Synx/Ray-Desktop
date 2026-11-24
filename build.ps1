@@ -10,7 +10,7 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 $output = Join-Path $PSScriptRoot 'Raydesktop'
 $references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Security.dll', '/r:System.Management.dll', '/r:System.Xml.Linq.dll')
 $framework = Split-Path -Parent $compiler
-$wpfReferences = @('WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll', 'WindowsFormsIntegration.dll') | ForEach-Object {
+$wpfReferences = @('WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll', 'WindowsFormsIntegration.dll', 'System.Xaml.dll') | ForEach-Object {
     $assembly = Join-Path (Join-Path $framework 'WPF') $_
     if (-not (Test-Path -LiteralPath $assembly)) { $assembly = Join-Path $framework $_ }
     if (-not (Test-Path -LiteralPath $assembly)) { throw "Missing .NET Framework WPF assembly $_." }
