@@ -453,7 +453,11 @@ namespace ChildSessionDesktop
 
         private ToolStripMenuItem CreateLanguageMenu()
         {
-            var menu = new ToolStripMenuItem(Strings.T("language_menu")) { DropDown = MakeToolbarMenu() };
+            var menu = new ToolStripMenuItem(Strings.T("language_menu"));
+            var dropDown = (ToolStripDropDownMenu)menu.DropDown;
+            if (!SystemInformation.HighContrast) dropDown.Renderer = new ToolbarMenuRenderer();
+            dropDown.ShowImageMargin = false;
+            dropDown.ShowCheckMargin = true;
             AddLanguageChoice(menu, null, Strings.T("language_auto"));
             menu.DropDownItems.Add(new ToolStripSeparator());
             foreach (var language in Strings.Languages)
