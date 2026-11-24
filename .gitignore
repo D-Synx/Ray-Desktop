@@ -1,22 +1,18 @@
-# 构建输出（经 GitHub Releases 分发，不入库）
 Raydesktop/
 Raydesktop-*.zip
+RayXDesktop-*.zip
+RayXDesktop-*.zip.sha256
 
-# 日志
 *.log
 
-# 本地维护笔记（不入库、不公开）
 PROJECT_NOTES.md
 
-# 系统与 IDE
 Thumbs.db
 Desktop.ini
 .vs/
 *.user
 *.suo
 
-# 发布说明（本地保留，GitHub Release 页为准，不入库）
 release-notes/
 
-# 测试产物（不入库）
 tests/*.exe

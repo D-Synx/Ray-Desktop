@@ -1,7 +1,8 @@
 using System;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using ChildSessionDesktop;
+using RayXDesktop.Configuration;
 
 namespace ChildSessionSetup
 {
@@ -15,39 +16,54 @@ namespace ChildSessionSetup
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool WTSIsChildSessionsEnabled([MarshalAs(UnmanagedType.Bool)] out bool enabled);
 
-        // Lightweight localization: zh for Chinese systems, English otherwise (P2-9).
-        private static string T(string zh, string en)
-        {
-            return CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? zh : en;
-        }
-
         [STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
+            if (args.Length != 0 && args[0] == "--set-rdp-graphics")
+                return SetGraphicsPolicy(args);
+
+            Strings.SetLanguage(Strings.ExtractLanguage(ref args), readExternal: false);
             try
             {
+                bool enabled;
+                if (!WTSIsChildSessionsEnabled(out enabled))
+                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+
+                if (args.Length != 1 || args[0] != "--enable-child-sessions")
+                {
+                    MessageBox.Show(
+                        Strings.T("setup_child_status", Strings.T(enabled ? "policy_enabled" : "policy_disabled")),
+                        "RayXDesktop");
+                    return args.Length == 0 ? 0 : 2;
+                }
+
+                if (enabled)
+                {
+                    MessageBox.Show(Strings.T("setup_child_already_enabled"), "RayXDesktop");
+                    return 0;
+                }
+
+                if (MessageBox.Show(
+                    Strings.T("setup_child_confirm"),
+                    "RayXDesktop", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                    return 3;
+
                 if (!WTSEnableChildSessions(true))
                 {
                     int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException(T(
-                        "WTSEnableChildSessions 失败，Windows 错误码 " + error + "。",
-                        "WTSEnableChildSessions failed, Windows error code " + error + "."));
+                    throw new InvalidOperationException(Strings.T("setup_child_enable_failed", error));
                 }
 
-                bool enabled;
                 if (!WTSIsChildSessionsEnabled(out enabled) || !enabled)
                 {
                     int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException(T(
-                        "Windows 未确认 Child Sessions 已启用，错误码 " + error + "。",
-                        "Windows did not confirm Child Sessions are enabled, error code " + error + "."));
+                    throw new InvalidOperationException(Strings.T("setup_child_verify_failed", error));
                 }
 
                 MessageBox.Show(
-                    T(
-                        "Child Sessions 已启用。请保存工作并注销 Windows，然后重新登录再使用独立桌面。\r\n\r\n如果现在连接时出现 Windows 凭据提示，请取消提示，不要尝试输入空密码；注销并重新登录后，子会话会使用当前登录状态自动连接。",
-                        "Child Sessions are enabled. Save your work, sign out of Windows, then sign back in to use the isolated desktop.\r\n\r\nIf a Windows credential prompt appears when connecting now, cancel it and do not enter a blank password; after signing out and back in, the child session will connect automatically using your current sign-in."),
-                    T("独立 Windows 桌面设置", "Isolated Windows Desktop Setup"),
+                    Strings.T("setup_child_enabled"),
+                    "RayXDesktop",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 return 0;
@@ -55,12 +71,26 @@ namespace ChildSessionSetup
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    ex.Message + Environment.NewLine + Environment.NewLine + T(
-                        "请确认此 Windows 版本支持 Child Sessions，并允许管理员操作。",
-                        "Verify this Windows version supports Child Sessions and that administrator action is allowed."),
-                    T("无法启用 Child Sessions", "Could Not Enable Child Sessions"),
+                    ex.Message + Environment.NewLine + Environment.NewLine + Strings.T("setup_child_error_help"),
+                    Strings.T("err_title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+                return 1;
+            }
+        }
+        private static int SetGraphicsPolicy(string[] args)
+        {
+            PolicyChoice[] changes;
+            if (!RdpGraphicsPolicies.TryParse(args, out changes) || Strings.NormalizeLanguage(args[1]) == null) return 2;
+            Strings.SetLanguage(args[1], readExternal: false);
+            try
+            {
+                return RdpGraphicsPolicies.SaveLocal(changes) ? 0 : 4;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(Strings.T("setup_graphics_save_failed") + Environment.NewLine + ex.Message,
+                    "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }

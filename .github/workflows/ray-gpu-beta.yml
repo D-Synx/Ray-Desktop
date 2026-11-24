@@ -1,0 +1,62 @@
+name: RayXDesktop Windows GPU beta
+on:
+  workflow_dispatch:
+  push:
+    branches: [beta/1.6.0-gpu-vulkan]
+
+permissions:
+  contents: read
+
+jobs:
+  beta:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: 2cd90f9d20df57eac214c148f3aed885372ddcfe
+          path: vulkan-headers
+          persist-credentials: false
+      - name: Run regression tests
+        shell: powershell
+        run: .\tests\run-tests.ps1
+      - name: Build the x64 GPU helper
+        shell: powershell
+        run: .\maintenance\build-gpu.ps1 -VulkanHeaders .\vulkan-headers
+      - name: Test helper protocol and available GPU operations
+        shell: powershell
+        run: python .\tests\test-gpu-preview.py .\Raydesktop\RayXDesktop.GpuPreview.exe
+      - name: Build and check the portable beta
+        shell: powershell
+        run: |
+          .\maintenance\build-portable.ps1 -GpuHelperPath .\Raydesktop\RayXDesktop.GpuPreview.exe
+          $archive = (Resolve-Path .\RayXDesktop-Windows.zip).Path
+          $hash = (Get-Content -LiteralPath "$archive.sha256" -Raw).Trim().Split(' ')[0]
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $hash) {
+            throw 'Portable archive checksum mismatch.'
+          }
+          $extracted = Join-Path $env:RUNNER_TEMP 'RayXDesktop-gpu-beta'
+          Expand-Archive -LiteralPath $archive -DestinationPath $extracted -Force
+          $expected = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'AxInterop.MSTSCLib.dll',
+            'MSTSCLib.dll', 'RayXDesktop.GpuPreview.exe', 'RayXDesktop.bat', 'README.fr.md', 'GPU.fr.md', 'LICENSE', 'languages')
+          $files = @(Get-ChildItem -LiteralPath $extracted -Force | Select-Object -ExpandProperty Name)
+          if (Compare-Object $expected $files) { throw 'Unexpected portable archive contents.' }
+          foreach ($language in @('de', 'en', 'es', 'fr', 'it', 'pl', 'pt-br')) {
+            $pack = Join-Path $extracted "languages\$language.xml"
+            if (-not (Test-Path -LiteralPath $pack -PathType Leaf)) { throw "Missing language pack $language." }
+          }
+          $program = Join-Path $extracted 'RayXDesktop.exe'
+          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($program).ProductVersion -ne '1.6.0-beta.6') {
+            throw 'Unexpected beta executable version.'
+          }
+          Write-Host 'Verified GPU beta archive, SHA-256, contents and product version.'
+          .\tests\check-portable-ui.ps1 -Directory $extracted
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RayXDesktop-1.6.0-beta.6-Windows
+          path: |
+            RayXDesktop-Windows.zip
+            RayXDesktop-Windows.zip.sha256
+          if-no-files-found: error
+          retention-days: 90

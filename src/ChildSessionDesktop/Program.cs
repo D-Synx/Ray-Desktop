@@ -10,7 +10,6 @@ namespace ChildSessionDesktop
     internal static class Program
     {
         private static readonly object LogLock = new object();
-        private static bool logInitialized;
         private static Mutex singleInstance;
         [STAThread]
         private static void Main(string[] args)
@@ -28,18 +27,6 @@ namespace ChildSessionDesktop
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // 多语言：--lang=zh / --lang=en 覆盖（缺省按系统语言，见 Strings.SetLanguage）。
-            // 同时支持 "--lang=en"（等号）与 "--lang en"（空格）两种写法。
-            string lang = null;
-            for (int i = 0; args != null && i < args.Length; i++)
-            {
-                if (string.Equals(args[i], "--lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                    lang = args[i + 1];
-                else if (args[i].StartsWith("--lang=", StringComparison.OrdinalIgnoreCase))
-                    lang = args[i].Substring("--lang=".Length);
-            }
-            Strings.SetLanguage(lang);
-
             try
             {
                 if (args != null && args.Length > 0 && string.Equals(args[0], "--clipboard-agent", StringComparison.OrdinalIgnoreCase))
@@ -55,16 +42,52 @@ namespace ChildSessionDesktop
                     }
                     return;
                 }
-                bool dynamicMode = args != null && Array.IndexOf(args, "--dynamic") >= 0;
+                string explicitLanguage = Strings.ExtractLanguage(ref args);
+                var preferences = new DesktopPreferences(initializeMissing: false);
+                Strings.SetLanguage(explicitLanguage ?? preferences.Language);
+
+                if (args.Length == 1 && string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(Strings.T("cli_help"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                MaintenanceProfile maintenance;
+                try { maintenance = MaintenanceProfile.Parse(args); }
+                catch (ArgumentException ex)
+                {
+                    MessageBox.Show(ex.Message, "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Environment.ExitCode = 2;
+                    return;
+                }
+                if (maintenance != null)
+                {
+                    Environment.ExitCode = MaintenanceClient.Run(maintenance);
+                    return;
+                }
+                string account = null;
+                string password = null;
+                if (Array.Exists(args, ConnectionArguments.IsCredentialOption)
+                    && !ConnectionArguments.TryParse(args, out account, out password))
+                {
+                    MessageBox.Show(Strings.T("msg_account_usage"),
+                        "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Environment.ExitCode = 2;
+                    return;
+                }
+                bool dynamicMode = Array.IndexOf(args, "--dynamic") >= 0;
                 bool createdNew;
                 singleInstance = new Mutex(true, @"Local\RayDesktop_SingleInstance", out createdNew);
                 if (!createdNew)
                 {
-                    Log("Another Ray Desktop instance is already running; this instance will exit.");
-                    MessageBox.Show(Strings.T("msg_already_running"), "Ray Desktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Log("Another RayXDesktop instance is already running; this instance will exit.");
+                    MessageBox.Show(Strings.T("msg_already_running"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                Application.Run(new DesktopForm(dynamicMode));
+                var desktopPreferences = new DesktopPreferences();
+                if (explicitLanguage == null && desktopPreferences.Language != preferences.Language)
+                    Strings.SetLanguage(desktopPreferences.Language);
+                Application.Run(new DesktopForm(desktopPreferences, dynamicMode, account, password));
             }
             catch (Exception ex)
             {
@@ -73,7 +96,6 @@ namespace ChildSessionDesktop
             }
         }
 
-        /// <summary>日志目录：优先 %LOCALAPPDATA%\RayDesktop\Logs（用户始终可写），失败时回退 exe 同目录。</summary>
         internal static string LogDirectory
         {
             get
@@ -92,6 +114,8 @@ namespace ChildSessionDesktop
             }
         }
 
+        internal static string LogPath { get { return Path.Combine(LogDirectory, "child-session.log"); } }
+
         internal static void Log(string message)
         {
             try
@@ -105,8 +129,8 @@ namespace ChildSessionDesktop
                         {
                             try
                             {
-                                mutex.WaitOne();
-                                ownsMutex = true;
+                                ownsMutex = mutex.WaitOne(50);
+                                if (!ownsMutex) return;
                             }
                             catch (AbandonedMutexException)
                             {
@@ -114,39 +138,18 @@ namespace ChildSessionDesktop
                                 ownsMutex = true;
                             }
 
-                            string path = Path.Combine(LogDirectory, "child-session.log");
-                            if (!logInitialized)
-                            {
-                                string existing = string.Empty;
-                                if (File.Exists(path))
-                                {
-                                    using (var reader = new StreamReader(path, Encoding.UTF8, true))
-                                        existing = reader.ReadToEnd();
-                                }
-                                existing = existing.Replace("\0", string.Empty);
-                                byte[] preamble = new UTF8Encoding(true).GetPreamble();
-                                byte[] content = Encoding.UTF8.GetBytes(existing);
-                                using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read))
-                                {
-                                    stream.Write(preamble, 0, preamble.Length);
-                                    stream.Write(content, 0, content.Length);
-                                }
-                                logInitialized = true;
-                            }
-
-                            // 日志体积治理：超过 5MB 归档为 .1 并重建，避免长期高频轮询持续膨胀（P2-3 兜底）。
+                            string path = LogPath;
                             const long MaxLogBytes = 5 * 1024 * 1024;
                             if (File.Exists(path) && new FileInfo(path).Length > MaxLogBytes)
                             {
                                 string archived = path + ".1";
                                 if (File.Exists(archived)) File.Delete(archived);
                                 File.Move(path, archived);
-                                logInitialized = false;
                             }
 
                             string cleanMessage = (message ?? string.Empty).Replace("\0", string.Empty);
                             File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " " +
-                                cleanMessage + Environment.NewLine, new UTF8Encoding(false));
+                                cleanMessage + Environment.NewLine, Encoding.UTF8);
                         }
                         finally
                         {

@@ -52,12 +52,16 @@ jobs:
           $extracted = Join-Path $env:RUNNER_TEMP 'RayXDesktop-portable-check'
           Expand-Archive -LiteralPath $archive -DestinationPath $extracted
           $expectedFiles = @('RayXDesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll',
-            'AxInterop.MSTSCLib.dll', 'LICENSE', 'README.fr.md', 'RayXDesktop.bat')
+            'AxInterop.MSTSCLib.dll', 'LICENSE', 'README.fr.md', 'RayXDesktop.bat', 'languages')
           $files = @(Get-ChildItem -LiteralPath $extracted -Force | Select-Object -ExpandProperty Name)
           if (Compare-Object $expectedFiles $files) { throw 'Unexpected files in the portable ZIP.' }
+          foreach ($language in @('de', 'en', 'es', 'fr', 'it', 'pl', 'pt-br')) {
+            $pack = Join-Path $extracted "languages\$language.xml"
+            if (-not (Test-Path -LiteralPath $pack -PathType Leaf)) { throw "Missing language pack $language." }
+          }
           $path = Join-Path $extracted 'RayXDesktop.exe'
           $expected = 'Ray' + [char]0x02E3 + 'Desktop'
-          $expectedVersion = '1.6.0-beta.3'
+          $expectedVersion = '1.6.0-beta.6'
           foreach ($name in @('RayXDesktop.exe', 'EnableChildSessions.exe')) {
             $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $extracted $name))
             if ($metadata.ProductName -cne $expected -or $metadata.ProductVersion -cne $expectedVersion) {

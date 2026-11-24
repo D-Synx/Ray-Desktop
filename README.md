@@ -25,13 +25,15 @@ La barre d’outils donne accès à l’affichage, à la résolution, aux transf
 
 ## Ce qui arrive dans la 1.6.0
 
-La **bêta 3** est disponible pour les essais sous Windows. Dans la compilation GitHub Actions ci-dessus, télécharge l’artefact Windows, puis extrais le ZIP portable qu’il contient.
+La **bêta 6** est disponible pour les essais sous Windows. Dans la compilation GitHub Actions ci-dessus, télécharge l’artefact Windows, puis extrais le ZIP portable qu’il contient.
 
 | Nouveauté | Ce que tu peux essayer |
 | --- | --- |
 | **Miniatures accélérées par GPU** | Sous **Plus → Accélération graphique**, choisis Direct3D 11 ou Vulkan pour mettre à l’échelle les aperçus des sessions sur un GPU compatible. Le mode Windows sert de repli. |
 | **Profil RDP rapide** | Réduis les effets visuels et plafonne la résolution automatique à 1 280 × 720 après reconnexion. Le contrôle RDP de Windows affiche les bureaux en direct. |
 | **Résolution par session** | Agrandis le bureau à la définition de l’écran, choisis une définition précise ou reviens à la taille de départ et au mode automatique. |
+| **Sept langues** | Dans **Plus → Langue de l’interface**, choisis le français, l’anglais, l’espagnol, le portugais du Brésil, l’allemand, l’italien ou le polonais. Le choix s’applique au prochain lancement. |
+| **Interface actualisée** | Cadre natif avec coins arrondis sous Windows 11, barre d’outils avec accès direct aux sessions et en-tête du panneau des sessions rendu par WPF. |
 | **Diagnostic GPU** | Consulte les informations disponibles sur le pilote, le moteur utilisé pour la dernière miniature et le temps de traitement. |
 
 **À valider avant la version finale** · Mesurer les gains sur des GPU réels, vérifier le redimensionnement en vue scindée et sur plusieurs écrans, puis comparer la fluidité du profil RDP rapide sur plusieurs connexions. Le décodage Vulkan Video pour un futur moteur RDP reste une piste à étudier.

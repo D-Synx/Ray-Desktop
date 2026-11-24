@@ -15,23 +15,26 @@ namespace ChildSessionDesktop
     {
         internal const int WmClipboardUpdate = 0x031D;
         private const string RunValueName = "RayDesktopClipboardAgent";
+        private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private readonly bool isChild;
         private readonly string incomingPath;
         private readonly string outgoingPath;
         private Guid lastIncomingId;
         private uint suppressSequence;
-        private DateTime suppressSetAt;   // P3-11：抑制仅限设置后的 500ms 窗口，防序列号回绕复用误判回声
+        private DateTime suppressSetAt;  // Ignore notifications from our own clipboard writes briefly.
         private string lastSentFingerprint;
         private string lastAppliedFingerprint;
         private DateTime lastSentAt;
         private DateTime lastAppliedAt;
         private bool disposed;
-        private DateTime lastClipboardErrorLoggedAt = DateTime.MinValue;   // 30s 窗口内同一读取错误只记一次，之后可再记（P2-5）
+        private DateTime lastClipboardErrorLoggedAt = DateTime.MinValue;
         private bool retryClipboardRead;
+        private readonly Func<bool, bool> allowFileTransfer;
 
-        internal ClipboardFileRelay(bool child)
+        internal ClipboardFileRelay(bool child, Func<bool, bool> allowFileTransfer = null)
         {
             isChild = child;
+            this.allowFileTransfer = allowFileTransfer;
             string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "RayDesktop", "ClipboardBridge");
             incomingPath = Path.Combine(directory, child ? "host-to-child.bin" : "child-to-host.bin");
@@ -61,8 +64,7 @@ namespace ChildSessionDesktop
             {
                 string executable = Application.ExecutablePath;
                 string command = "\"" + executable + "\" --clipboard-agent --parent-session " + sessionId;
-                using (RegistryKey runKey = Registry.CurrentUser.CreateSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Run"))
+                using (RegistryKey runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath))
                 {
                     if (runKey == null) throw new InvalidOperationException("Could not open the current-user startup key.");
                     runKey.SetValue(RunValueName, command, RegistryValueKind.String);
@@ -72,6 +74,52 @@ namespace ChildSessionDesktop
             catch (Exception ex)
             {
                 Program.Log("Could not register the child-session file clipboard bridge: " + ex.GetBaseException().Message);
+            }
+        }
+
+        internal static void UnregisterChildAgent(string account = null)
+        {
+            try
+            {
+                if (account == null)
+                {
+                    RemoveAgentRunValue(Registry.CurrentUser, RunKeyPath);
+                    return;
+                }
+
+                if (account.StartsWith(@".\", StringComparison.Ordinal))
+                    account = Environment.MachineName + account.Substring(1);
+                var identity = new System.Security.Principal.NTAccount(account);
+                var sid = (System.Security.Principal.SecurityIdentifier)identity.Translate(
+                    typeof(System.Security.Principal.SecurityIdentifier));
+                RemoveAgentRunValue(Registry.Users, sid.Value + "\\" + RunKeyPath);
+            }
+            catch (Exception ex)
+            {
+                Program.Log("Could not clean the legacy clipboard startup entry: " + ex.GetBaseException().Message);
+            }
+        }
+
+        // Remove only the startup entry previously written by the clipboard bridge.
+        private static void RemoveAgentRunValue(RegistryKey root, string path)
+        {
+            using (var runKey = root.OpenSubKey(path))
+            {
+                var command = runKey == null ? null : runKey.GetValue(RunValueName) as string;
+                if (command == null || command.IndexOf(" --clipboard-agent --parent-session ",
+                    StringComparison.OrdinalIgnoreCase) < 0)
+                    return;
+            }
+
+            using (var runKey = root.OpenSubKey(path, true))
+            {
+                if (runKey == null) return;
+                var command = runKey.GetValue(RunValueName) as string;
+                if (command == null || command.IndexOf(" --clipboard-agent --parent-session ",
+                    StringComparison.OrdinalIgnoreCase) < 0)
+                    return;
+                runKey.DeleteValue(RunValueName, false);
+                Program.Log("Removed the legacy RayXDesktop clipboard startup entry");
             }
         }
 
@@ -159,6 +207,8 @@ namespace ChildSessionDesktop
                 }
                 else paths = new string[0];
 
+                if (paths.Length > 0 ? !AllowsFiles(!isChild) : !ClipboardRestrictions.AllowsText(!isChild))
+                    return;
                 string fingerprint = paths.Length > 0 ? Fingerprint(paths) : FingerprintText(text);
                 DateTime now = DateTime.UtcNow;
                 if ((fingerprint == lastAppliedFingerprint && now - lastAppliedAt < TimeSpan.FromSeconds(3)) ||
@@ -190,6 +240,11 @@ namespace ChildSessionDesktop
             if (!disposed && retryClipboardRead) OnClipboardChanged();
         }
 
+        private bool AllowsFiles(bool outbound)
+        {
+            return (allowFileTransfer == null || allowFileTransfer(outbound)) && ClipboardRestrictions.AllowsFiles(outbound, null);
+        }
+
         internal void PollIncoming()
         {
             if (disposed || !File.Exists(incomingPath)) return;
@@ -201,6 +256,13 @@ namespace ChildSessionDesktop
                 string text;
                 if (!ReadMessage(incomingPath, out messageId, out paths, out text) || messageId == lastIncomingId) return;
                 if (paths.Length == 0 && string.IsNullOrEmpty(text))
+                {
+                    lastIncomingId = messageId;
+                    DeleteIncomingFile(writeStamp);
+                    return;
+                }
+
+                if (paths.Length > 0 ? !AllowsFiles(isChild) : !ClipboardRestrictions.AllowsText(isChild))
                 {
                     lastIncomingId = messageId;
                     DeleteIncomingFile(writeStamp);
@@ -307,8 +369,6 @@ namespace ChildSessionDesktop
             }
         }
 
-        // 消费成功后删除信箱文件，防止进程重启后重放上一次会话的陈旧内容。
-        // 删除前校验写时间戳：若读消息期间写入方已原子替换成新消息，则跳过删除，留给下轮 poll 读取。
         private void DeleteIncomingFile(DateTime writeStamp)
         {
             try
@@ -381,7 +441,7 @@ namespace ChildSessionDesktop
             relay = fileRelay;
             var parameters = new CreateParams
             {
-                Caption = "Ray Desktop Clipboard Bridge",
+                Caption = "RayXDesktop Clipboard Bridge",
                 Parent = new IntPtr(-3) // HWND_MESSAGE: no visible window or taskbar entry.
             };
             CreateHandle(parameters);

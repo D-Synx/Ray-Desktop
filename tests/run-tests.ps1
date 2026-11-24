@@ -1,4 +1,3 @@
-# P2-10 回归基线测试：编译并运行纯函数单测（无 dotnet SDK/NuGet，用 .NET Framework csc）。
 $ErrorActionPreference = 'Stop'
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) {
@@ -12,12 +11,30 @@ $root = $PSScriptRoot
 $testOut = Join-Path $root 'RayDesktopTests.exe'
 $sources = @(
     (Join-Path $root 'RayDesktopTests\Program.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ConnectionArguments.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\FileTransfer.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpConnection.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\RdpFailure.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\DesktopPreferences.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\GpuPreview.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\LogPane.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ToolbarControl.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\TooltipForm.cs'),
+    (Join-Path $PSScriptRoot '..\src\Shared\RdpGraphicsPolicies.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\WindowsChrome.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\GraphicsOptions.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ReconnectPolicy.cs')
 )
 
-& $compiler /nologo /target:exe ("/out:{0}" -f $testOut) @sources
+$languageSource = Join-Path $PSScriptRoot '..\languages'
+$languageResources = @(Get-ChildItem -LiteralPath $languageSource -File -Filter '*.xml' | ForEach-Object {
+    "/resource:$($_.FullName),RayXDesktop.Language.$($_.BaseName),private"
+})
+
+& $compiler /nologo /target:exe /r:System.Xml.Linq.dll @languageResources /r:System.Security.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:Accessibility.dll ("/out:{0}" -f $testOut) @sources
 if ($LASTEXITCODE -ne 0) { throw "Test build failed with exit code $LASTEXITCODE" }
 
 & $testOut
