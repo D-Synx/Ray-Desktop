@@ -32,8 +32,9 @@ namespace ChildSessionDesktop
         private readonly Dictionary<string, bool> certificateWarnings = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         private readonly List<SavedSession> sessions = new List<SavedSession>();
         private bool cannotRead;
+        private bool needsInitialization;
 
-        internal DesktopPreferences(string path = null)
+        internal DesktopPreferences(string path = null, bool initializeMissing = true)
         {
             this.path = path ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.ini");
             LogEdgeEnabled = true;
@@ -46,11 +47,8 @@ namespace ChildSessionDesktop
             }
             catch (FileNotFoundException)
             {
-                if (path == null)
-                {
-                    MigrateRegistry();
-                    Save();
-                }
+                needsInitialization = path == null;
+                if (initializeMissing) InitializeMissing();
             }
             catch (DirectoryNotFoundException) { }
             catch (IOException) { cannotRead = true; }
@@ -58,10 +56,19 @@ namespace ChildSessionDesktop
             catch (SecurityException) { cannotRead = true; }
         }
 
+        internal void InitializeMissing()
+        {
+            if (!needsInitialization) return;
+            needsInitialization = false;
+            MigrateRegistry();
+            Save();
+        }
+
         internal bool LogEdgeEnabled { get; private set; }
         internal RdpPerformanceProfile RdpPerformance { get; private set; }
         internal bool DynamicDisplay { get; private set; }
         internal bool ToolbarPinned { get; private set; }
+        internal string Language { get; private set; }
         internal PreviewEngine ThumbnailEngine { get; private set; }
         internal bool ReconnectAllAtStartup { get; private set; }
         private bool SendFilesEnabled { get; set; }
@@ -115,6 +122,15 @@ namespace ChildSessionDesktop
         {
             ToolbarPinned = enabled;
             return Save();
+        }
+
+        internal bool SetLanguage(string language)
+        {
+            string previous = Language;
+            Language = Strings.NormalizeLanguage(language);
+            if (Save()) return true;
+            Language = previous;
+            return false;
         }
 
         internal bool SetThumbnailEngine(PreviewEngine engine)
@@ -274,6 +290,7 @@ namespace ChildSessionDesktop
                     }
                     else if (string.Equals(key, "DynamicDisplay", StringComparison.OrdinalIgnoreCase)) DynamicDisplay = value == "1";
                     else if (string.Equals(key, "PinToolbar", StringComparison.OrdinalIgnoreCase)) ToolbarPinned = value == "1";
+                    else if (string.Equals(key, "Language", StringComparison.OrdinalIgnoreCase)) Language = Strings.NormalizeLanguage(value);
                     else if (string.Equals(key, "ThumbnailEngine", StringComparison.OrdinalIgnoreCase)) ThumbnailEngine = GpuPreview.ParseEngine(value);
                     else if (string.Equals(key, "ReconnectAllAtStartup", StringComparison.OrdinalIgnoreCase)) ReconnectAllAtStartup = value != "0";
                     else if (string.Equals(key, "SendFiles", StringComparison.OrdinalIgnoreCase)) SendFilesEnabled = value != "0";
@@ -366,6 +383,7 @@ namespace ChildSessionDesktop
                     writer.WriteLine("FluidGraphics=" + (RdpPerformance == RdpPerformanceProfile.Standard ? "0" : "1"));
                     writer.WriteLine("DynamicDisplay=" + (DynamicDisplay ? "1" : "0"));
                     writer.WriteLine("PinToolbar=" + (ToolbarPinned ? "1" : "0"));
+                    if (Language != null) writer.WriteLine("Language=" + Language);
                     writer.WriteLine("ThumbnailEngine=" + ThumbnailEngine);
                     writer.WriteLine("ReconnectAllAtStartup=" + (ReconnectAllAtStartup ? "1" : "0"));
                     writer.WriteLine("SendFiles=" + (SendFilesEnabled ? "1" : "0"));

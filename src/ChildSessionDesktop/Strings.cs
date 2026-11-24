@@ -15,32 +15,69 @@ namespace ChildSessionDesktop
         private static readonly Regex LanguageTag = new Regex(
             @"\A[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*\z", RegexOptions.CultureInvariant);
         private static readonly Dictionary<string, string> English = ReadEmbedded("en");
-        private static readonly Dictionary<string, string> French = ReadEmbedded("fr");
+        internal static readonly KeyValuePair<string, string>[] Languages =
+        {
+            new KeyValuePair<string, string>("de", "Deutsch"),
+            new KeyValuePair<string, string>("en", "English"),
+            new KeyValuePair<string, string>("es", "Español"),
+            new KeyValuePair<string, string>("fr", "Français"),
+            new KeyValuePair<string, string>("it", "Italiano"),
+            new KeyValuePair<string, string>("pl", "Polski"),
+            new KeyValuePair<string, string>("pt-br", "Português (Brasil)")
+        };
         private static Dictionary<string, string> active = English;
+        private static Dictionary<string, string> bundled = English;
 
-        internal static bool IsFrench { get; private set; }
+        internal static string Language { get; private set; }
+
+        internal static string NormalizeLanguage(string tag)
+        {
+            tag = (tag ?? "").Trim();
+            return tag.Length <= 64 && LanguageTag.IsMatch(tag) ? tag.ToLowerInvariant() : null;
+        }
+
+        internal static string ExtractLanguage(ref string[] args)
+        {
+            string language = null;
+            var remaining = new List<string>(args.Length);
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+                if (arg.StartsWith("--lang=", StringComparison.OrdinalIgnoreCase))
+                    language = arg.Substring("--lang=".Length);
+                else if (arg.Equals("--lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
+                    && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                    language = args[++i];
+                else
+                    remaining.Add(arg);
+            }
+            args = remaining.ToArray();
+            return language;
+        }
 
         public static void SetLanguage(string language, string directory = null)
         {
-            string tag = string.IsNullOrWhiteSpace(language) ? CultureInfo.CurrentUICulture.Name : language.Trim();
-            if (tag.Length > 64 || !LanguageTag.IsMatch(tag)) tag = "en";
+            string tag = string.IsNullOrWhiteSpace(language) ? CultureInfo.CurrentUICulture.Name : language;
+            Language = NormalizeLanguage(tag) ?? "en";
 
             directory = directory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "languages");
-            string[] parts = tag.ToLowerInvariant().Split('-');
-            IsFrench = parts[0] == "fr";
+            bundled = new Dictionary<string, string>(English, StringComparer.Ordinal);
+            active = new Dictionary<string, string>(English, StringComparer.Ordinal);
+            Overlay(active, ReadFile(directory, "en"));
 
-            var translations = new Dictionary<string, string>(English, StringComparer.Ordinal);
-            Overlay(translations, ReadFile(directory, "en"));
-            if (IsFrench) Overlay(translations, French);
-
-            string culture = parts[0];
-            if (culture != "en") Overlay(translations, ReadFile(directory, culture));
-            for (int i = 1; i < parts.Length; i++)
+            string culture = "";
+            foreach (string part in Language.Split('-'))
             {
-                culture += "-" + parts[i];
-                Overlay(translations, ReadFile(directory, culture));
+                culture = culture.Length == 0 ? part : culture + "-" + part;
+                if (culture == "en") continue;
+                // Brazilian Portuguese also supplies the base text for other Portuguese variants.
+                var resource = culture == "pt-br" ? null : ReadEmbedded(culture == "pt" ? "pt-br" : culture);
+                Overlay(bundled, resource);
+                Overlay(active, resource);
+                if (culture == "pt")
+                    Overlay(active, ReadFile(directory, "pt-br"));
+                Overlay(active, ReadFile(directory, culture));
             }
-            active = translations;
         }
 
         private static void Overlay(Dictionary<string, string> target, Dictionary<string, string> source)
@@ -115,8 +152,7 @@ namespace ChildSessionDesktop
             catch (FormatException)
             {
                 string standard;
-                if (IsFrench && French.TryGetValue(key, out standard)) return string.Format(standard, args);
-                return English.TryGetValue(key, out standard) ? string.Format(standard, args) : key;
+                return bundled.TryGetValue(key, out standard) ? string.Format(standard, args) : key;
             }
         }
     }

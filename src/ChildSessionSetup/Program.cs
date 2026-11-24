@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using ChildSessionDesktop;
 using RayXDesktop.Configuration;
 
 namespace ChildSessionSetup
@@ -21,6 +22,7 @@ namespace ChildSessionSetup
             if (args.Length != 0 && args[0] == "--set-rdp-graphics")
                 return SetGraphicsPolicy(args);
 
+            Strings.SetLanguage(Strings.ExtractLanguage(ref args));
             try
             {
                 bool enabled;
@@ -30,39 +32,38 @@ namespace ChildSessionSetup
                 if (args.Length != 1 || args[0] != "--enable-child-sessions")
                 {
                     MessageBox.Show(
-                        "Child Sessions: " + (enabled ? "enabled" : "disabled") +
-                        "\r\nUse --enable-child-sessions only with authorization.",
-                        "RayXDesktop Maintenance");
+                        Strings.T("setup_child_status", Strings.T(enabled ? "policy_enabled" : "policy_disabled")),
+                        "RayXDesktop");
                     return args.Length == 0 ? 0 : 2;
                 }
 
                 if (enabled)
                 {
-                    MessageBox.Show("Child Sessions are already enabled.", "RayXDesktop Maintenance");
+                    MessageBox.Show(Strings.T("setup_child_already_enabled"), "RayXDesktop");
                     return 0;
                 }
 
                 if (MessageBox.Show(
-                    "Enable Child Sessions for this computer? Confirm only if authorized.",
-                    "RayXDesktop Maintenance", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                    Strings.T("setup_child_confirm"),
+                    "RayXDesktop", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                     MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                     return 3;
 
                 if (!WTSEnableChildSessions(true))
                 {
                     int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException("WTSEnableChildSessions failed, Windows error code " + error + ".");
+                    throw new InvalidOperationException(Strings.T("setup_child_enable_failed", error));
                 }
 
                 if (!WTSIsChildSessionsEnabled(out enabled) || !enabled)
                 {
                     int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException("Windows did not confirm Child Sessions are enabled, error code " + error + ".");
+                    throw new InvalidOperationException(Strings.T("setup_child_verify_failed", error));
                 }
 
                 MessageBox.Show(
-                    "Child Sessions are enabled. Save your work, sign out of Windows, then sign back in to use the isolated desktop.\r\n\r\nIf a Windows credential prompt appears when connecting now, cancel it and do not enter a blank password; after signing out and back in, the child session will connect automatically using your current sign-in.",
-                    "Isolated Windows Desktop Setup",
+                    Strings.T("setup_child_enabled"),
+                    "RayXDesktop",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 return 0;
@@ -70,8 +71,8 @@ namespace ChildSessionSetup
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    ex.Message + Environment.NewLine + Environment.NewLine + "Verify this Windows version supports Child Sessions and that administrator action is allowed.",
-                    "Could Not Enable Child Sessions",
+                    ex.Message + Environment.NewLine + Environment.NewLine + Strings.T("setup_child_error_help"),
+                    Strings.T("err_title"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return 1;
@@ -80,16 +81,15 @@ namespace ChildSessionSetup
         private static int SetGraphicsPolicy(string[] args)
         {
             PolicyChoice[] changes;
-            if (!RdpGraphicsPolicies.TryParse(args, out changes)) return 2;
-            bool french = args[1] == "fr";
+            if (!RdpGraphicsPolicies.TryParse(args, out changes) || Strings.NormalizeLanguage(args[1]) == null) return 2;
+            Strings.SetLanguage(args[1]);
             try
             {
                 return RdpGraphicsPolicies.SaveLocal(changes) ? 0 : 4;
             }
             catch (Exception ex)
             {
-                MessageBox.Show((french ? "Impossible d’enregistrer la stratégie graphique locale."
-                    : "Could not save the local graphics policy.") + Environment.NewLine + ex.Message,
+                MessageBox.Show(Strings.T("setup_graphics_save_failed") + Environment.NewLine + ex.Message,
                     "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }

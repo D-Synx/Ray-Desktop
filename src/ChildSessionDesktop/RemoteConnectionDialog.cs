@@ -13,7 +13,7 @@ namespace ChildSessionDesktop
             imported = null;
             rememberPassword = false;
             RdpImport selectedProfile = null;
-            using (var dialog = new Form
+            using (var dialog = new ChromeForm
             {
                 Text = Strings.T("sessions_add"), FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent, ShowInTaskbar = false,
@@ -33,6 +33,12 @@ namespace ChildSessionDesktop
                 var connect = new Button { Text = Strings.T("credentials_connect"), AutoSize = true, DialogResult = DialogResult.OK, Enabled = false };
                 var cancel = new Button { Text = Strings.T("credentials_cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
                 var import = new Button { Text = Strings.T("rdp_import"), AutoSize = true };
+                ChromeColors.StyleField(server);
+                ChromeColors.StyleField(user);
+                ChromeColors.StyleField(secret);
+                ChromeColors.StyleButton(connect, true);
+                ChromeColors.StyleButton(cancel);
+                ChromeColors.StyleButton(import);
                 Action validate = delegate
                 {
                     RdpEndpoint target;
@@ -73,7 +79,7 @@ namespace ChildSessionDesktop
                         }
                     }
                 };
-                var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+                var actions = new FlowLayoutPanel { AutoSize = true, MaximumSize = new System.Drawing.Size(380, 0) };
                 actions.Controls.Add(connect);
                 actions.Controls.Add(cancel);
                 actions.Controls.Add(import);

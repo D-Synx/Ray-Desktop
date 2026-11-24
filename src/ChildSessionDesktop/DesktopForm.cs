@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -11,10 +11,10 @@ using MSTSCLib;
 
 namespace ChildSessionDesktop
 {
-    internal sealed partial class DesktopForm : Form
+    internal sealed partial class DesktopForm : ChromeForm
     {
         private readonly ChildSessionControl rdp;
-        private readonly DesktopPreferences preferences = new DesktopPreferences();
+        private readonly DesktopPreferences preferences;
         private readonly LogPane logPane;
         private bool preferencesWarningShown;
         private readonly Timer statusTimer;
@@ -102,8 +102,9 @@ namespace ChildSessionDesktop
         private readonly string connectionPassword;
         private bool promptingForPassword;
 
-        internal DesktopForm(bool dynamicMode, string account = null, string password = null)
+        internal DesktopForm(DesktopPreferences preferences, bool dynamicMode, string account = null, string password = null)
         {
+            this.preferences = preferences;
             dynamicMode = dynamicMode || preferences.DynamicDisplay;
             this.dynamicMode = dynamicMode;
             connectionAccount = account;
@@ -155,6 +156,7 @@ namespace ChildSessionDesktop
             sessions.SidebarChanged += delegate
             {
                 floatingWithSidebar = false;
+                if (toolBar != null) toolBar.SetSessionsExpanded(sessions.IsExpanded);
                 UpdateToolbarPlacement();
             };
             sessions.AddRequested += AddRemote;
@@ -434,6 +436,7 @@ namespace ChildSessionDesktop
             };
             AddSessionMenuItems(menu);
             menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(CreateLanguageMenu());
             menu.Items.Add(itemAbout);
             menu.Items.Add(itemLog);
             menu.Items.Add(itemLogEdge);
@@ -446,6 +449,31 @@ namespace ChildSessionDesktop
             pos.Y = Math.Max(wa.Top, Math.Min(pos.Y, wa.Bottom - 60));
             menu.Show(pos);
             return true;
+        }
+
+        private ToolStripMenuItem CreateLanguageMenu()
+        {
+            var menu = new ToolStripMenuItem(Strings.T("language_menu")) { DropDown = MakeToolbarMenu() };
+            AddLanguageChoice(menu, null, Strings.T("language_auto"));
+            menu.DropDownItems.Add(new ToolStripSeparator());
+            foreach (var language in Strings.Languages)
+                AddLanguageChoice(menu, language.Key, language.Value);
+            return menu;
+        }
+
+        private void AddLanguageChoice(ToolStripMenuItem menu, string tag, string label)
+        {
+            var choice = new ToolStripMenuItem(label) { Checked = preferences.Language == tag };
+            choice.Click += delegate
+            {
+                if (preferences.Language == tag) return;
+                if (preferences.SetLanguage(tag))
+                    MessageBox.Show(this, Strings.T("language_saved"), Strings.T("language_menu"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else
+                    SavePreferences(false);
+            };
+            menu.DropDownItems.Add(choice);
         }
 
         private void SetDisplayMode(bool mode)
@@ -611,13 +639,12 @@ namespace ChildSessionDesktop
         {
             using (Stream stream = typeof(DesktopForm).Assembly.GetManifestResourceStream("RayXDesktop.Banner"))
             using (Image banner = stream == null ? null : Image.FromStream(stream))
-            using (var dialog = new Form
+            using (var dialog = new ChromeForm
             {
                 Text = applicationTitle, Icon = this.Icon, ShowInTaskbar = false,
                 StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false, ClientSize = new Size(480, banner == null ? 154 : 314),
-                AutoScaleDimensions = new SizeF(96, 96), AutoScaleMode = AutoScaleMode.Dpi,
-                BackColor = Color.FromArgb(20, 30, 43), ForeColor = Color.WhiteSmoke
+                AutoScaleDimensions = new SizeF(96, 96), AutoScaleMode = AutoScaleMode.Dpi
             })
             {
                 var body = new Label
@@ -634,6 +661,7 @@ namespace ChildSessionDesktop
                 {
                     Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft
                 };
+                ChromeColors.StyleButton(dismiss, true);
                 actions.Controls.Add(dismiss);
                 dialog.AcceptButton = dialog.CancelButton = dismiss;
                 dialog.Controls.Add(body);
@@ -686,6 +714,7 @@ namespace ChildSessionDesktop
             toolBar.ShowResMenu = ShowResMenuAt;
             toolBar.ShowDisplayModeMenu = ShowDisplayModeMenuAt;
             toolBar.ShowMoreMenu = ShowMoreMenuAt;
+            toolBar.ToggleSessions = sessions.ToggleSidebar;
             toolBar.ReconnectSession = ReconnectSelected;
             toolBar.ShowFilesMenu = ShowFilesMenuAt;
             toolBar.FileTransferState = FileTransferToggleState;
@@ -694,6 +723,7 @@ namespace ChildSessionDesktop
             toolBar.ToggleRdpClipboard = delegate { SetSelectedRdpClipboard(!WantsSelectedRdpClipboard()); };
             toolBar.ToggleDock = ToggleToolbarDock;
             toolBar.IsDynamicMode = dynamicMode;
+            toolBar.SetSessionsExpanded(sessions.IsExpanded);
             UpdateToolbarPlacement();
         }
 
@@ -715,7 +745,7 @@ namespace ChildSessionDesktop
         private static ContextMenuStrip MakeToolbarMenu()
         {
             var menu = new ContextMenuStrip();
-            menu.Renderer = new ToolbarMenuRenderer();
+            if (!SystemInformation.HighContrast) menu.Renderer = new ToolbarMenuRenderer();
             menu.ShowImageMargin = false;
             return menu;
         }
@@ -739,8 +769,14 @@ namespace ChildSessionDesktop
             protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
             {
                 if (e.Item is ToolStripSeparator) { base.OnRenderItemText(e); return; }
-                e.TextColor = e.Item.Selected ? Color.White : Color.FromArgb(216, 216, 222);
+                e.TextColor = e.Item.Enabled ? ChromeColors.Text : ChromeColors.Muted;
                 base.OnRenderItemText(e);
+            }
+
+            protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+            {
+                e.ArrowColor = e.Item.Enabled ? ChromeColors.Text : ChromeColors.Muted;
+                base.OnRenderArrow(e);
             }
 
             protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
@@ -748,7 +784,7 @@ namespace ChildSessionDesktop
                 if (e.Item.Selected)
                 {
                     var r = new Rectangle(2, 1, e.Item.Width - 4, e.Item.Height - 2);
-                    using (var b = new SolidBrush(Color.FromArgb(70, 255, 255, 255)))
+                    using (var b = new SolidBrush(ChromeColors.Selection))
                         e.Graphics.FillRectangle(b, r);
                 }
             }
@@ -756,7 +792,7 @@ namespace ChildSessionDesktop
             protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
             {
                 var r = e.ImageRectangle;
-                using (var b = new SolidBrush(Color.FromArgb(36, 36, 42)))
+                using (var b = new SolidBrush(ChromeColors.Elevated))
                     e.Graphics.FillRectangle(b, r);
                 using (var p = new Pen(Color.White, 1.7f))
                 {
@@ -772,33 +808,33 @@ namespace ChildSessionDesktop
 
             protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
             {
-                using (var p = new Pen(Color.FromArgb(58, 58, 66)))
+                using (var p = new Pen(ChromeColors.Border))
                     e.Graphics.DrawLine(p, 10, e.Item.Height / 2, e.Item.Width - 10, e.Item.Height / 2);
             }
 
             protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
             {
-                using (var p = new Pen(Color.FromArgb(60, 60, 70)))
+                using (var p = new Pen(ChromeColors.Border))
                     e.Graphics.DrawRectangle(p, new Rectangle(0, 0, e.AffectedBounds.Width - 1, e.AffectedBounds.Height - 1));
             }
         }
 
         private sealed class ToolbarMenuColorTable : ProfessionalColorTable
         {
-            public override Color ToolStripDropDownBackground { get { return Color.FromArgb(32, 32, 38); } }
-            public override Color ImageMarginGradientBegin { get { return Color.FromArgb(32, 32, 38); } }
-            public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(32, 32, 38); } }
-            public override Color ImageMarginGradientEnd { get { return Color.FromArgb(32, 32, 38); } }
-            public override Color MenuBorder { get { return Color.FromArgb(60, 60, 70); } }
+            public override Color ToolStripDropDownBackground { get { return ChromeColors.Surface; } }
+            public override Color ImageMarginGradientBegin { get { return ChromeColors.Surface; } }
+            public override Color ImageMarginGradientMiddle { get { return ChromeColors.Surface; } }
+            public override Color ImageMarginGradientEnd { get { return ChromeColors.Surface; } }
+            public override Color MenuBorder { get { return ChromeColors.Border; } }
             public override Color MenuItemBorder { get { return Color.Transparent; } }
-            public override Color MenuItemSelected { get { return Color.FromArgb(48, 48, 56); } }
-            public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(48, 48, 56); } }
-            public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(48, 48, 56); } }
-            public override Color CheckBackground { get { return Color.FromArgb(36, 36, 42); } }
-            public override Color CheckSelectedBackground { get { return Color.FromArgb(36, 36, 42); } }
-            public override Color CheckPressedBackground { get { return Color.FromArgb(36, 36, 42); } }
-            public override Color SeparatorDark { get { return Color.FromArgb(58, 58, 66); } }
-            public override Color SeparatorLight { get { return Color.FromArgb(58, 58, 66); } }
+            public override Color MenuItemSelected { get { return ChromeColors.Selection; } }
+            public override Color MenuItemSelectedGradientBegin { get { return ChromeColors.Selection; } }
+            public override Color MenuItemSelectedGradientEnd { get { return ChromeColors.Selection; } }
+            public override Color CheckBackground { get { return ChromeColors.Elevated; } }
+            public override Color CheckSelectedBackground { get { return ChromeColors.Elevated; } }
+            public override Color CheckPressedBackground { get { return ChromeColors.Elevated; } }
+            public override Color SeparatorDark { get { return ChromeColors.Border; } }
+            public override Color SeparatorLight { get { return ChromeColors.Border; } }
         }
 
         private bool ShowResMenuAt(Rectangle anchor)
@@ -989,7 +1025,7 @@ namespace ChildSessionDesktop
                 {
                     connecting = false;
                     Program.Log("Child sessions are disabled on this computer");
-                    SetStatus("Child Sessions disabled. An authorized administrator can run EnableChildSessions.exe --enable-child-sessions.");
+                    SetStatus(Strings.T("status_child_sessions_disabled"));
                     return;
                 }
                 Program.Log("Child sessions enabled on this computer");

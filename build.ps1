@@ -9,12 +9,20 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 
 $output = Join-Path $PSScriptRoot 'Raydesktop'
 $references = @('/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Security.dll', '/r:System.Management.dll', '/r:System.Xml.Linq.dll')
+$framework = Split-Path -Parent $compiler
+$wpfReferences = @('WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll', 'WindowsFormsIntegration.dll') | ForEach-Object {
+    $assembly = Join-Path (Join-Path $framework 'WPF') $_
+    if (-not (Test-Path -LiteralPath $assembly)) { $assembly = Join-Path $framework $_ }
+    if (-not (Test-Path -LiteralPath $assembly)) { throw "Missing .NET Framework WPF assembly $_." }
+    "/r:$assembly"
+}
 function Publish-BuildOutput([string]$temporary, [string]$target) {
     [IO.File]::Copy($temporary, $target, $true)
     [IO.File]::Delete($temporary)
 }
 
 $graphicsPolicySource = Join-Path $PSScriptRoot 'src\Shared\RdpGraphicsPolicies.cs'
+$stringsSource = Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'
 $childSources = @(
     $graphicsPolicySource,
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Program.cs'),
@@ -22,7 +30,9 @@ $childSources = @(
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\PasswordDialog.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceProfile.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\MaintenanceClient.cs'),
-    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\Strings.cs'),
+    $stringsSource,
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\WindowsChrome.cs'),
+    (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\SessionHeader.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\ClipboardFileRelay.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.cs'),
     (Join-Path $PSScriptRoot 'src\ChildSessionDesktop\DesktopForm.Sessions.cs'),
@@ -54,11 +64,14 @@ $executableIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_executable.ico'
 $interfaceIcon = Join-Path $PSScriptRoot 'assets\RayXDesktop_interface.ico'
 $banner = Join-Path $PSScriptRoot 'assets\RayXDesktop-banner.jpg'
 $languageSource = Join-Path $PSScriptRoot 'languages'
+$languageResources = @(Get-ChildItem -LiteralPath $languageSource -File -Filter '*.xml' | ForEach-Object {
+    "/resource:$($_.FullName),RayXDesktop.Language.$($_.BaseName),private"
+})
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.6.0.3'
-$productVersion = '1.6.0-beta.4'
+$version = '1.6.0.4'
+$productVersion = '1.6.0-beta.5'
 $productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,
@@ -125,7 +138,7 @@ $setupSource = Join-Path $PSScriptRoot 'src\ChildSessionSetup\Program.cs'
 $setupManifest = Join-Path $PSScriptRoot 'src\ChildSessionSetup\app.manifest'
 $setupTarget = Join-Path $output 'EnableChildSessions.exe'
 $setupTemporary = Join-Path $output 'EnableChildSessions.build.exe'
-$setupReferences = @('/r:System.dll', '/r:System.Windows.Forms.dll')
+$setupReferences = @('/r:System.dll', '/r:System.Windows.Forms.dll', '/r:System.Xml.Linq.dll')
 
 New-Item -ItemType Directory -Force -Path $interopDirectory | Out-Null
 New-Item -ItemType Directory -Force -Path $output | Out-Null
@@ -133,19 +146,17 @@ try {
     & $aximp /nologo /silent ("/out:{0}" -f $axInterop) (Join-Path $env:WINDIR 'System32\mstscax.dll')
     if ($LASTEXITCODE -ne 0) { throw "RDP ActiveX wrapper generation failed with exit code $LASTEXITCODE" }
 
-    $childReferences = $references + @(("/r:{0}" -f $interop), ("/r:{0}" -f $axInterop))
+    $childReferences = $references + $wpfReferences + @(("/r:{0}" -f $interop), ("/r:{0}" -f $axInterop))
     $childResources = @(
         ("/win32icon:{0}" -f $executableIcon),
         ("/resource:{0},RayXDesktop.InterfaceIcon,private" -f $interfaceIcon),
         ("/resource:{0},RayXDesktop.Banner,private" -f $banner),
-        ("/resource:{0},RayXDesktop.Language.en,private" -f (Join-Path $languageSource 'en.xml')),
-        ("/resource:{0},RayXDesktop.Language.fr,private" -f (Join-Path $languageSource 'fr.xml')),
         ("/win32manifest:{0}" -f $childManifest)
-    )
+    ) + $languageResources
     & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $childTemporary) @childResources @childReferences @childSources
     if ($LASTEXITCODE -ne 0) { throw "Child-session GUI build failed with exit code $LASTEXITCODE" }
 
-    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32icon:{0}" -f $executableIcon) ("/win32manifest:{0}" -f $setupManifest) @setupReferences $setupSource $graphicsPolicySource $setupAssemblyInfo
+    & $compiler /nologo /target:winexe /optimize+ /platform:anycpu /debug- ("/out:{0}" -f $setupTemporary) ("/win32icon:{0}" -f $executableIcon) ("/win32manifest:{0}" -f $setupManifest) @setupReferences @languageResources $setupSource $graphicsPolicySource $stringsSource $setupAssemblyInfo
     if ($LASTEXITCODE -ne 0) { throw "Child-session setup helper build failed with exit code $LASTEXITCODE" }
 
     Publish-BuildOutput $childTemporary $childTarget

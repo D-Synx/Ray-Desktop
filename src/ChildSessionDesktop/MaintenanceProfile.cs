@@ -49,18 +49,18 @@ namespace ChildSessionDesktop
                 host.Equals("localhost.localdomain", StringComparison.OrdinalIgnoreCase) ||
                 host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
                 host.Split('.')[0].Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Use the DNS name of a separate maintenance host.");
+                throw new ArgumentException(Strings.T("cli_maintenance_host"));
 
             if (account.Length > 254 ||
                 !Regex.IsMatch(account, @"\A(?:[A-Za-z0-9._-]+\\[A-Za-z0-9._-]+|[A-Za-z0-9._-]+@[A-Za-z0-9.-]+)\z"))
-                throw new ArgumentException("Use DOMAIN\\user or user@domain for the maintenance account.");
+                throw new ArgumentException(Strings.T("cli_maintenance_account"));
 
             return new MaintenanceProfile(host, account);
         }
 
         private static ArgumentException Usage()
         {
-            return new ArgumentException("Use --maintenance-host=host.example --admin-account=DOMAIN\\user together.");
+            return new ArgumentException(Strings.T("cli_maintenance_usage"));
         }
 
         internal string ConnectionFile()
@@ -72,7 +72,7 @@ namespace ChildSessionDesktop
         {
             if (host.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0 ||
                 account.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0)
-                throw new ArgumentException("Invalid address or account in the RDP profile.");
+                throw new ArgumentException(Strings.T("cli_maintenance_profile_invalid"));
             return string.Join("\r\n", new[]
             {
                 "full address:s:" + host,

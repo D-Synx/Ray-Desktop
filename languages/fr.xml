@@ -216,4 +216,24 @@
   <text key="btn_files">Fichiers</text>
   <text key="tip_files">Transférer les fichiers copiés</text>
   <text key="tip_exit_fullscreen">Quitter le plein écran</text>
+  <text key="language_menu">Langue de l’interface</text>
+  <text key="language_auto">Automatique (langue de Windows)</text>
+  <text key="language_saved">La langue changera au prochain lancement de RayXDesktop.</text>
+  <text key="workspace_sessions">Sessions</text>
+  <text key="gpu_ui_tier">En-tête du panneau des sessions · Capacité de rendu WPF : niveau {0} (0 = logiciel).</text>
+  <text key="status_child_sessions_disabled">Les sessions enfants Windows sont désactivées. Un administrateur autorisé peut lancer EnableChildSessions.exe --enable-child-sessions.</text>
+  <text key="cli_help">Options de lancement&#10;&#10;--lang=TAG  Force la langue de l’interface (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Adapte le bureau local à la taille de la fenêtre.&#10;--account=PC\Utilisateur  Sélectionne un compte Windows pour le bureau local.&#10;--maintenance-host=host.example --admin-account=DOMAINE\Utilisateur  Ouvre le client Bureau à distance de Windows.&#10;--help  Affiche ces options.</text>
+  <text key="cli_maintenance_host">Saisis le nom DNS d’un autre poste de maintenance.</text>
+  <text key="cli_maintenance_account">Saisis le compte de maintenance sous la forme DOMAINE\Utilisateur ou utilisateur@domaine.</text>
+  <text key="cli_maintenance_usage">Utilise --maintenance-host=host.example et --admin-account=DOMAINE\Utilisateur ensemble.</text>
+  <text key="cli_maintenance_profile_invalid">Le profil RDP contient une adresse ou un compte non valide.</text>
+  <text key="cli_maintenance_start_failed">Impossible de lancer Bureau à distance Windows.</text>
+  <text key="setup_child_status">Sessions enfants Windows : {0}.&#10;Utilise --enable-child-sessions uniquement si tu y es autorisé.</text>
+  <text key="setup_child_already_enabled">Les sessions enfants Windows sont déjà activées.</text>
+  <text key="setup_child_confirm">Activer les sessions enfants Windows sur ce PC ? Confirme uniquement si tu y es autorisé.</text>
+  <text key="setup_child_enable_failed">Windows n’a pas pu activer les sessions enfants (erreur {0}).</text>
+  <text key="setup_child_verify_failed">Windows n’a pas confirmé l’activation des sessions enfants (erreur {0}).</text>
+  <text key="setup_child_enabled">Les sessions enfants Windows sont activées. Enregistre ton travail, déconnecte-toi de Windows puis reconnecte-toi pour utiliser le bureau isolé.&#10;&#10;Si Windows te demande des identifiants avant la déconnexion, annule la demande. Une fois reconnecté à Windows, la session enfant pourra utiliser ta session Windows actuelle.</text>
+  <text key="setup_child_error_help">Vérifie que cette édition de Windows prend en charge les sessions enfants et que tu es autorisé à effectuer cette modification.</text>
+  <text key="setup_graphics_save_failed">Impossible d’enregistrer la stratégie graphique locale.</text>
 </translations>

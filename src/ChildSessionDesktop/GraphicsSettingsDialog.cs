@@ -16,7 +16,7 @@ namespace ChildSessionDesktop
 
         internal static void Show(IWin32Window owner, RdpPerformanceProfile profile, int width, int height)
         {
-            using (var form = new Form
+            using (var form = new ChromeForm
             {
                 Text = Strings.T("graphics_title"), FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent, ShowInTaskbar = false,
@@ -115,6 +115,7 @@ namespace ChildSessionDesktop
                 actions.Controls.Add(policyEditor);
                 actions.Controls.Add(events);
                 actions.Controls.Add(close);
+                foreach (Button button in actions.Controls) ChromeColors.StyleButton(button, button == apply);
                 layout.Controls.Add(actions);
                 form.Controls.Add(layout);
                 form.CancelButton = close;
@@ -215,7 +216,7 @@ namespace ChildSessionDesktop
             var info = new ProcessStartInfo
             {
                 FileName = path,
-                Arguments = "--set-rdp-graphics " + (Strings.IsFrench ? "fr" : "en") + " " + string.Join(" ", values),
+                Arguments = "--set-rdp-graphics " + Strings.Language + " " + string.Join(" ", values),
                 Verb = "runas",
                 UseShellExecute = true,
                 WorkingDirectory = Environment.SystemDirectory

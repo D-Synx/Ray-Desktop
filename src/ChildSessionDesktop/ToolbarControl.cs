@@ -7,19 +7,14 @@ namespace ChildSessionDesktop
 {
     internal sealed class ToolbarControl : Control
     {
-        private enum Tool { Move, Display, Resolution, Fullscreen, Files, SendFiles, ReceiveFiles, RdpClipboard, Reconnect, More, Dock, Collapse, Close }
+        private enum Tool { Move, Display, Resolution, Fullscreen, Files, SendFiles, ReceiveFiles, RdpClipboard, Sessions, Reconnect, More, Dock, Collapse, Close }
 
         private static readonly Tool[] Tools = {
             Tool.Move, Tool.Display, Tool.Resolution, Tool.Fullscreen,
             Tool.Files, Tool.SendFiles, Tool.ReceiveFiles, Tool.RdpClipboard,
-            Tool.Reconnect, Tool.More, Tool.Dock, Tool.Collapse, Tool.Close
+            Tool.Sessions, Tool.Reconnect, Tool.More, Tool.Dock, Tool.Collapse, Tool.Close
         };
 
-        private static readonly Color Surface = Color.FromArgb(20, 30, 43);
-        private static readonly Color Foreground = Color.FromArgb(236, 244, 250);
-        private static readonly Color Accent = Color.FromArgb(130, 229, 215);
-        private static readonly Color Muted = Color.FromArgb(145, 164, 183);
-        private static readonly Color Border = Color.FromArgb(59, 79, 100);
         private const double BadgeOpacity = 0.82;
         private const int BarHeight = 48, BadgeSize = 42, PaddingSize = 6;
         private readonly Rectangle[] buttons = new Rectangle[Tools.Length];
@@ -33,7 +28,7 @@ namespace ChildSessionDesktop
         private int hover = -1, pressed = -1, focused = -1;
         private Point dragOrigin;
         private Point cursorOrigin;
-        private bool moving, moved, collapsed, compact;
+        private bool moving, moved, collapsed, compact, sessionsExpanded;
         private int hostWidth = int.MaxValue;
         private float scale = 1;
 
@@ -47,6 +42,7 @@ namespace ChildSessionDesktop
         internal Func<bool> RdpClipboardState;
         internal Action ToggleRdpClipboard;
         internal Action ReconnectSession;
+        internal Action ToggleSessions;
         internal Action ToggleDock;
         internal bool IsDynamicMode;
         internal bool Fullscreen;
@@ -59,7 +55,7 @@ namespace ChildSessionDesktop
             floatingWindow = new Form
             {
                 FormBorderStyle = FormBorderStyle.None, StartPosition = FormStartPosition.Manual,
-                ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.None, BackColor = Surface, Owner = host
+                ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.None, BackColor = ChromeColors.Surface, Owner = host
             };
             TabStop = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
@@ -118,6 +114,7 @@ namespace ChildSessionDesktop
                 case Tool.SendFiles: return ToggleName(tool, "files_toggle_send");
                 case Tool.ReceiveFiles: return ToggleName(tool, "files_toggle_receive");
                 case Tool.RdpClipboard: return ToggleName(tool, "files_toggle_clipboard");
+                case Tool.Sessions: return Strings.T(sessionsExpanded ? "sessions_hide" : "sessions_show");
                 case Tool.Reconnect: return Strings.T("menu_reconnect");
                 case Tool.More: return Strings.T("btn_more");
                 case Tool.Dock: return Strings.T(IsDocked ? "toolbar_float" : "toolbar_dock");
@@ -147,11 +144,11 @@ namespace ChildSessionDesktop
 
         private string ExpandName { get { return Strings.T("tip_expand"); } }
 
-        private static int StandardButtonWidth(Tool tool)
+        private int StandardButtonWidth(Tool tool)
         {
-            if (tool == Tool.Files) return 80;
-            if (tool == Tool.Display || tool == Tool.Resolution) return 103;
-            return 35;
+            string label = TextLabel(tool);
+            if (label.Length == 0) return 35;
+            return Math.Max(tool == Tool.Files ? 80 : 103, TextRenderer.MeasureText(label, labelFont).Width + 32);
         }
 
         private void RebuildLayout()
@@ -198,6 +195,12 @@ namespace ChildSessionDesktop
 
         internal void ResetToTopCenter() { hostOffset = null; }
 
+        internal void SetSessionsExpanded(bool expanded)
+        {
+            sessionsExpanded = expanded;
+            Invalidate();
+        }
+
         internal void UpdateState(bool fullscreen)
         {
             Fullscreen = fullscreen;
@@ -226,7 +229,7 @@ namespace ChildSessionDesktop
                 band.Visible = false;
                 floatingWindow.Controls.Add(this);
                 Location = Point.Empty;
-                BackColor = Surface;
+                BackColor = ChromeColors.Surface;
                 floatingWindow.Opacity = collapsed ? BadgeOpacity : 1;
                 RefreshLayout();
                 floatingWindow.Show();
@@ -291,17 +294,18 @@ namespace ChildSessionDesktop
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics graphics = e.Graphics;
+            if (Width < 3 || Height < 3) return;
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (var outline = Shape(new RectangleF(1, 1, Width - 2, Height - 2), Px(collapsed ? 14 : 12)))
-            using (var brush = new SolidBrush(Surface))
-            using (var pen = new Pen(collapsed ? Accent : Border))
+            using (var brush = new LinearGradientBrush(ClientRectangle, ChromeColors.Elevated, ChromeColors.Canvas, 55f))
+            using (var pen = new Pen(collapsed ? ChromeColors.Accent : ChromeColors.Border))
             {
                 graphics.FillPath(brush, outline);
                 graphics.DrawPath(pen, outline);
             }
             if (collapsed)
             {
-                PaintIcon(graphics, Tool.Display, Width / 2f, Height / 2f, Accent);
+                PaintIcon(graphics, Tool.Display, Width / 2f, Height / 2f, ChromeColors.Accent);
                 return;
             }
             for (int i = IsDocked ? 1 : 0; i < Tools.Length; i++)
@@ -313,14 +317,22 @@ namespace ChildSessionDesktop
             Tool tool = Tools[index];
             Rectangle bounds = buttons[index];
             bool highlighted = index == hover || index == focused;
-            Color text = tool == Tool.Files || (tool == Tool.Dock && IsDocked) ? Accent : Foreground;
+            Color text = ChromeColors.Text;
             Color fill = Color.Empty;
             bool toggle = IsToggle(tool);
             bool? enabled = toggle ? ToggleState(tool) : null;
-            if (tool == Tool.Files || enabled == true) fill = Color.FromArgb(25, 65, 65);
-            if (toggle) text = enabled == true ? Accent : Muted;
+            if (tool == Tool.Files || enabled == true || (tool == Tool.Sessions && sessionsExpanded))
+            {
+                fill = ChromeColors.Selection;
+                text = SystemInformation.HighContrast ? ChromeColors.SelectedText : ChromeColors.Accent;
+            }
+            else if (toggle) text = ChromeColors.Muted;
+            else if (tool == Tool.Dock && IsDocked) text = ChromeColors.Accent;
             if ((highlighted || index == pressed) && (!toggle || enabled.HasValue))
-                fill = tool == Tool.Close ? Color.FromArgb(123, 53, 64) : Color.FromArgb(53, 73, 94);
+            {
+                fill = tool == Tool.Close && !SystemInformation.HighContrast ? Color.FromArgb(133, 52, 70) : ChromeColors.Hover;
+                text = ChromeColors.SelectedText;
+            }
 
             if (!fill.IsEmpty)
             {
@@ -330,7 +342,7 @@ namespace ChildSessionDesktop
             }
             if (!compact && (tool == Tool.Files || tool == Tool.Close))
             {
-                using (var pen = new Pen(Border))
+                using (var pen = new Pen(ChromeColors.Border))
                     graphics.DrawLine(pen, bounds.Left - Px(5), bounds.Top + Px(5),
                         bounds.Left - Px(5), bounds.Bottom - Px(5));
             }
@@ -416,6 +428,12 @@ namespace ChildSessionDesktop
                         g.DrawRectangle(pen, -3, -8, 6, 4);
                         g.DrawLine(pen, -3, 0, 3, 0);
                         g.DrawLine(pen, -3, 3, 3, 3);
+                        break;
+                    case Tool.Sessions:
+                        g.DrawRectangle(pen, -8, -6, 16, 12);
+                        g.DrawLine(pen, -3, -6, -3, 6);
+                        g.DrawLine(pen, 0, -2, 4, -2);
+                        g.DrawLine(pen, 0, 2, 4, 2);
                         break;
                     case Tool.Reconnect:
                         g.DrawArc(pen, -7, -7, 14, 14, 5, 300);
@@ -577,6 +595,7 @@ namespace ChildSessionDesktop
                 case Tool.Resolution: if (ShowResMenu != null) ShowResMenu(anchor); break;
                 case Tool.Fullscreen: if (ToggleFullscreen != null) ToggleFullscreen(); break;
                 case Tool.Files: if (ShowFilesMenu != null) ShowFilesMenu(anchor); break;
+                case Tool.Sessions: if (ToggleSessions != null) ToggleSessions(); break;
                 case Tool.Reconnect: if (ReconnectSession != null) ReconnectSession(); break;
                 case Tool.More: if (ShowMoreMenu != null) ShowMoreMenu(anchor); break;
                 case Tool.Dock: if (ToggleDock != null) ToggleDock(); break;

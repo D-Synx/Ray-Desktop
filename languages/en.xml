@@ -216,4 +216,24 @@
   <text key="btn_files">Files</text>
   <text key="tip_files">Transfer copied files</text>
   <text key="tip_exit_fullscreen">Exit full screen</text>
+  <text key="language_menu">Interface language</text>
+  <text key="language_auto">Automatic (Windows language)</text>
+  <text key="language_saved">The language will change the next time you start RayXDesktop.</text>
+  <text key="workspace_sessions">Sessions</text>
+  <text key="gpu_ui_tier">Session panel header · WPF rendering capability: tier {0} (0 = software).</text>
+  <text key="status_child_sessions_disabled">Windows Child Sessions are disabled. An authorized administrator can run EnableChildSessions.exe --enable-child-sessions.</text>
+  <text key="cli_help">Launch options&#10;&#10;--lang=TAG  Override the interface language (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Size the local desktop to the window.&#10;--account=PC\User  Select a Windows account for the local desktop.&#10;--maintenance-host=host.example --admin-account=DOMAIN\User  Open the Windows Remote Desktop client.&#10;--help  Show these options.</text>
+  <text key="cli_maintenance_host">Enter the DNS name of a separate maintenance host.</text>
+  <text key="cli_maintenance_account">Enter the maintenance account as DOMAIN\User or user@domain.</text>
+  <text key="cli_maintenance_usage">Use --maintenance-host=host.example and --admin-account=DOMAIN\User together.</text>
+  <text key="cli_maintenance_profile_invalid">The RDP profile contains an invalid address or account.</text>
+  <text key="cli_maintenance_start_failed">Could not start Windows Remote Desktop.</text>
+  <text key="setup_child_status">Windows Child Sessions: {0}.&#10;Use --enable-child-sessions only with authorization.</text>
+  <text key="setup_child_already_enabled">Windows Child Sessions are already enabled.</text>
+  <text key="setup_child_confirm">Enable Windows Child Sessions on this computer? Confirm only if you have authorization.</text>
+  <text key="setup_child_enable_failed">Windows could not enable Child Sessions (error {0}).</text>
+  <text key="setup_child_verify_failed">Windows did not confirm that Child Sessions are enabled (error {0}).</text>
+  <text key="setup_child_enabled">Windows Child Sessions are enabled. Save your work, sign out of Windows, then sign back in to use the isolated desktop.&#10;&#10;If Windows prompts for credentials before you sign out, cancel the prompt. After signing back in, the child session can use your current Windows sign-in.</text>
+  <text key="setup_child_error_help">Check that this Windows edition supports Child Sessions and that you are authorized to make this change.</text>
+  <text key="setup_graphics_save_failed">Could not save the local graphics policy.</text>
 </translations>

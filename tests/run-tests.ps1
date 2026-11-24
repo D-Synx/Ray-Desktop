@@ -22,6 +22,7 @@ $sources = @(
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\TooltipForm.cs'),
     (Join-Path $PSScriptRoot '..\src\Shared\RdpGraphicsPolicies.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Strings.cs'),
+    (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\WindowsChrome.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\Geometry.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\GraphicsOptions.cs'),
     (Join-Path $PSScriptRoot '..\src\ChildSessionDesktop\ClipboardProtocol.cs'),
@@ -29,10 +30,9 @@ $sources = @(
 )
 
 $languageSource = Join-Path $PSScriptRoot '..\languages'
-$languageResources = @(
-    ("/resource:{0},RayXDesktop.Language.en,private" -f (Join-Path $languageSource 'en.xml')),
-    ("/resource:{0},RayXDesktop.Language.fr,private" -f (Join-Path $languageSource 'fr.xml'))
-)
+$languageResources = @(Get-ChildItem -LiteralPath $languageSource -File -Filter '*.xml' | ForEach-Object {
+    "/resource:$($_.FullName),RayXDesktop.Language.$($_.BaseName),private"
+})
 
 & $compiler /nologo /target:exe /r:System.Xml.Linq.dll @languageResources /r:System.Security.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:Accessibility.dll ("/out:{0}" -f $testOut) @sources
 if ($LASTEXITCODE -ne 0) { throw "Test build failed with exit code $LASTEXITCODE" }

@@ -19,9 +19,9 @@ Windows doit prendre en charge les sessions enfants. Si la fonctionnalité est d
 
 ### Langues de l’interface
 
-Le dossier `languages`, à côté de `RayXDesktop.exe`, contient `fr.xml` et `en.xml`. RayXDesktop utilise la langue d’affichage de Windows au démarrage. Pour forcer une langue, lance l’application avec `--lang=fr` ou `--lang=en`.
+RayXDesktop utilise la langue d’affichage de Windows au premier démarrage. Le menu **Plus → Langue de l’interface** propose le français, l’anglais, l’espagnol, le portugais du Brésil, l’allemand, l’italien et le polonais. Le choix est enregistré dans `data.ini` et s’applique au prochain lancement. `--lang=es` force l’espagnol pour un lancement et `--help` affiche l’aide dans la langue sélectionnée.
 
-Pour ajouter une langue, copie `en.xml` sous un nouveau nom, par exemple `es.xml`, puis traduis le texte de chaque élément `<text>`. Garde les valeurs de `key` et les paramètres comme `{0}` ou `{0:X8}`. Enregistre en UTF-8, relance avec `--lang=es` et vérifie l’interface. Les variantes comme `fr-ca.xml` complètent le fichier de la langue de base. Les textes manquants sont complétés par la langue de base ou par l’anglais. Le français et l’anglais fournis restent disponibles si leurs fichiers externes sont absents ou illisibles.
+Les sept traductions sont intégrées à l’exécutable et modifiables dans le dossier `languages`. Pour en ajouter une, copie `en.xml` sous un nouveau nom, par exemple `nl.xml`, puis traduis le texte de chaque élément `<text>`. Garde les valeurs de `key` et les paramètres comme `{0}` ou `{0:X8}`. Enregistre en UTF-8 et relance avec `--lang=nl`. Les variantes comme `fr-ca.xml` complètent le fichier de la langue de base. Les textes manquants sont complétés par la traduction intégrée ou par l’anglais.
 
 **--dynamic** utilise la taille de la fenêtre pour l’affichage.
 

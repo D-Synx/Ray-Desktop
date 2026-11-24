@@ -27,16 +27,6 @@ namespace ChildSessionDesktop
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            string lang = null;
-            for (int i = 0; args != null && i < args.Length; i++)
-            {
-                if (string.Equals(args[i], "--lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                    lang = args[i + 1];
-                else if (args[i].StartsWith("--lang=", StringComparison.OrdinalIgnoreCase))
-                    lang = args[i].Substring("--lang=".Length);
-            }
-            Strings.SetLanguage(lang);
-
             try
             {
                 if (args != null && args.Length > 0 && string.Equals(args[0], "--clipboard-agent", StringComparison.OrdinalIgnoreCase))
@@ -52,7 +42,24 @@ namespace ChildSessionDesktop
                     }
                     return;
                 }
-                var maintenance = MaintenanceProfile.Parse(args);
+                string explicitLanguage = Strings.ExtractLanguage(ref args);
+                var preferences = new DesktopPreferences(initializeMissing: false);
+                Strings.SetLanguage(explicitLanguage ?? preferences.Language);
+
+                if (args.Length == 1 && string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(Strings.T("cli_help"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                MaintenanceProfile maintenance;
+                try { maintenance = MaintenanceProfile.Parse(args); }
+                catch (ArgumentException ex)
+                {
+                    MessageBox.Show(ex.Message, "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Environment.ExitCode = 2;
+                    return;
+                }
                 if (maintenance != null)
                 {
                     Environment.ExitCode = MaintenanceClient.Run(maintenance);
@@ -77,7 +84,8 @@ namespace ChildSessionDesktop
                     MessageBox.Show(Strings.T("msg_already_running"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                Application.Run(new DesktopForm(dynamicMode, account, password));
+                preferences.InitializeMissing();
+                Application.Run(new DesktopForm(preferences, dynamicMode, account, password));
             }
             catch (Exception ex)
             {

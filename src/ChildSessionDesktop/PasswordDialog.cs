@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace ChildSessionDesktop
 {
-    internal sealed class PasswordDialog : Form
+    internal sealed class PasswordDialog : ChromeForm
     {
         private readonly TextBox passwordBox;
 
@@ -38,6 +38,9 @@ namespace ChildSessionDesktop
                 AutoSize = true,
                 DialogResult = DialogResult.Cancel
             };
+            ChromeColors.StyleField(passwordBox);
+            ChromeColors.StyleButton(connect, true);
+            ChromeColors.StyleButton(cancel);
             passwordBox.TextChanged += delegate { connect.Enabled = passwordBox.TextLength > 0; };
             AcceptButton = connect;
             CancelButton = cancel;

@@ -49,8 +49,7 @@ namespace RayXDesktop.Configuration
         internal static bool TryParse(string[] args, out PolicyChoice[] changes)
         {
             changes = null;
-            if (args.Length != Count + 2 || args[0] != "--set-rdp-graphics"
-                || (args[1] != "fr" && args[1] != "en")) return false;
+            if (args.Length != Count + 2 || args[0] != "--set-rdp-graphics") return false;
             var values = new PolicyChoice[Count];
             bool changed = false;
             for (int i = 0; i < Count; i++)

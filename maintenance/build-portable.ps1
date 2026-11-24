@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 if (-not (Test-Path -LiteralPath $compiler)) { throw 'C# compiler missing. See maintenance/README.fr.md.' }
 $test = Join-Path ([IO.Path]::GetTempPath()) ('RayProfileTests-' + [Guid]::NewGuid().ToString('N') + '.exe')
 try {
-    & $compiler /nologo "/out:$test" (Join-Path $PSScriptRoot 'ProfileTests.cs') (Join-Path $root 'src\ChildSessionDesktop\MaintenanceProfile.cs')
+    & $compiler /nologo "/out:$test" /r:System.Xml.Linq.dll (Join-Path $PSScriptRoot 'ProfileTests.cs') (Join-Path $root 'src\ChildSessionDesktop\MaintenanceProfile.cs') (Join-Path $root 'src\ChildSessionDesktop\Strings.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Profile test compilation failed.' }
     & $test
     if ($LASTEXITCODE -ne 0) { throw 'Profile tests failed.' }

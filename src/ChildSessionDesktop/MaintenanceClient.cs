@@ -33,7 +33,7 @@ namespace ChildSessionDesktop
                 };
                 using (var client = Process.Start(start))
                 {
-                    if (client == null) throw new InvalidOperationException("Could not start Remote Desktop.");
+                    if (client == null) throw new InvalidOperationException(Strings.T("cli_maintenance_start_failed"));
                     Program.Log("Maintenance: Remote Desktop client started; connection state is shown by Windows.");
                     client.WaitForExit();
                     Program.Log("Maintenance: Remote Desktop client exited (" + client.ExitCode + ").");

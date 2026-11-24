@@ -31,6 +31,7 @@ namespace ChildSessionDesktop
         private readonly SessionThumbnails thumbnails = new SessionThumbnails();
         private readonly GpuPreview previewRenderer;
         private readonly Timer previewTimer;
+        private bool headerCreated;
         private Slot selected, previous, left, right, startupSlot;
         private int userSelection;
         private bool capturingPreview;
@@ -52,20 +53,25 @@ namespace ChildSessionDesktop
         {
             previewRenderer = new GpuPreview(engine);
             Dock = DockStyle.Fill;
-            BackColor = Color.FromArgb(13, 19, 29);
+            BackColor = ChromeColors.Canvas;
             surface = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
             Controls.Add(surface);
 
-            sidebar = new Panel { Dock = DockStyle.Left, Width = 204, BackColor = Color.FromArgb(23, 34, 50), Visible = false };
+            sidebar = new Panel
+            {
+                Dock = DockStyle.Left, Width = 224, BackColor = ChromeColors.Surface,
+                Padding = new Padding(10, 8, 10, 10), Visible = false
+            };
             Controls.Add(sidebar);
             toolbarBand = new Panel { Dock = DockStyle.Top, BackColor = sidebar.BackColor, Visible = false };
             Controls.Add(toolbarBand);
             list = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
-                AutoScroll = true, Padding = new Padding(8, 4, 8, 4)
+                AutoScroll = true, Padding = new Padding(0, 6, 0, 6)
             };
             var add = MakeButton(Strings.T("sessions_add"));
+            ChromeColors.StyleButton(add, true);
             add.Dock = DockStyle.Bottom;
             add.Click += delegate { if (AddRequested != null) AddRequested(); };
             splitButton = MakeButton(Strings.T("sessions_split"));
@@ -78,6 +84,7 @@ namespace ChildSessionDesktop
             sidebar.Controls.Add(splitButton);
             sidebar.Controls.Add(add);
             sidebar.Controls.Add(collapse);
+            list.ClientSizeChanged += delegate { ResizeRows(); };
 
             local = AddSlot(Strings.T("sessions_local", localAccount), localDesktop, localDesktop, null);
             local.View.SizeChanged += delegate { if (LocalViewportChanged != null) LocalViewportChanged(); };
@@ -104,11 +111,10 @@ namespace ChildSessionDesktop
         {
             var button = new Button
             {
-                Text = text, TextAlign = ContentAlignment.MiddleLeft, Height = 38,
-                FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.FromArgb(34, 49, 68),
-                UseMnemonic = false
+                Text = text, TextAlign = ContentAlignment.MiddleLeft, Height = 42,
+                UseMnemonic = false, AutoEllipsis = true, Padding = new Padding(8, 0, 8, 0)
             };
-            button.FlatAppearance.BorderSize = 0;
+            ChromeColors.StyleButton(button);
             return button;
         }
 
@@ -235,6 +241,11 @@ namespace ChildSessionDesktop
 
         internal void ToggleSidebar()
         {
+            if (!headerCreated)
+            {
+                sidebar.Controls.Add(new SessionHeader(Strings.T("workspace_sessions")) { Dock = DockStyle.Top, Height = 64 });
+                headerCreated = true;
+            }
             sidebar.Visible = !sidebar.Visible;
             if (SidebarChanged != null) SidebarChanged();
             Arrange();
@@ -277,8 +288,9 @@ namespace ChildSessionDesktop
             foreach (Slot slot in slots)
             {
                 var row = MakeButton("");
-                row.Width = 165;
+                row.Width = SessionThumbnails.Width;
                 row.Height = 54;
+                row.Margin = new Padding(0, 0, 0, 6);
                 row.TextImageRelation = TextImageRelation.ImageAboveText;
                 row.ImageAlign = ContentAlignment.TopCenter;
                 row.Tag = slot;
@@ -292,7 +304,17 @@ namespace ChildSessionDesktop
                 };
                 list.Controls.Add(row);
             }
+            ResizeRows();
             RefreshList();
+        }
+
+        private void ResizeRows()
+        {
+            // Reserve space for the scroll bar so adding a session does not hide the end of each card.
+            int width = Math.Max(1, list.Width - SystemInformation.VerticalScrollBarWidth);
+            list.SuspendLayout();
+            foreach (Control row in list.Controls) row.Width = width;
+            list.ResumeLayout();
         }
 
         private void RefreshList()
@@ -306,7 +328,10 @@ namespace ChildSessionDesktop
                 row.AccessibleName = slot.Name + ". " + slot.Status;
                 row.Image = slot.Preview;
                 row.Height = slot.Preview == null ? 54 : SessionThumbnails.Height + 54;
-                row.BackColor = slot == selected ? Color.FromArgb(26, 92, 92) : Color.FromArgb(34, 49, 68);
+                row.BackColor = slot == selected ? ChromeColors.Selection : ChromeColors.Elevated;
+                row.ForeColor = slot == selected ? ChromeColors.SelectedText : ChromeColors.Text;
+                if (!SystemInformation.HighContrast)
+                    row.FlatAppearance.BorderColor = slot == selected ? ChromeColors.Accent : ChromeColors.Border;
             }
             if (SelectionChanged != null) SelectionChanged();
         }

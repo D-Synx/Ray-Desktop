@@ -258,7 +258,34 @@ namespace RayDesktopTests
                 Strings.SetLanguage("ES-MX", folder);
                 Check(Strings.T("btn_more") == "Opciones" && Strings.T("btn_files") == "Archivos",
                     "external translations use the specific locale and then its parent");
-                Check(Strings.T("btn_display") == "Display", "missing translations fall back to English");
+                Check(Strings.T("btn_display") == "Pantalla", "missing Spanish overrides fall back to bundled Spanish");
+
+                File.WriteAllText(Path.Combine(folder, "nl.xml"), "<translations><text key=\"btn_more\">Meer</text></translations>");
+                Strings.SetLanguage("nl-NL", folder);
+                Check(Strings.T("btn_more") == "Meer" && Strings.T("btn_display") == "Display",
+                    "partial custom languages fall back to bundled English");
+
+                foreach (var language in Strings.Languages)
+                {
+                    string uri = "RayXDesktop.Language." + language.Key;
+                    using (var pack = typeof(Strings).Assembly.GetManifestResourceStream(uri))
+                        Check(pack != null, "embedded language pack " + language.Key);
+                }
+                Strings.SetLanguage("PT-PT", folder);
+                Check(Strings.T("btn_files") == "Arquivos", "Brazilian Portuguese supplies the default Portuguese translations");
+                File.WriteAllText(Path.Combine(folder, "pt-br.xml"), "<translations><text key=\"btn_files\">Meus arquivos</text></translations>");
+                File.WriteAllText(Path.Combine(folder, "pt.xml"), "<translations><text key=\"btn_files\">Meus ficheiros</text></translations>");
+                Strings.SetLanguage("PT-PT", folder);
+                Check(Strings.T("btn_files") == "Meus ficheiros", "existing general Portuguese files override the default Portuguese pack");
+                File.WriteAllText(Path.Combine(folder, "pt-pt.xml"), "<translations><text key=\"btn_files\">Ficheiros</text></translations>");
+                Strings.SetLanguage("PT-PT", folder);
+                Check(Strings.T("btn_files") == "Ficheiros", "a more specific Portuguese file overrides the standard pack");
+                Strings.SetLanguage("pt-BR", folder);
+                Check(Strings.T("btn_files") == "Meus arquivos", "editable Brazilian Portuguese overrides its embedded pack");
+
+                string[] args = { "--lang", "de", "--help", "--LANG=it" };
+                Check(Strings.ExtractLanguage(ref args) == "it" && args.Length == 1 && args[0] == "--help",
+                    "language options work with independent launch modes and the last choice wins");
 
                 string frenchPack = Path.Combine(folder, "fr.xml");
                 File.WriteAllText(frenchPack,
@@ -462,6 +489,10 @@ namespace RayDesktopTests
                     && !preferences.LocalRdpClipboard.HasValue, "new settings preserve the previous file and clipboard behavior");
                 Check(!preferences.ToolbarPinned && preferences.SetToolbarPinned(true)
                     && new DesktopPreferences(path).ToolbarPinned, "pinning the toolbar remains enabled after reopening");
+                Check(preferences.Language == null && preferences.SetLanguage("pt-BR")
+                    && new DesktopPreferences(path).Language == "pt-br", "interface language is saved with the portable preferences");
+                Check(preferences.SetLanguage(null) && new DesktopPreferences(path).Language == null,
+                    "automatic language selection removes the language override");
                 Check(preferences.SetToolbarPinned(false) && !new DesktopPreferences(path).ToolbarPinned,
                     "unpinning the toolbar clears the saved choice");
                 Check(preferences.SetCertificateWarning(host, true) && preferences.SetLogEdgeEnabled(false) &&

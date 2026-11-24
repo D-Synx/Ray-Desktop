@@ -169,7 +169,7 @@ namespace ChildSessionDesktop
         private async Task RunFileCopy(List<string> paths, string destination, bool keepBoth)
         {
             using (var cancellation = new CancellationTokenSource())
-            using (var window = new Form { Text = Strings.T("files_title"), StartPosition = FormStartPosition.CenterParent,
+            using (var window = new ChromeForm { Text = Strings.T("files_title"), StartPosition = FormStartPosition.CenterParent,
                 Size = new Size(460, 140), FormBorderStyle = FormBorderStyle.FixedDialog, MinimizeBox = false, MaximizeBox = false,
                 ShowInTaskbar = false })
             {
@@ -177,6 +177,7 @@ namespace ChildSessionDesktop
                     Padding = new Padding(12), Text = Strings.T("files_progress") };
                 var progressBar = new ProgressBar { Dock = DockStyle.Top, Height = 10, Style = ProgressBarStyle.Marquee };
                 var cancel = new Button { Dock = DockStyle.Bottom, Height = 30, Text = Strings.T("credentials_cancel") };
+                ChromeColors.StyleButton(cancel);
                 cancel.Click += delegate { cancellation.Cancel(); cancel.Enabled = false; };
                 FormClosingEventHandler cancelOnClose = delegate(object sender, FormClosingEventArgs e)
                 {

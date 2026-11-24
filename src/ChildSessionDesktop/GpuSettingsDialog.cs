@@ -11,7 +11,7 @@ namespace ChildSessionDesktop
     {
         internal static void Show(Form owner, GpuPreview preview, Action<PreviewEngine> save)
         {
-            using (var form = new Form
+            using (var form = new ChromeForm
             {
                 Text = Strings.T("gpu_title"),
                 StartPosition = FormStartPosition.CenterParent,
@@ -26,9 +26,15 @@ namespace ChildSessionDesktop
                     Strings.T("gpu_d3d"), Strings.T("gpu_vk") });
                 choices.SelectedIndex = (int)preview.Preferred;
                 choices.AccessibleName = Strings.T("gpu_title");
-                var settings = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 39, Padding = new Padding(8) };
+                var settings = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(8)
+                };
                 var apply = new Button { AutoSize = true, Text = Strings.T("graphics_apply") };
                 var diagnostics = new Button { AutoSize = true, Text = Strings.T("gpu_probe") };
+                ChromeColors.StyleField(choices);
+                ChromeColors.StyleButton(apply, true);
+                ChromeColors.StyleButton(diagnostics);
                 settings.Controls.AddRange(new Control[] { choices, apply, diagnostics });
 
                 var details = new TextBox
@@ -36,9 +42,12 @@ namespace ChildSessionDesktop
                     Dock = DockStyle.Fill, Multiline = true, ReadOnly = true,
                     ScrollBars = ScrollBars.Vertical, AccessibleName = Strings.T("gpu_probe")
                 };
+                ChromeColors.StyleField(details);
                 Func<string> current = () => Strings.T("gpu_scope") + Environment.NewLine + Environment.NewLine +
                     Strings.T("gpu_selected", EngineLabel(preview.Preferred)) + Environment.NewLine + preview.Status() +
-                    Environment.NewLine + Environment.NewLine + Strings.T("gpu_unmeasured");
+                    Environment.NewLine + Environment.NewLine +
+                    Strings.T("gpu_ui_tier", System.Windows.Media.RenderCapability.Tier >> 16) + Environment.NewLine +
+                    Strings.T("gpu_unmeasured");
                 details.Text = current();
                 apply.Click += delegate
                 {
@@ -69,6 +78,7 @@ namespace ChildSessionDesktop
                 };
                 var close = new Button { Dock = DockStyle.Bottom, Height = 30,
                     Text = Strings.T("graphics_close"), DialogResult = DialogResult.Cancel };
+                ChromeColors.StyleButton(close);
                 form.CancelButton = close;
                 form.Controls.Add(details);
                 form.Controls.Add(close);
@@ -81,7 +91,7 @@ namespace ChildSessionDesktop
         {
             if (engine == PreviewEngine.Direct3D) return Strings.T("gpu_d3d");
             if (engine == PreviewEngine.Vulkan) return Strings.T("gpu_vk");
-            return GpuPreview.EngineName(engine);
+            return Strings.T(engine == PreviewEngine.Auto ? "gpu_auto" : "gpu_native");
         }
 
         private static string ReadWindowsDrivers()
