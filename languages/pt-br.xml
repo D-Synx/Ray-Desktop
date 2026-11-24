@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">A área de transferência mudou. Copie novamente a seleção e repita a operação.</text>
   <text key="files_session_changed">A conexão ou suas permissões de transferência mudaram. Tente novamente pela sessão local ativa.</text>
   <text key="files_shell_unavailable">O Windows não conseguiu iniciar a operação de colagem. Abrir o destino no Explorador de Arquivos para colar os itens lá?</text>
-  <text key="files_confirm">Copiar {1} item(ns) para {0}?&#10;&#10;Sim para manter os dois itens em caso de duplicidade.&#10;Não para ignorar duplicatas.</text>
+  <text key="files_confirm">Copiar {1} item(ns) para {0}?</text>
+  <text key="files_keep_both">Manter as duas cópias</text>
+  <text key="files_skip_duplicates">Ignorar duplicatas</text>
   <text key="files_progress">Preparando a cópia…</text>
   <text key="files_done">Transferência concluída. Itens copiados: {0}, ignorados: {1}, com falha: {2}.</text>
   <text key="files_cancelled">Transferência cancelada. Itens copiados: {0}, ignorados: {1}, com falha: {2}.</text>
@@ -218,14 +220,14 @@
   <text key="tip_exit_fullscreen">Sair da tela cheia</text>
   <text key="language_menu">Idioma da interface</text>
   <text key="language_auto">Automático (idioma do Windows)</text>
-  <text key="language_saved">O idioma mudará na próxima vez que você iniciar o RayXDesktop.</text>
+  <text key="language_saved">A preferência de idioma foi salva para a próxima inicialização. A opção --lang tem prioridade.</text>
   <text key="workspace_sessions">Sessões</text>
   <text key="gpu_ui_tier">Cabeçalho do painel de sessões · Capacidade de renderização WPF: nível {0} (0 = software).</text>
   <text key="status_child_sessions_disabled">As sessões filhas do Windows estão desativadas. Um administrador autorizado pode executar EnableChildSessions.exe --enable-child-sessions.</text>
-  <text key="cli_help">Opções de inicialização&#10;&#10;--lang=TAG  Define o idioma da interface (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Ajusta a área de trabalho local ao tamanho da janela.&#10;--account=PC\Usuário  Seleciona uma conta do Windows para a área de trabalho local.&#10;--maintenance-host=host.example --admin-account=DOMÍNIO\Usuário  Abre o cliente de Área de Trabalho Remota do Windows.&#10;--help  Exibe estas opções.</text>
+  <text key="cli_help">Opções de inicialização&#10;&#10;--lang=TAG  Define o idioma da interface (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Ajusta a área de trabalho local ao tamanho da janela.&#10;--account=PC\Usuário  Seleciona uma conta do Windows para a área de trabalho local.&#10;--maintenance-host=host.example --admin-account=DOMINIO\Usuario  Abre o cliente de Área de Trabalho Remota do Windows.&#10;--help  Exibe estas opções.</text>
   <text key="cli_maintenance_host">Informe o nome DNS de outro computador de manutenção.</text>
-  <text key="cli_maintenance_account">Informe a conta de manutenção como DOMÍNIO\Usuário ou usuário@domínio.</text>
-  <text key="cli_maintenance_usage">Use --maintenance-host=host.example e --admin-account=DOMÍNIO\Usuário juntos.</text>
+  <text key="cli_maintenance_account">Informe a conta de manutenção como DOMINIO\Usuario ou usuario@dominio.</text>
+  <text key="cli_maintenance_usage">Use --maintenance-host=host.example e --admin-account=DOMINIO\Usuario juntos.</text>
   <text key="cli_maintenance_profile_invalid">O perfil RDP contém um endereço ou uma conta inválida.</text>
   <text key="cli_maintenance_start_failed">Não foi possível iniciar a Área de Trabalho Remota do Windows.</text>
   <text key="setup_child_status">Sessões filhas do Windows: {0}.&#10;Use --enable-child-sessions somente se tiver autorização.</text>

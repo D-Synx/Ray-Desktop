@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">Cambió el contenido del portapapeles. Vuelve a copiar la selección e inténtalo de nuevo.</text>
   <text key="files_session_changed">La conexión o sus permisos de transferencia cambiaron. Vuelve a intentarlo desde la sesión local activa.</text>
   <text key="files_shell_unavailable">Windows no pudo iniciar la operación de pegado. ¿Abrir el destino en el Explorador de archivos para pegar allí?</text>
-  <text key="files_confirm">¿Copiar {1} elemento(s) a {0}?&#10;&#10;Elige «Sí» para conservar ambas copias si hay duplicados.&#10;Elige «No» para omitir los duplicados.</text>
+  <text key="files_confirm">¿Copiar {1} elemento(s) a {0}?</text>
+  <text key="files_keep_both">Conservar ambas copias</text>
+  <text key="files_skip_duplicates">Omitir duplicados</text>
   <text key="files_progress">Preparando la copia…</text>
   <text key="files_done">Transferencia completada. Se copiaron {0} elementos, se omitieron {1} y hubo {2} errores.</text>
   <text key="files_cancelled">Transferencia cancelada. Se copiaron {0} elementos, se omitieron {1} y hubo {2} errores.</text>
@@ -218,7 +220,7 @@
   <text key="tip_exit_fullscreen">Salir de pantalla completa</text>
   <text key="language_menu">Idioma de la interfaz</text>
   <text key="language_auto">Automático (idioma de Windows)</text>
-  <text key="language_saved">El idioma cambiará la próxima vez que inicies RayXDesktop.</text>
+  <text key="language_saved">La preferencia de idioma se ha guardado para el próximo inicio. La opción --lang tiene prioridad.</text>
   <text key="workspace_sessions">Sesiones</text>
   <text key="gpu_ui_tier">Encabezado del panel de sesiones · Capacidad de renderizado WPF: nivel {0} (0 = software).</text>
   <text key="status_child_sessions_disabled">Las sesiones secundarias de Windows están desactivadas. Un administrador autorizado puede ejecutar EnableChildSessions.exe --enable-child-sessions.</text>

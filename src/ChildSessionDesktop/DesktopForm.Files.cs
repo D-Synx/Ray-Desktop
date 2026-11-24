@@ -136,8 +136,7 @@ namespace ChildSessionDesktop
                     return;
                 }
 
-                var duplicateChoice = MessageBox.Show(this, Strings.T("files_confirm", destination, paths.Count),
-                    Strings.T("files_title"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                var duplicateChoice = ConfirmFileTransfer(destination, paths.Count);
                 if (duplicateChoice == DialogResult.Cancel) return;
                 ValidateFileTransfer(outbound, sessionId, sid, clipboardVersion);
                 await RunFileCopy(paths, destination, duplicateChoice == DialogResult.Yes);
@@ -151,6 +150,39 @@ namespace ChildSessionDesktop
             {
                 copyingClipboardFiles = false;
                 if (toolBar != null) toolBar.Invalidate();
+            }
+        }
+
+        private DialogResult ConfirmFileTransfer(string destination, int count)
+        {
+            using (var dialog = new ChromeForm
+            {
+                Text = Strings.T("files_title"), FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent, ShowInTaskbar = false, MinimizeBox = false,
+                MaximizeBox = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                AutoScaleMode = AutoScaleMode.Font
+            })
+            {
+                string prompt = Strings.T("files_confirm", destination, count);
+                int oldInstructions = prompt.IndexOf("\n\n", StringComparison.Ordinal);
+                if (oldInstructions >= 0) prompt = prompt.Substring(0, oldInstructions);
+
+                var keep = new Button { Text = Strings.T("files_keep_both"), DialogResult = DialogResult.Yes, AutoSize = true };
+                var skip = new Button { Text = Strings.T("files_skip_duplicates"), DialogResult = DialogResult.No, AutoSize = true };
+                var cancel = new Button { Text = Strings.T("credentials_cancel"), DialogResult = DialogResult.Cancel, AutoSize = true };
+                ChromeColors.StyleButton(keep, true);
+                ChromeColors.StyleButton(skip);
+                ChromeColors.StyleButton(cancel);
+
+                var actions = new FlowLayoutPanel { AutoSize = true, MaximumSize = new Size(480, 0) };
+                actions.Controls.AddRange(new Control[] { keep, skip, cancel });
+                var layout = new TableLayoutPanel { ColumnCount = 1, AutoSize = true, Padding = new Padding(16) };
+                layout.Controls.Add(new Label { Text = prompt, UseMnemonic = false, AutoSize = true, MaximumSize = new Size(480, 0) });
+                layout.Controls.Add(actions);
+                dialog.Controls.Add(layout);
+                dialog.AcceptButton = keep;
+                dialog.CancelButton = cancel;
+                return dialog.ShowDialog(this);
             }
         }
 

@@ -249,7 +249,7 @@ namespace RayDesktopTests
                 Strings.SetLanguage("fr-CA", folder);
                 Check(Strings.T("btn_files") == "Fichiers", "embedded French works without an external pack");
                 Check(Strings.T("msg_account_usage").EndsWith(@"DOMAINE\Utilisateur"), "translation preserves Windows paths");
-                Check(Strings.T("files_confirm", "Dossier", 2).Contains("\n\n"), "translation preserves dialog line breaks");
+                Check(Strings.T("cli_help").Contains("\n\n"), "translation preserves dialog line breaks");
 
                 File.WriteAllText(Path.Combine(folder, "es.xml"),
                     "<translations><text key=\"btn_files\">Archivos</text><text key=\"btn_more\">Más</text></translations>");
@@ -282,6 +282,8 @@ namespace RayDesktopTests
                 Check(Strings.T("btn_files") == "Ficheiros", "a more specific Portuguese file overrides the standard pack");
                 Strings.SetLanguage("pt-BR", folder);
                 Check(Strings.T("btn_files") == "Meus arquivos", "editable Brazilian Portuguese overrides its embedded pack");
+                Strings.SetLanguage("pt-BR", folder, readExternal: false);
+                Check(Strings.T("btn_files") == "Arquivos", "embedded-only language loading ignores editable packs");
 
                 string[] args = { "--lang", "de", "--help", "--LANG=it" };
                 Check(Strings.ExtractLanguage(ref args) == "it" && args.Length == 1 && args[0] == "--help",
@@ -606,13 +608,20 @@ namespace RayDesktopTests
                     Rectangle toolbarBounds = toolbar.RectangleToScreen(toolbar.ClientRectangle);
                     bool allFit = toolbar.Width <= band.Width;
                     AccessibleObject undock = null;
+                    AccessibleObject sessions = null;
                     for (int i = 0; i < buttons.GetChildCount(); i++)
                     {
                         var button = buttons.GetChild(i);
                         allFit &= toolbarBounds.Contains(button.Bounds);
                         if (button.Name == Strings.T("toolbar_float")) undock = button;
+                        if (button.Name == Strings.T("sessions_show")) sessions = button;
                     }
                     Check(allFit, "every toolbar button fits at the minimum window width");
+                    toolbar.ToggleSessions = delegate { toolbar.SetSessionsExpanded(true); };
+                    if (sessions != null) sessions.DoDefaultAction();
+                    Check(sessions != null && sessions.Role == AccessibleRole.CheckButton &&
+                        (sessions.State & AccessibleStates.Checked) != 0 && sessions.Name == Strings.T("sessions_hide"),
+                        "the accessible sessions button reports its expanded state");
                     if (undock != null) undock.DoDefaultAction();
                     Check(undock != null && !toolbar.IsDocked && !band.Visible && viewport.Top == 0
                         && toolbar.FindForm().Owner == host, "the toolbar button undocks and returns the space to the desktop");

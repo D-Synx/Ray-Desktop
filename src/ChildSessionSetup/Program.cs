@@ -22,7 +22,7 @@ namespace ChildSessionSetup
             if (args.Length != 0 && args[0] == "--set-rdp-graphics")
                 return SetGraphicsPolicy(args);
 
-            Strings.SetLanguage(Strings.ExtractLanguage(ref args));
+            Strings.SetLanguage(Strings.ExtractLanguage(ref args), readExternal: false);
             try
             {
                 bool enabled;
@@ -82,7 +82,7 @@ namespace ChildSessionSetup
         {
             PolicyChoice[] changes;
             if (!RdpGraphicsPolicies.TryParse(args, out changes) || Strings.NormalizeLanguage(args[1]) == null) return 2;
-            Strings.SetLanguage(args[1]);
+            Strings.SetLanguage(args[1], readExternal: false);
             try
             {
                 return RdpGraphicsPolicies.SaveLocal(changes) ? 0 : 4;

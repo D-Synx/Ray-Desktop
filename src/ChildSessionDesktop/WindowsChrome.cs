@@ -20,7 +20,20 @@ namespace ChildSessionDesktop
 
         internal static void StyleButton(Button button, bool primary = false)
         {
-            if (SystemInformation.HighContrast) return;
+            ApplyButtonStyle(button, primary);
+            button.SystemColorsChanged += delegate { ApplyButtonStyle(button, primary); };
+        }
+
+        private static void ApplyButtonStyle(Button button, bool primary)
+        {
+            if (SystemInformation.HighContrast)
+            {
+                button.FlatStyle = FlatStyle.Standard;
+                button.ResetBackColor();
+                button.ResetForeColor();
+                button.UseVisualStyleBackColor = true;
+                return;
+            }
             button.UseVisualStyleBackColor = false;
             button.FlatStyle = FlatStyle.Flat;
             button.BackColor = primary ? Selection : Elevated;
@@ -32,9 +45,14 @@ namespace ChildSessionDesktop
 
         internal static void StyleField(Control field)
         {
-            if (SystemInformation.HighContrast) return;
+            ApplyFieldStyle(field);
+            field.SystemColorsChanged += delegate { ApplyFieldStyle(field); };
+        }
+
+        private static void ApplyFieldStyle(Control field)
+        {
             field.BackColor = Canvas;
-            field.ForeColor = Text;
+            field.ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : Text;
         }
     }
 
@@ -48,12 +66,20 @@ namespace ChildSessionDesktop
         {
             Font = InterfaceFont;
             BackColor = ChromeColors.Canvas;
-            ForeColor = ChromeColors.Text;
+            ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : ChromeColors.Text;
         }
 
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            ApplyChrome();
+        }
+
+        protected override void OnSystemColorsChanged(EventArgs e)
+        {
+            BackColor = ChromeColors.Canvas;
+            ForeColor = SystemInformation.HighContrast ? SystemColors.WindowText : ChromeColors.Text;
+            base.OnSystemColorsChanged(e);
             ApplyChrome();
         }
 

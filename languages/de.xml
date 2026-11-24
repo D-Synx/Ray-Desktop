@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">Der Inhalt der Zwischenablage hat sich geändert. Kopieren Sie die Auswahl und versuchen Sie es erneut.</text>
   <text key="files_session_changed">Die Verbindung oder die Übertragungsberechtigungen haben sich geändert. Versuchen Sie es aus der aktiven lokalen Sitzung erneut.</text>
   <text key="files_shell_unavailable">Windows konnte den Einfügevorgang nicht starten. Den Zielordner im Explorer öffnen und dort einfügen?</text>
-  <text key="files_confirm">{1} Element(e) nach {0} kopieren?&#10;&#10;Ja: Bei Duplikaten beide behalten.&#10;Nein: Duplikate überspringen.</text>
+  <text key="files_confirm">{1} Element(e) nach {0} kopieren?</text>
+  <text key="files_keep_both">Beide Kopien behalten</text>
+  <text key="files_skip_duplicates">Duplikate überspringen</text>
   <text key="files_progress">Kopiervorgang wird vorbereitet…</text>
   <text key="files_done">Übertragung abgeschlossen. {0} kopiert, {1} übersprungen, {2} fehlgeschlagen.</text>
   <text key="files_cancelled">Übertragung abgebrochen. {0} kopiert, {1} übersprungen, {2} fehlgeschlagen.</text>
@@ -218,14 +220,14 @@
   <text key="tip_exit_fullscreen">Vollbild beenden</text>
   <text key="language_menu">Sprache der Oberfläche</text>
   <text key="language_auto">Automatisch (Windows-Sprache)</text>
-  <text key="language_saved">Die Sprache wird beim nächsten Start von RayXDesktop geändert.</text>
+  <text key="language_saved">Die Spracheinstellung wurde gespeichert und gilt beim nächsten Start. Die Option --lang hat Vorrang.</text>
   <text key="workspace_sessions">Sitzungen</text>
   <text key="gpu_ui_tier">Kopfzeile der Sitzungsleiste · WPF-Rendering: Stufe {0} (0 = Software).</text>
   <text key="status_child_sessions_disabled">Windows-Untersitzungen sind deaktiviert. Ein autorisierter Administrator kann EnableChildSessions.exe --enable-child-sessions ausführen.</text>
-  <text key="cli_help">Startoptionen&#10;&#10;--lang=TAG  Legt die Sprache der Oberfläche fest (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Passt den lokalen Desktop an die Fenstergröße an.&#10;--account=PC\Benutzer  Wählt ein Windows-Konto für den lokalen Desktop aus.&#10;--maintenance-host=host.example --admin-account=DOMÄNE\Benutzer  Öffnet den Windows-Remotedesktopclient.&#10;--help  Zeigt diese Optionen an.</text>
+  <text key="cli_help">Startoptionen&#10;&#10;--lang=TAG  Legt die Sprache der Oberfläche fest (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Passt den lokalen Desktop an die Fenstergröße an.&#10;--account=PC\Benutzer  Wählt ein Windows-Konto für den lokalen Desktop aus.&#10;--maintenance-host=host.example --admin-account=DOMAENE\Benutzer  Öffnet den Windows-Remotedesktopclient.&#10;--help  Zeigt diese Optionen an.</text>
   <text key="cli_maintenance_host">Geben Sie den DNS-Namen eines separaten Wartungsrechners ein.</text>
-  <text key="cli_maintenance_account">Geben Sie das Wartungskonto als DOMÄNE\Benutzer oder benutzer@domäne ein.</text>
-  <text key="cli_maintenance_usage">Verwenden Sie --maintenance-host=host.example und --admin-account=DOMÄNE\Benutzer zusammen.</text>
+  <text key="cli_maintenance_account">Geben Sie das Wartungskonto als DOMAENE\Benutzer oder benutzer@domaene ein.</text>
+  <text key="cli_maintenance_usage">Verwenden Sie --maintenance-host=host.example und --admin-account=DOMAENE\Benutzer zusammen.</text>
   <text key="cli_maintenance_profile_invalid">Das RDP-Profil enthält eine ungültige Adresse oder ein ungültiges Konto.</text>
   <text key="cli_maintenance_start_failed">Windows-Remotedesktop konnte nicht gestartet werden.</text>
   <text key="setup_child_status">Windows-Untersitzungen: {0}.&#10;Verwenden Sie --enable-child-sessions nur mit entsprechender Berechtigung.</text>

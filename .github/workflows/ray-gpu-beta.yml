@@ -47,13 +47,14 @@ jobs:
             if (-not (Test-Path -LiteralPath $pack -PathType Leaf)) { throw "Missing language pack $language." }
           }
           $program = Join-Path $extracted 'RayXDesktop.exe'
-          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($program).ProductVersion -ne '1.6.0-beta.5') {
+          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($program).ProductVersion -ne '1.6.0-beta.6') {
             throw 'Unexpected beta executable version.'
           }
           Write-Host 'Verified GPU beta archive, SHA-256, contents and product version.'
+          .\tests\check-portable-ui.ps1 -Directory $extracted
       - uses: actions/upload-artifact@v4
         with:
-          name: RayXDesktop-1.6.0-beta.5-Windows
+          name: RayXDesktop-1.6.0-beta.6-Windows
           path: |
             RayXDesktop-Windows.zip
             RayXDesktop-Windows.zip.sha256

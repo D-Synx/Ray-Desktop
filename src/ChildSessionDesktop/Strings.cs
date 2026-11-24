@@ -55,7 +55,7 @@ namespace ChildSessionDesktop
             return language;
         }
 
-        public static void SetLanguage(string language, string directory = null)
+        public static void SetLanguage(string language, string directory = null, bool readExternal = true)
         {
             string tag = string.IsNullOrWhiteSpace(language) ? CultureInfo.CurrentUICulture.Name : language;
             Language = NormalizeLanguage(tag) ?? "en";
@@ -63,7 +63,7 @@ namespace ChildSessionDesktop
             directory = directory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "languages");
             bundled = new Dictionary<string, string>(English, StringComparer.Ordinal);
             active = new Dictionary<string, string>(English, StringComparer.Ordinal);
-            Overlay(active, ReadFile(directory, "en"));
+            if (readExternal) Overlay(active, ReadFile(directory, "en"));
 
             string culture = "";
             foreach (string part in Language.Split('-'))
@@ -74,9 +74,11 @@ namespace ChildSessionDesktop
                 var resource = culture == "pt-br" ? null : ReadEmbedded(culture == "pt" ? "pt-br" : culture);
                 Overlay(bundled, resource);
                 Overlay(active, resource);
-                if (culture == "pt")
-                    Overlay(active, ReadFile(directory, "pt-br"));
-                Overlay(active, ReadFile(directory, culture));
+                if (readExternal)
+                {
+                    if (culture == "pt") Overlay(active, ReadFile(directory, "pt-br"));
+                    Overlay(active, ReadFile(directory, culture));
+                }
             }
         }
 

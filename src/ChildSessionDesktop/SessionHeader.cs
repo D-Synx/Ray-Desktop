@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
@@ -12,9 +13,20 @@ namespace ChildSessionDesktop
         {
             TabStop = false;
             AccessibleName = title;
+            ApplyColors();
+        }
+
+        protected override void OnSystemColorsChanged(EventArgs e)
+        {
+            base.OnSystemColorsChanged(e);
+            ApplyColors();
+        }
+
+        private void ApplyColors()
+        {
             var text = new TextBlock
             {
-                Text = title,
+                Text = AccessibleName,
                 Foreground = Brush(ChromeColors.Text),
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 19,

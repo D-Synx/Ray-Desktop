@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">Zawartość schowka się zmieniła. Skopiuj wybrane elementy i spróbuj ponownie.</text>
   <text key="files_session_changed">Połączenie lub jego uprawnienia do przesyłania plików uległy zmianie. Spróbuj ponownie z aktywnej sesji lokalnej.</text>
   <text key="files_shell_unavailable">System Windows nie mógł rozpocząć wklejania. Otworzyć miejsce docelowe w Eksploratorze plików, aby wkleić tam elementy?</text>
-  <text key="files_confirm">Skopiować do {0}? Liczba elementów: {1}.&#10;&#10;Tak: w przypadku duplikatów zachowaj obie kopie.&#10;Nie: pomiń duplikaty.</text>
+  <text key="files_confirm">Skopiować do {0}? Liczba elementów: {1}.</text>
+  <text key="files_keep_both">Zachowaj obie kopie</text>
+  <text key="files_skip_duplicates">Pomiń duplikaty</text>
   <text key="files_progress">Przygotowywanie do kopiowania…</text>
   <text key="files_done">Zakończono przesyłanie. Skopiowano: {0}, pominięto: {1}, błędy: {2}.</text>
   <text key="files_cancelled">Anulowano przesyłanie. Skopiowano: {0}, pominięto: {1}, błędy: {2}.</text>
@@ -218,14 +220,14 @@
   <text key="tip_exit_fullscreen">Wyjdź z trybu pełnoekranowego</text>
   <text key="language_menu">Język interfejsu</text>
   <text key="language_auto">Automatycznie (język systemu Windows)</text>
-  <text key="language_saved">Język zmieni się przy następnym uruchomieniu RayXDesktop.</text>
+  <text key="language_saved">Zapisano preferowany język na potrzeby następnego uruchomienia. Opcja --lang ma pierwszeństwo.</text>
   <text key="workspace_sessions">Sesje</text>
   <text key="gpu_ui_tier">Nagłówek panelu sesji · Możliwości renderowania WPF: poziom {0} (0 = programowe).</text>
   <text key="status_child_sessions_disabled">Sesje podrzędne systemu Windows są wyłączone. Uprawniony administrator może uruchomić polecenie EnableChildSessions.exe --enable-child-sessions.</text>
-  <text key="cli_help">Opcje uruchamiania&#10;&#10;--lang=TAG  Ustawia język interfejsu (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Dopasowuje pulpit lokalny do rozmiaru okna.&#10;--account=PC\Użytkownik  Wybiera konto Windows dla pulpitu lokalnego.&#10;--maintenance-host=host.example --admin-account=DOMENA\Użytkownik  Otwiera klienta Pulpitu zdalnego Windows.&#10;--help  Wyświetla te opcje.</text>
+  <text key="cli_help">Opcje uruchamiania&#10;&#10;--lang=TAG  Ustawia język interfejsu (de, en, es, fr, it, pl, pt-BR).&#10;--dynamic  Dopasowuje pulpit lokalny do rozmiaru okna.&#10;--account=PC\Użytkownik  Wybiera konto Windows dla pulpitu lokalnego.&#10;--maintenance-host=host.example --admin-account=DOMENA\Uzytkownik  Otwiera klienta Pulpitu zdalnego Windows.&#10;--help  Wyświetla te opcje.</text>
   <text key="cli_maintenance_host">Podaj nazwę DNS odrębnego komputera serwisowego.</text>
-  <text key="cli_maintenance_account">Podaj konto serwisowe w formacie DOMENA\Użytkownik lub użytkownik@domena.</text>
-  <text key="cli_maintenance_usage">Użyj razem --maintenance-host=host.example i --admin-account=DOMENA\Użytkownik.</text>
+  <text key="cli_maintenance_account">Podaj konto serwisowe w formacie DOMENA\Uzytkownik lub uzytkownik@domena.</text>
+  <text key="cli_maintenance_usage">Użyj razem --maintenance-host=host.example i --admin-account=DOMENA\Uzytkownik.</text>
   <text key="cli_maintenance_profile_invalid">Profil RDP zawiera nieprawidłowy adres lub konto.</text>
   <text key="cli_maintenance_start_failed">Nie można uruchomić Pulpitu zdalnego Windows.</text>
   <text key="setup_child_status">Sesje podrzędne systemu Windows: {0}.&#10;Użyj --enable-child-sessions tylko wtedy, gdy masz do tego uprawnienia.</text>

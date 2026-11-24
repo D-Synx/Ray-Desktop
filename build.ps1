@@ -70,8 +70,8 @@ $languageResources = @(Get-ChildItem -LiteralPath $languageSource -File -Filter 
 $childTarget = Join-Path $output 'RayXDesktop.exe'
 $childTemporary = Join-Path $output 'RayXDesktop.build.exe'
 
-$version = '1.6.0.4'
-$productVersion = '1.6.0-beta.5'
+$version = '1.6.0.5'
+$productVersion = '1.6.0-beta.6'
 $productName = 'Ray' + [char]0x02E3 + 'Desktop'
 $childAssemblyInfo = Join-Path ([IO.Path]::GetTempPath()) ('RayDesktopAssemblyInfo-' + [Guid]::NewGuid().ToString('N') + '.cs')
 [IO.File]::WriteAllText($childAssemblyInfo,

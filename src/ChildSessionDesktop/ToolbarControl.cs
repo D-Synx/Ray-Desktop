@@ -197,7 +197,10 @@ namespace ChildSessionDesktop
 
         internal void SetSessionsExpanded(bool expanded)
         {
+            if (sessionsExpanded == expanded) return;
             sessionsExpanded = expanded;
+            if (IsHandleCreated && !collapsed)
+                AccessibilityNotifyClients(AccessibleEvents.StateChange, Array.IndexOf(Tools, Tool.Sessions) - 1);
             Invalidate();
         }
 
@@ -664,13 +667,15 @@ namespace ChildSessionDesktop
             private readonly int index;
             public ToolbarButtonAccessibility(ToolbarControl owner, int index) { toolbar = owner; this.index = index; }
             public override string Name { get { return index < 0 ? toolbar.ExpandName : toolbar.ToolName(Tools[index]); } }
-            public override AccessibleRole Role { get { return index >= 0 && IsToggle(Tools[index])
+            public override AccessibleRole Role { get { return index >= 0 && (IsToggle(Tools[index]) || Tools[index] == Tool.Sessions)
                 ? AccessibleRole.CheckButton : AccessibleRole.PushButton; } }
             public override AccessibleStates State
             {
                 get
                 {
                     AccessibleStates state = base.State;
+                    if (index >= 0 && Tools[index] == Tool.Sessions)
+                        return toolbar.sessionsExpanded ? state | AccessibleStates.Checked : state;
                     if (index < 0 || !IsToggle(Tools[index])) return state;
                     bool? value = toolbar.ToggleState(Tools[index]);
                     if (!value.HasValue) return state | AccessibleStates.Unavailable;

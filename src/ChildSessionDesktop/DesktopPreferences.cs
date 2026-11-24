@@ -32,7 +32,6 @@ namespace ChildSessionDesktop
         private readonly Dictionary<string, bool> certificateWarnings = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         private readonly List<SavedSession> sessions = new List<SavedSession>();
         private bool cannotRead;
-        private bool needsInitialization;
 
         internal DesktopPreferences(string path = null, bool initializeMissing = true)
         {
@@ -47,21 +46,16 @@ namespace ChildSessionDesktop
             }
             catch (FileNotFoundException)
             {
-                needsInitialization = path == null;
-                if (initializeMissing) InitializeMissing();
+                if (path == null && initializeMissing)
+                {
+                    MigrateRegistry();
+                    Save();
+                }
             }
             catch (DirectoryNotFoundException) { }
             catch (IOException) { cannotRead = true; }
             catch (UnauthorizedAccessException) { cannotRead = true; }
             catch (SecurityException) { cannotRead = true; }
-        }
-
-        internal void InitializeMissing()
-        {
-            if (!needsInitialization) return;
-            needsInitialization = false;
-            MigrateRegistry();
-            Save();
         }
 
         internal bool LogEdgeEnabled { get; private set; }

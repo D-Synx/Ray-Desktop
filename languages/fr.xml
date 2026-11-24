@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">Le presse-papiers a changé. Recopie la sélection et réessaie.</text>
   <text key="files_session_changed">La connexion ou ses autorisations de transfert ont changé. Réessaie depuis la session locale active.</text>
   <text key="files_shell_unavailable">Windows n’a pas pu démarrer le collage. Ouvrir le dossier de destination dans l’Explorateur pour y coller ?</text>
-  <text key="files_confirm">Copier {1} élément(s) vers {0} ?&#10;&#10;Oui : conserver les deux en cas de doublon.&#10;Non : ignorer les doublons.</text>
+  <text key="files_confirm">Copier {1} élément(s) vers {0} ?</text>
+  <text key="files_keep_both">Conserver les deux copies</text>
+  <text key="files_skip_duplicates">Ignorer les doublons</text>
   <text key="files_progress">Préparation de la copie…</text>
   <text key="files_done">Transfert terminé. {0} copié(s), {1} ignoré(s), {2} échec(s).</text>
   <text key="files_cancelled">Transfert annulé. {0} copié(s), {1} ignoré(s), {2} échec(s).</text>
@@ -218,7 +220,7 @@
   <text key="tip_exit_fullscreen">Quitter le plein écran</text>
   <text key="language_menu">Langue de l’interface</text>
   <text key="language_auto">Automatique (langue de Windows)</text>
-  <text key="language_saved">La langue changera au prochain lancement de RayXDesktop.</text>
+  <text key="language_saved">La préférence de langue est enregistrée pour le prochain lancement. L’option --lang reste prioritaire.</text>
   <text key="workspace_sessions">Sessions</text>
   <text key="gpu_ui_tier">En-tête du panneau des sessions · Capacité de rendu WPF : niveau {0} (0 = logiciel).</text>
   <text key="status_child_sessions_disabled">Les sessions enfants Windows sont désactivées. Un administrateur autorisé peut lancer EnableChildSessions.exe --enable-child-sessions.</text>

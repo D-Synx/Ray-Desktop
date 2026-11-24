@@ -163,7 +163,9 @@
   <text key="files_clipboard_changed">The clipboard changed. Copy the selection again and retry.</text>
   <text key="files_session_changed">The connection or its transfer permissions changed. Retry from the active local session.</text>
   <text key="files_shell_unavailable">Windows could not start the paste operation. Open the destination in Explorer to paste there?</text>
-  <text key="files_confirm">Copy {1} item(s) to {0}?&#10;&#10;Yes: keep both in case of a duplicate.&#10;No: skip duplicates.</text>
+  <text key="files_confirm">Copy {1} item(s) to {0}?</text>
+  <text key="files_keep_both">Keep both copies</text>
+  <text key="files_skip_duplicates">Skip duplicates</text>
   <text key="files_progress">Preparing copy…</text>
   <text key="files_done">Transfer finished. {0} copied, {1} skipped, {2} failed.</text>
   <text key="files_cancelled">Transfer canceled. {0} copied, {1} skipped, {2} failed.</text>
@@ -218,7 +220,7 @@
   <text key="tip_exit_fullscreen">Exit full screen</text>
   <text key="language_menu">Interface language</text>
   <text key="language_auto">Automatic (Windows language)</text>
-  <text key="language_saved">The language will change the next time you start RayXDesktop.</text>
+  <text key="language_saved">Your language preference was saved for the next launch. The --lang option takes precedence.</text>
   <text key="workspace_sessions">Sessions</text>
   <text key="gpu_ui_tier">Session panel header · WPF rendering capability: tier {0} (0 = software).</text>
   <text key="status_child_sessions_disabled">Windows Child Sessions are disabled. An authorized administrator can run EnableChildSessions.exe --enable-child-sessions.</text>

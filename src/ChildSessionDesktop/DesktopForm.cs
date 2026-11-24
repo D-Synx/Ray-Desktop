@@ -60,6 +60,7 @@ namespace ChildSessionDesktop
         private const int WM_EXITSIZEMOVE = 0x0232;
         private const int WM_HOTKEY = 0x0312;
         private const int WM_DISPLAYCHANGE = 0x007E;
+        private const int WM_DPICHANGED = 0x02E0;
         private const int SW_SHOWNORMAL = 1;
         private const uint VK_F11 = 0x7A;
         private const uint SWP_NOZORDER = 0x0004;
@@ -97,6 +98,9 @@ namespace ChildSessionDesktop
 
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr window);
 
         private readonly string connectionAccount;
         private readonly string connectionPassword;
@@ -208,6 +212,11 @@ namespace ChildSessionDesktop
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            if (sessions != null)
+            {
+                try { sessions.SetSidebarDpi((int)GetDpiForWindow(Handle)); }
+                catch (EntryPointNotFoundException) { sessions.SetSidebarDpi(DeviceDpi); }
+            }
             if (clipboardRelay != null && !ClipboardFileRelay.AddClipboardFormatListener(Handle))
                 Program.Log("Could not register the host-session clipboard listener; Windows error " + Marshal.GetLastWin32Error());
             if (!dynamicMode && !RegisterHotKey(Handle, 1, 0, VK_F11))
@@ -333,6 +342,8 @@ namespace ChildSessionDesktop
                 if (clipboardRelay != null && !localRdpClipboardActive) clipboardRelay.OnClipboardChanged();
             }
             base.WndProc(ref m);
+            if (m.Msg == WM_DPICHANGED && sessions != null)
+                sessions.SetSidebarDpi((int)(m.WParam.ToInt64() & 0xffff));
         }
 
         private void SyncRestoreRect()
@@ -757,6 +768,8 @@ namespace ChildSessionDesktop
         private ContextMenuStrip MenuInstance(ref ContextMenuStrip field)
         {
             if (field == null || field.IsDisposed) field = MakeToolbarMenu();
+            if (SystemInformation.HighContrast) field.RenderMode = ToolStripRenderMode.System;
+            else if (!(field.Renderer is ToolbarMenuRenderer)) field.Renderer = new ToolbarMenuRenderer();
             while (field.Items.Count > 0)
             {
                 ToolStripItem item = field.Items[0];

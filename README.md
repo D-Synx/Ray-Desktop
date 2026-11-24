@@ -21,7 +21,7 @@ La barre d’outils donne accès à l’affichage, à la résolution, aux transf
 
 ## Ce qui arrive dans la 1.6.0
 
-La **bêta 5** est disponible pour les essais sous Windows. Dans la compilation GitHub Actions ci-dessus, télécharge l’artefact Windows, puis extrais le ZIP portable qu’il contient.
+La **bêta 6** est disponible pour les essais sous Windows. Dans la compilation GitHub Actions ci-dessus, télécharge l’artefact Windows, puis extrais le ZIP portable qu’il contient.
 
 | Nouveauté | Ce que tu peux essayer |
 | --- | --- |

@@ -84,8 +84,10 @@ namespace ChildSessionDesktop
                     MessageBox.Show(Strings.T("msg_already_running"), "RayXDesktop", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                preferences.InitializeMissing();
-                Application.Run(new DesktopForm(preferences, dynamicMode, account, password));
+                var desktopPreferences = new DesktopPreferences();
+                if (explicitLanguage == null && desktopPreferences.Language != preferences.Language)
+                    Strings.SetLanguage(desktopPreferences.Language);
+                Application.Run(new DesktopForm(desktopPreferences, dynamicMode, account, password));
             }
             catch (Exception ex)
             {
