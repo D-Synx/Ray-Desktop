@@ -19,10 +19,28 @@ jobs:
       - name: Run core regression tests
         shell: powershell
         run: .\tests\run-tests.ps1
+      - name: Detect the portable packaging script
+        id: packaging
+        shell: powershell
+        run: |
+          $available = (Test-Path -LiteralPath '.\maintenance\build-portable.ps1').ToString().ToLowerInvariant()
+          "available=$available" >> $env:GITHUB_OUTPUT
+      - name: Build and verify the Windows application
+        if: steps.packaging.outputs.available == 'false'
+        shell: powershell
+        run: |
+          .\build.ps1
+          $expectedFiles = @('Raydesktop.exe', 'EnableChildSessions.exe', 'MSTSCLib.dll', 'AxInterop.MSTSCLib.dll')
+          foreach ($name in $expectedFiles) {
+            $file = Get-Item -LiteralPath (Join-Path .\Raydesktop $name) -ErrorAction Stop
+            if ($file.Length -eq 0) { throw "Empty build output: $name" }
+          }
       - name: Test and package
+        if: steps.packaging.outputs.available == 'true'
         shell: powershell
         run: .\maintenance\build-portable.ps1
       - name: Verify the portable ZIP and visual identity
+        if: steps.packaging.outputs.available == 'true'
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -62,6 +80,7 @@ jobs:
           }
           Write-Host 'Verified the portable ZIP, SHA-256, version metadata, interface icon and banner.'
       - uses: actions/upload-artifact@v4
+        if: steps.packaging.outputs.available == 'true'
         with:
           name: RayXDesktop-Windows
           path: |
